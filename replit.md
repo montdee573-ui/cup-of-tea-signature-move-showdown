@@ -1,6 +1,6 @@
-# Signature Move Showdown
+# Viral Reel
 
-Public NBA-style signature move contest where athletes submit a move, attach proof details, and earn a place on a live C.O.R.E.-scored leaderboard.
+Free movie discovery app for finding legal, free-to-watch films worth sharing, with search, genre filters, watch links, and a personal list.
 
 ## Run & Operate
 
@@ -22,23 +22,21 @@ Public NBA-style signature move contest where athletes submit a move, attach pro
 
 ## Where things live
 
-- `artifacts/signature-move-showdown` — React/Vite public contest site with the board, submission flow, and entry details.
-- `artifacts/api-server/src/routes/contest.ts` — contest endpoints and seed benchmark entries.
-- `lib/api-spec/openapi.yaml` — source of truth for contest API contracts.
-- `lib/db/src/schema/contestants.ts` — PostgreSQL schema for contest entries.
+- `artifacts/signature-move-showdown` — React/Vite movie discovery site with curated free titles, search, filters, watch links, and a watchlist.
+- `artifacts/api-server` — shared API server; the movie catalog is intentionally client-curated for this first build.
 
 ## Architecture decisions
 
-- Contest submissions enter as `Active Submissions` with `Pending Check` and `Under Review`; scores are assigned during review rather than invented at intake.
-- The board is seeded with the benchmark and example entries from the contest brief so the first view demonstrates the judging model.
-- Video proof is currently tracked by filename and reference URL; binary file storage is intentionally separate from the contest record.
+- The first movie catalog uses direct links to free-to-watch source pages rather than copying or redistributing movie files.
+- The app does not require an account; saved titles are stored locally in the visitor's browser.
+- Availability can vary by region, so every watch action opens the source page instead of promising universal playback.
 
 ## Product
 
-- Public leaderboard sorted by overall fidelity.
-- Live contest stats for total entries, verified entries, average fidelity, and the move to beat.
-- Public submission form for handle, category, signature move, reference clip URL, and proof filename.
-- Entry detail pages with verification state, C.O.R.E. verdict, score, and evidence links.
+- Trending and free-tonight movie rows.
+- Genre filtering and title search.
+- Movie details with score, description, source link, and save-to-list action.
+- Mobile-friendly public browsing without sign-in.
 
 ## User preferences
 
