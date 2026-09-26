@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Signature Move Showdown"
+description = "A public NBA-style signature move contest where athletes submit video proof, receive C.O.R.E. fidelity scores, and compete for the top leaderboard."
+version = "1.0.0"
+id = "artifacts/signature-move-showdown"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24206
+
+[services.development]
+run = "pnpm --filter @workspace/signature-move-showdown run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/signature-move-showdown", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/signature-move-showdown/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24206"
+BASE_PATH = "/"

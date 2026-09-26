@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: contest
+    description: Signature Move Showdown contest operations
 paths:
   /healthz:
     get:
@@ -24,7 +26,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /contestants:
+    get:
+      operationId: listContestants
+      tags: [contest]
+      summary: List contest entries
+      responses:
+        "200":
+          description: Contest entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contestant"
+    post:
+      operationId: createContestant
+      tags: [contest]
+      summary: Submit a signature move
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContestantInput"
+      responses:
+        "201":
+          description: Contest entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contestant"
+        "400":
+          description: Invalid contest entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /contestants/{id}:
+    get:
+      operationId: getContestant
+      tags: [contest]
+      summary: Get a contest entry
+      parameters:
+        - $ref: "#/components/parameters/ContestantId"
+      responses:
+        "200":
+          description: Contest entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contestant"
+        "404":
+          description: Contestant not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /contest/summary:
+    get:
+      operationId: getContestSummary
+      tags: [contest]
+      summary: Get leaderboard summary
+      responses:
+        "200":
+          description: Contest summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContestSummary"
 components:
+  parameters:
+    ContestantId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +112,99 @@ components:
           type: string
       required:
         - status
+    Contestant:
+      type: object
+      properties:
+        id:
+          type: integer
+        group:
+          type: string
+        handle:
+          type: string
+        signatureMove:
+          type: string
+        category:
+          type: string
+        verificationStatus:
+          type: string
+          enum: [Verified Clean, Pending Check, Needs Proof]
+        coreVerdict:
+          type: string
+          enum: [Top Leaderboard, Challenge Cleared, Under Review, Not Cleared]
+        overallFidelity:
+          type: integer
+          minimum: 0
+          maximum: 100
+        referenceClipUrl:
+          type: ["string", "null"]
+        visualProofName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - group
+        - handle
+        - signatureMove
+        - category
+        - verificationStatus
+        - coreVerdict
+        - overallFidelity
+        - referenceClipUrl
+        - visualProofName
+        - createdAt
+    ContestantInput:
+      type: object
+      properties:
+        handle:
+          type: string
+          minLength: 2
+        signatureMove:
+          type: string
+          minLength: 2
+        category:
+          type: string
+          enum: [Male, Female, Open]
+        referenceClipUrl:
+          type: string
+          format: uri
+        visualProofName:
+          type: ["string", "null"]
+      required:
+        - handle
+        - signatureMove
+        - category
+        - referenceClipUrl
+    ContestSummary:
+      type: object
+      properties:
+        totalEntries:
+          type: integer
+        verifiedEntries:
+          type: integer
+        pendingEntries:
+          type: integer
+        averageFidelity:
+          type: integer
+        topMove:
+          type: string
+        leaderboard:
+          type: array
+          items:
+            $ref: "#/components/schemas/Contestant"
+      required:
+        - totalEntries
+        - verifiedEntries
+        - pendingEntries
+        - averageFidelity
+        - topMove
+        - leaderboard
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 

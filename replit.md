@@ -1,6 +1,6 @@
-# [Project name]
+# Signature Move Showdown
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Public NBA-style signature move contest where athletes submit a move, attach proof details, and earn a place on a live C.O.R.E.-scored leaderboard.
 
 ## Run & Operate
 
@@ -22,15 +22,23 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/signature-move-showdown` — React/Vite public contest site with the board, submission flow, and entry details.
+- `artifacts/api-server/src/routes/contest.ts` — contest endpoints and seed benchmark entries.
+- `lib/api-spec/openapi.yaml` — source of truth for contest API contracts.
+- `lib/db/src/schema/contestants.ts` — PostgreSQL schema for contest entries.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Contest submissions enter as `Active Submissions` with `Pending Check` and `Under Review`; scores are assigned during review rather than invented at intake.
+- The board is seeded with the benchmark and example entries from the contest brief so the first view demonstrates the judging model.
+- Video proof is currently tracked by filename and reference URL; binary file storage is intentionally separate from the contest record.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Public leaderboard sorted by overall fidelity.
+- Live contest stats for total entries, verified entries, average fidelity, and the move to beat.
+- Public submission form for handle, category, signature move, reference clip URL, and proof filename.
+- Entry detail pages with verification state, C.O.R.E. verdict, score, and evidence links.
 
 ## User preferences
 
