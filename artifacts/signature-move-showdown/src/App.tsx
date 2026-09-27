@@ -32,6 +32,8 @@ type Movie = {
   poster: string;
   accent: string;
   freeToWatch?: boolean;
+  availabilityGuide?: boolean;
+  watchLabel?: string;
 };
 
 const movies: Movie[] = [
@@ -169,7 +171,9 @@ const movies: Movie[] = [
     poster:
       'https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&w=900&q=85',
     accent: '#a62f45',
-    freeToWatch: false,
+    freeToWatch: true,
+    availabilityGuide: true,
+    watchLabel: 'View free options',
   },
   {
     id: 'scream-2',
@@ -185,7 +189,9 @@ const movies: Movie[] = [
     poster:
       'https://images.unsplash.com/photo-1515630278258-407f66498911?auto=format&fit=crop&w=900&q=85',
     accent: '#6f3f68',
-    freeToWatch: false,
+    freeToWatch: true,
+    availabilityGuide: true,
+    watchLabel: 'View free options',
   },
   {
     id: 'scream-3',
@@ -233,7 +239,9 @@ const movies: Movie[] = [
     poster:
       'https://images.unsplash.com/photo-1531259683007-016a7b628fc3?auto=format&fit=crop&w=900&q=85',
     accent: '#b44b37',
-    freeToWatch: false,
+    freeToWatch: true,
+    availabilityGuide: true,
+    watchLabel: 'View free options',
   },
   {
     id: 'scream-6',
@@ -338,6 +346,7 @@ function MovieCard({
         <div>
           <h3>{movie.title}</h3>
           <p>{movie.year} · {movie.genres[0]} · {movie.duration}</p>
+          {movie.availabilityGuide && <small className="availability-tag free-tag">FREE OPTIONS</small>}
           {movie.freeToWatch === false && <small className="availability-tag">WHERE TO WATCH</small>}
         </div>
         <div className="card-actions">
@@ -549,10 +558,10 @@ function App() {
               <div className="modal-genres">{selectedMovie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
               <p>{selectedMovie.description}</p>
               <div className="modal-actions">
-                <a className="button-primary" href={selectedMovie.watchUrl} target="_blank" rel="noreferrer"><Play size={15} fill="currentColor" /> {selectedMovie.freeToWatch === false ? 'Find where to watch' : 'Watch free'} <ExternalLink size={13} /></a>
+                <a className="button-primary" href={selectedMovie.watchUrl} target="_blank" rel="noreferrer"><Play size={15} fill="currentColor" /> {selectedMovie.watchLabel ?? (selectedMovie.freeToWatch === false ? 'Find where to watch' : 'Watch free')} <ExternalLink size={13} /></a>
                 <button className="button-ghost" onClick={() => toggleSaved(selectedMovie.id)}>{savedIds.includes(selectedMovie.id) ? <Check size={15} /> : <Bookmark size={15} />} {savedIds.includes(selectedMovie.id) ? 'Saved' : 'Save'}</button>
               </div>
-              <small className="source-note">{selectedMovie.freeToWatch === false ? 'Opens a legal availability guide in a new tab. Rental or subscription options may vary by region.' : 'Opens the free source in a new tab. No account required by Viral Reel.'}</small>
+              <small className="source-note">{selectedMovie.availabilityGuide ? 'Opens a legal availability guide with free options when available. Kanopy or Hoopla may require a participating library card; Pluto TV may include ads.' : selectedMovie.freeToWatch === false ? 'Opens a legal availability guide in a new tab. Rental or subscription options may vary by region.' : 'Opens the free source in a new tab. No account required by Viral Reel.'}</small>
             </div>
           </article>
         </div>
