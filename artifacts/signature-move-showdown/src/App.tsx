@@ -31,6 +31,7 @@ type Movie = {
   trailerUrl?: string;
   poster: string;
   accent: string;
+  freeToWatch?: boolean;
 };
 
 const movies: Movie[] = [
@@ -154,6 +155,102 @@ const movies: Movie[] = [
       'https://images.unsplash.com/photo-1446776877081-d282a0f896e2?auto=format&fit=crop&w=900&q=85',
     accent: '#3c8f91',
   },
+  {
+    id: 'scream',
+    title: 'Scream',
+    year: 1996,
+    genres: ['Horror', 'Mystery', 'Thriller'],
+    duration: '1h 51m',
+    score: 93,
+    label: 'Ghostface classic',
+    description:
+      'A masked killer turns horror movie rules into a deadly game in the sharp, self-aware Woodsboro original.',
+    watchUrl: 'https://www.justwatch.com/us/movie/scream',
+    poster:
+      'https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&w=900&q=85',
+    accent: '#a62f45',
+    freeToWatch: false,
+  },
+  {
+    id: 'scream-2',
+    title: 'Scream 2',
+    year: 1997,
+    genres: ['Horror', 'Mystery', 'Thriller'],
+    duration: '2h',
+    score: 87,
+    label: 'Campus sequel',
+    description:
+      'Sidney tries to rebuild her life at college while a new Ghostface turns the sequel into the scene of the crime.',
+    watchUrl: 'https://www.justwatch.com/us/movie/scream-2',
+    poster:
+      'https://images.unsplash.com/photo-1515630278258-407f66498911?auto=format&fit=crop&w=900&q=85',
+    accent: '#6f3f68',
+    freeToWatch: false,
+  },
+  {
+    id: 'scream-3',
+    title: 'Scream 3',
+    year: 2000,
+    genres: ['Horror', 'Mystery', 'Thriller'],
+    duration: '1h 56m',
+    score: 75,
+    label: 'Hollywood chapter',
+    description:
+      'The survivors head to a movie set in Hollywood, where the rules of the franchise get dangerously personal.',
+    watchUrl: 'https://www.justwatch.com/us/movie/scream-3',
+    poster:
+      'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=85',
+    accent: '#374b68',
+    freeToWatch: false,
+  },
+  {
+    id: 'scream-4',
+    title: 'Scream 4',
+    year: 2011,
+    genres: ['Horror', 'Mystery', 'Thriller'],
+    duration: '1h 51m',
+    score: 82,
+    label: 'Requel energy',
+    description:
+      'A return to Woodsboro brings a new generation, a new killer, and a very familiar set of rules.',
+    watchUrl: 'https://www.justwatch.com/us/movie/scream-4',
+    poster:
+      'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=900&q=85',
+    accent: '#a64255',
+    freeToWatch: false,
+  },
+  {
+    id: 'scream-2022',
+    title: 'Scream',
+    year: 2022,
+    genres: ['Horror', 'Mystery', 'Thriller'],
+    duration: '1h 54m',
+    score: 84,
+    label: 'Legacy sequel',
+    description:
+      'A new Ghostface brings the original survivors back to Woodsboro for a brutal update of the rules.',
+    watchUrl: 'https://www.justwatch.com/us/movie/scream-2022',
+    poster:
+      'https://images.unsplash.com/photo-1531259683007-016a7b628fc3?auto=format&fit=crop&w=900&q=85',
+    accent: '#b44b37',
+    freeToWatch: false,
+  },
+  {
+    id: 'scream-6',
+    title: 'Scream VI',
+    year: 2023,
+    genres: ['Horror', 'Mystery', 'Thriller'],
+    duration: '2h 3m',
+    score: 86,
+    label: 'City of terror',
+    description:
+      'The survivors leave Woodsboro for New York, but Ghostface follows them into the biggest city and the darkest corners.',
+    watchUrl: 'https://www.justwatch.com/us/movie/scream-6',
+    poster:
+      'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=900&q=85',
+    accent: '#7f323c',
+    freeToWatch: false,
+  },
 ];
 
 const genres = ['All', 'Comedy', 'Horror', 'Mystery', 'Thriller', 'Romance', 'Sci-Fi'];
@@ -187,6 +284,13 @@ const curatedPlaylists: Playlist[] = [
     description: 'Three compact classics for one free hour.',
     movieIds: ['sherlock-jr', 'detour', 'plan-9'],
     accent: '#3c8f91',
+  },
+  {
+    id: 'scream-franchise',
+    name: 'Scream franchise',
+    description: 'Every Ghostface chapter, from Woodsboro to New York.',
+    movieIds: ['scream', 'scream-2', 'scream-3', 'scream-4', 'scream-2022', 'scream-6'],
+    accent: '#a62f45',
   },
 ];
 
@@ -234,6 +338,7 @@ function MovieCard({
         <div>
           <h3>{movie.title}</h3>
           <p>{movie.year} · {movie.genres[0]} · {movie.duration}</p>
+          {movie.freeToWatch === false && <small className="availability-tag">WHERE TO WATCH</small>}
         </div>
         <div className="card-actions">
           <button
@@ -381,7 +486,7 @@ function App() {
           <div className="hero-content">
             <div className="hero-tag"><Flame size={14} fill="currentColor" /> WHAT EVERYONE IS WATCHING</div>
             <h1>Good movies.<br /><span>Zero rent.</span></h1>
-            <p>Free, legal movies worth texting your group chat about. No sign-up. No paywall. Just press play.</p>
+            <p>Free picks and legal watch guides worth texting your group chat about. No sign-up. No paywall. Just press play.</p>
             <div className="hero-buttons">
               <a className="button-primary" href={movies[0].watchUrl} target="_blank" rel="noreferrer"><Play size={15} fill="currentColor" /> Watch free</a>
               <button className="button-ghost" onClick={openFirstFree}>Browse the reel <ChevronRight size={15} /></button>
@@ -418,7 +523,7 @@ function App() {
                 <div className="movie-grid">{movies.slice(0, 4).map((movie) => <MovieCard key={movie.id} movie={movie} saved={savedIds.includes(movie.id)} onOpen={setSelectedMovie} onToggleSaved={toggleSaved} />)}</div>
               </section>
               <section className="catalog-section" id="free-tonight">
-                <SectionTitle eyebrow={activeGenre === 'All' ? 'No subscription required' : `${activeGenre} picks`} title="Free tonight" />
+                <SectionTitle eyebrow={activeGenre === 'All' ? 'Free picks + legal watch guides' : `${activeGenre} picks`} title="Browse the reel" />
                 {filteredMovies.length === 0 ? <div className="empty-list"><Search size={27} /><h3>No movies found.</h3><p>Try another title or genre.</p></div> : <div className="movie-grid">{filteredMovies.map((movie) => <MovieCard key={movie.id} movie={movie} saved={savedIds.includes(movie.id)} onOpen={setSelectedMovie} onToggleSaved={toggleSaved} />)}</div>}
               </section>
             </>
@@ -428,7 +533,7 @@ function App() {
 
       <footer className="movie-footer">
         <div className="movie-brand"><span className="brand-icon"><Clapperboard size={17} /></span><span>VIRAL <em>REEL</em></span></div>
-        <p>Free movies from free-to-watch sources. Availability can change by region.</p>
+        <p>Free movies plus legal availability guides. Sources can change by region.</p>
         <span>Made for movie people.</span>
       </footer>
 
@@ -444,10 +549,10 @@ function App() {
               <div className="modal-genres">{selectedMovie.genres.map((genre) => <span key={genre}>{genre}</span>)}</div>
               <p>{selectedMovie.description}</p>
               <div className="modal-actions">
-                <a className="button-primary" href={selectedMovie.watchUrl} target="_blank" rel="noreferrer"><Play size={15} fill="currentColor" /> Watch free <ExternalLink size={13} /></a>
+                <a className="button-primary" href={selectedMovie.watchUrl} target="_blank" rel="noreferrer"><Play size={15} fill="currentColor" /> {selectedMovie.freeToWatch === false ? 'Find where to watch' : 'Watch free'} <ExternalLink size={13} /></a>
                 <button className="button-ghost" onClick={() => toggleSaved(selectedMovie.id)}>{savedIds.includes(selectedMovie.id) ? <Check size={15} /> : <Bookmark size={15} />} {savedIds.includes(selectedMovie.id) ? 'Saved' : 'Save'}</button>
               </div>
-              <small className="source-note">Opens the free source in a new tab. No account required by Viral Reel.</small>
+              <small className="source-note">{selectedMovie.freeToWatch === false ? 'Opens a legal availability guide in a new tab. Rental or subscription options may vary by region.' : 'Opens the free source in a new tab. No account required by Viral Reel.'}</small>
             </div>
           </article>
         </div>

@@ -100,6 +100,7 @@ h1, h2, h3, p { margin-top: 0; }
 .movie-card-meta { display: flex; align-items: start; justify-content: space-between; gap: 8px; padding-top: 13px; }
 .movie-card h3 { margin: 0 0 5px; color: var(--ink); font-size: 13px; line-height: 1.2; }
 .movie-card p { margin: 0; color: #777872; font: 10px var(--app-font-mono); }
+.availability-tag { display: block; margin-top: 6px; color: var(--red); font: 8px var(--app-font-mono); letter-spacing: .08em; }
 .card-actions { display: flex; align-items: center; gap: 5px; }
 .save-button { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--ink-dim); }
 .save-button:hover, .save-button.saved { border-color: var(--acid); color: var(--acid); }
