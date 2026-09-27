@@ -8,6 +8,9 @@ import {
   ExternalLink,
   Film,
   Flame,
+  ArrowDown,
+  ArrowUp,
+  ListVideo,
   Play,
   Search,
   Sparkles,
@@ -155,6 +158,38 @@ const movies: Movie[] = [
 
 const genres = ['All', 'Comedy', 'Horror', 'Mystery', 'Thriller', 'Romance', 'Sci-Fi'];
 
+type Playlist = {
+  id: string;
+  name: string;
+  description: string;
+  movieIds: string[];
+  accent: string;
+};
+
+const curatedPlaylists: Playlist[] = [
+  {
+    id: 'late-night-legends',
+    name: 'Late-night legends',
+    description: 'Shadowy mysteries and after-dark favorites.',
+    movieIds: ['charade', 'detour', 'caligari'],
+    accent: '#7c4b89',
+  },
+  {
+    id: 'laughs-after-dark',
+    name: 'Laughs after dark',
+    description: 'Fast jokes, big chases, zero homework.',
+    movieIds: ['his-girl-friday', 'the-general', 'sherlock-jr'],
+    accent: '#c28b4d',
+  },
+  {
+    id: 'short-sharp',
+    name: 'Short & sharp',
+    description: 'Three compact classics for one free hour.',
+    movieIds: ['sherlock-jr', 'detour', 'plan-9'],
+    accent: '#3c8f91',
+  },
+];
+
 function Poster({ movie, large = false }: { movie: Movie; large?: boolean }) {
   return (
     <div
@@ -177,11 +212,17 @@ function MovieCard({
   saved,
   onOpen,
   onToggleSaved,
+  onMove,
+  canMoveUp = false,
+  canMoveDown = false,
 }: {
   movie: Movie;
   saved: boolean;
   onOpen: (movie: Movie) => void;
   onToggleSaved: (id: string) => void;
+  onMove?: (id: string, direction: 'up' | 'down') => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }) {
   return (
     <article className="movie-card">
@@ -194,15 +235,45 @@ function MovieCard({
           <h3>{movie.title}</h3>
           <p>{movie.year} · {movie.genres[0]} · {movie.duration}</p>
         </div>
-        <button
-          className={`save-button ${saved ? 'saved' : ''}`}
-          onClick={() => onToggleSaved(movie.id)}
-          aria-label={saved ? `Remove ${movie.title} from My List` : `Save ${movie.title} to My List`}
-        >
-          {saved ? <Check size={15} /> : <Bookmark size={15} />}
-        </button>
+        <div className="card-actions">
+          <button
+            className={`save-button ${saved ? 'saved' : ''}`}
+            onClick={() => onToggleSaved(movie.id)}
+            aria-label={saved ? `Remove ${movie.title} from My List` : `Save ${movie.title} to My List`}
+          >
+            {saved ? <Check size={15} /> : <Bookmark size={15} />}
+          </button>
+          {onMove && (
+            <div className="queue-controls" aria-label={`Reorder ${movie.title}`}>
+              <button type="button" onClick={() => onMove(movie.id, 'up')} disabled={!canMoveUp} aria-label={`Move ${movie.title} up`}>
+                <ArrowUp size={12} />
+              </button>
+              <button type="button" onClick={() => onMove(movie.id, 'down')} disabled={!canMoveDown} aria-label={`Move ${movie.title} down`}>
+                <ArrowDown size={12} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </article>
+  );
+}
+
+function PlaylistCard({ playlist, onOpen }: { playlist: Playlist; onOpen: (id: string) => void }) {
+  const previewMovies = playlist.movieIds.map((id) => movies.find((movie) => movie.id === id)).filter((movie): movie is Movie => Boolean(movie)).slice(0, 3);
+
+  return (
+    <button className="playlist-card" onClick={() => onOpen(playlist.id)} style={{ '--playlist-accent': playlist.accent } as CSSProperties}>
+      <div className="playlist-collage">
+        {previewMovies.map((movie) => <div key={movie.id} className="playlist-thumb" style={{ backgroundImage: `url("${movie.poster}")` }} />)}
+        <span className="playlist-count">{playlist.movieIds.length} films</span>
+      </div>
+      <div className="playlist-card-copy">
+        <strong>{playlist.name}</strong>
+        <span>{playlist.description}</span>
+      </div>
+      <ChevronRight className="playlist-arrow" size={16} />
+    </button>
   );
 }
 
@@ -226,7 +297,21 @@ function App() {
     }
   });
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
-  const [showList, setShowList] = useState(false);
+  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
+
+  const playlists = useMemo<Playlist[]>(() => [
+    {
+      id: 'my-list',
+      name: 'My playlist',
+      description: savedIds.length ? 'Your saved queue, ready for the next watch.' : 'Save films here to build your own queue.',
+      movieIds: savedIds,
+      accent: '#d8f24b',
+    },
+    ...curatedPlaylists,
+  ], [savedIds]);
+
+  const activePlaylist = playlists.find((playlist) => playlist.id === activePlaylistId);
+  const showList = activePlaylistId === 'my-list';
 
   const toggleSaved = (id: string) => {
     setSavedIds((current) => {
@@ -236,15 +321,39 @@ function App() {
     });
   };
 
+  const moveSaved = (id: string, direction: 'up' | 'down') => {
+    setSavedIds((current) => {
+      const index = current.indexOf(id);
+      const nextIndex = direction === 'up' ? index - 1 : index + 1;
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return current;
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      localStorage.setItem('viral-reel-list', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const openPlaylist = (id: string) => {
+    setActivePlaylistId(id);
+    setActiveGenre('All');
+    setQuery('');
+    window.setTimeout(() => document.getElementById('playlist-view')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
+
+  const clearPlaylist = () => setActivePlaylistId(null);
+
   const filteredMovies = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return movies.filter((movie) => {
+    const orderedMovies = showList
+      ? savedIds.map((id) => movies.find((movie) => movie.id === id)).filter((movie): movie is Movie => Boolean(movie))
+      : movies;
+    return orderedMovies.filter((movie) => {
       const matchesGenre = activeGenre === 'All' || movie.genres.includes(activeGenre);
       const matchesQuery = !normalized || `${movie.title} ${movie.genres.join(' ')}`.toLowerCase().includes(normalized);
-      const matchesList = !showList || savedIds.includes(movie.id);
-      return matchesGenre && matchesQuery && matchesList;
+      const matchesPlaylist = !activePlaylist || activePlaylist.movieIds.includes(movie.id);
+      return matchesGenre && matchesQuery && matchesPlaylist;
     });
-  }, [activeGenre, query, savedIds, showList]);
+  }, [activeGenre, activePlaylist, query, savedIds, showList]);
 
   const openFirstFree = () => document.getElementById('free-tonight')?.scrollIntoView({ behavior: 'smooth' });
 
@@ -258,7 +367,7 @@ function App() {
         <nav className="movie-nav" aria-label="Main navigation">
           <a href="#discover"><Compass size={15} /> Discover</a>
           <a href="#free-tonight"><Film size={15} /> Free tonight</a>
-          <button onClick={() => { setShowList(true); setActiveGenre('All'); setQuery(''); }}><Bookmark size={15} /> My list <span>{savedIds.length}</span></button>
+           <button onClick={() => openPlaylist('my-list')}><ListVideo size={15} /> My playlist <span>{savedIds.length}</span></button>
         </nav>
         <label className="search-box">
           <Search size={17} />
@@ -287,13 +396,20 @@ function App() {
 
         <section className="content" id="discover">
           <div className="category-row" aria-label="Filter by genre">
-            {genres.map((genre) => <button key={genre} className={activeGenre === genre && !showList ? 'active' : ''} onClick={() => { setActiveGenre(genre); setShowList(false); }}>{genre}</button>)}
+            {genres.map((genre) => <button key={genre} className={activeGenre === genre && !activePlaylistId ? 'active' : ''} onClick={() => { setActiveGenre(genre); clearPlaylist(); }}>{genre}</button>)}
           </div>
 
-          {showList ? (
+          <section className="playlist-section">
+            <SectionTitle eyebrow="Make a night of it" title="Playlists" />
+            <div className="playlist-grid">
+              {playlists.map((playlist) => <PlaylistCard key={playlist.id} playlist={playlist} onOpen={openPlaylist} />)}
+            </div>
+          </section>
+
+          {activePlaylistId ? (
             <section className="catalog-section">
-              <SectionTitle eyebrow="Saved for later" title="My list" onSeeAll={() => setShowList(false)} />
-              {filteredMovies.length === 0 ? <div className="empty-list"><Bookmark size={27} /><h3>Your list is empty.</h3><p>Save a movie and it’ll show up here.</p><button className="button-primary" onClick={() => setShowList(false)}>Browse movies</button></div> : <div className="movie-grid">{filteredMovies.map((movie) => <MovieCard key={movie.id} movie={movie} saved={savedIds.includes(movie.id)} onOpen={setSelectedMovie} onToggleSaved={toggleSaved} />)}</div>}
+              <SectionTitle eyebrow={showList ? 'Your watch queue' : 'Curated for tonight'} title={activePlaylist?.name ?? 'Playlist'} onSeeAll={clearPlaylist} />
+              {filteredMovies.length === 0 ? <div className="empty-list"><ListVideo size={27} /><h3>Your playlist is empty.</h3><p>Save a movie and it’ll show up in your queue.</p><button className="button-primary" onClick={clearPlaylist}>Browse movies</button></div> : <div className="movie-grid">{filteredMovies.map((movie, index) => <MovieCard key={movie.id} movie={movie} saved={savedIds.includes(movie.id)} onOpen={setSelectedMovie} onToggleSaved={toggleSaved} onMove={showList ? moveSaved : undefined} canMoveUp={index > 0} canMoveDown={index < filteredMovies.length - 1} />)}</div>}
             </section>
           ) : (
             <>

@@ -73,6 +73,18 @@ h1, h2, h3, p { margin-top: 0; }
 .category-row::-webkit-scrollbar { display: none; }
 .category-row button { flex: 0 0 auto; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--ink-dim); font-size: 11px; }
 .category-row button:hover, .category-row button.active { border-color: var(--acid); background: var(--acid); color: var(--night); }
+.playlist-section { margin-top: 4px; }
+.playlist-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.playlist-card { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: 13px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.025); color: var(--ink); text-align: left; transition: border-color .2s, transform .2s, background .2s; }
+.playlist-card:hover { border-color: var(--playlist-accent); background: rgba(255,255,255,.055); transform: translateY(-2px); }
+.playlist-collage { display: grid; grid-template-columns: repeat(3, 1fr); height: 70px; overflow: hidden; border-radius: 4px; position: relative; background: var(--playlist-accent); }
+.playlist-thumb { min-width: 0; background-position: center; background-size: cover; filter: saturate(.8); }
+.playlist-thumb + .playlist-thumb { border-left: 1px solid rgba(16,17,17,.45); }
+.playlist-count { position: absolute; right: 5px; bottom: 5px; padding: 3px 5px; border-radius: 3px; background: rgba(16,17,17,.82); color: var(--acid); font: 9px var(--app-font-mono); }
+.playlist-card-copy { display: grid; gap: 5px; min-width: 0; }
+.playlist-card-copy strong { overflow: hidden; font: 700 13px/1.1 var(--app-font-display); text-overflow: ellipsis; white-space: nowrap; }
+.playlist-card-copy span { color: var(--ink-dim); font-size: 10px; line-height: 1.35; }
+.playlist-arrow { color: var(--ink-dim); }
 .catalog-section { margin-top: 58px; }
 .section-title { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
 .section-title h2 { margin: 7px 0 0; font: 600 35px/.98 var(--app-font-display); letter-spacing: -.055em; }
@@ -88,8 +100,13 @@ h1, h2, h3, p { margin-top: 0; }
 .movie-card-meta { display: flex; align-items: start; justify-content: space-between; gap: 8px; padding-top: 13px; }
 .movie-card h3 { margin: 0 0 5px; color: var(--ink); font-size: 13px; line-height: 1.2; }
 .movie-card p { margin: 0; color: #777872; font: 10px var(--app-font-mono); }
+.card-actions { display: flex; align-items: center; gap: 5px; }
 .save-button { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--ink-dim); }
 .save-button:hover, .save-button.saved { border-color: var(--acid); color: var(--acid); }
+.queue-controls { display: flex; gap: 2px; }
+.queue-controls button { display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 3px; background: transparent; color: var(--ink-dim); }
+.queue-controls button:hover:not(:disabled) { border-color: var(--acid); color: var(--acid); }
+.queue-controls button:disabled { cursor: default; opacity: .28; }
 .empty-list { display: grid; place-items: center; gap: 9px; min-height: 260px; border: 1px dashed var(--line); border-radius: 5px; color: var(--ink-dim); text-align: center; }
 .empty-list svg { color: var(--acid); }
 .empty-list h3 { margin: 3px 0 0; color: var(--ink); font: 700 23px var(--app-font-display); }
@@ -124,6 +141,7 @@ h1, h2, h3, p { margin-top: 0; }
   .movie-hero { min-height: auto; padding: 65px 20px 72px; }
   .hero-feature { width: min(31vw, 240px); }
   .movie-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .playlist-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .content { padding-left: 20px; padding-right: 20px; }
   .movie-footer { padding-left: 20px; padding-right: 20px; }
 }
@@ -140,6 +158,7 @@ h1, h2, h3, p { margin-top: 0; }
   .hero-feature { width: min(55vw, 230px); margin: 58px 0 0 24%; }
   .poster-copy strong { font-size: 22px; }
   .movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 27px 12px; }
+  .playlist-grid { grid-template-columns: 1fr; }
   .section-title h2 { font-size: 29px; }
   .movie-footer { display: grid; justify-content: stretch; }
   .movie-footer p { order: 3; }
