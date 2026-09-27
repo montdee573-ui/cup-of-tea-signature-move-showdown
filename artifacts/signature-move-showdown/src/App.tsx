@@ -403,6 +403,7 @@ function SectionTitle({ eyebrow, title, onSeeAll }: { eyebrow: string; title: st
 function App() {
   const [query, setQuery] = useState('');
   const [activeGenre, setActiveGenre] = useState('All');
+  const [freeOnly, setFreeOnly] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('viral-reel-list') ?? '[]') as string[];
@@ -450,11 +451,19 @@ function App() {
   const openPlaylist = (id: string) => {
     setActivePlaylistId(id);
     setActiveGenre('All');
+    setFreeOnly(false);
     setQuery('');
     window.setTimeout(() => document.getElementById('playlist-view')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
 
   const clearPlaylist = () => setActivePlaylistId(null);
+  const showFreeMovies = () => {
+    setActivePlaylistId(null);
+    setActiveGenre('All');
+    setFreeOnly(true);
+    setQuery('');
+    window.setTimeout(() => document.getElementById('free-tonight')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
 
   const filteredMovies = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -465,9 +474,10 @@ function App() {
       const matchesGenre = activeGenre === 'All' || movie.genres.includes(activeGenre);
       const matchesQuery = !normalized || `${movie.title} ${movie.genres.join(' ')}`.toLowerCase().includes(normalized);
       const matchesPlaylist = !activePlaylist || activePlaylist.movieIds.includes(movie.id);
-      return matchesGenre && matchesQuery && matchesPlaylist;
+      const matchesFree = !freeOnly || movie.freeToWatch !== false;
+      return matchesGenre && matchesQuery && matchesPlaylist && matchesFree;
     });
-  }, [activeGenre, activePlaylist, query, savedIds, showList]);
+  }, [activeGenre, activePlaylist, freeOnly, query, savedIds, showList]);
 
   const openFirstFree = () => document.getElementById('free-tonight')?.scrollIntoView({ behavior: 'smooth' });
 
@@ -480,7 +490,7 @@ function App() {
         </a>
         <nav className="movie-nav" aria-label="Main navigation">
           <a href="#discover"><Compass size={15} /> Discover</a>
-          <a href="#free-tonight"><Film size={15} /> Free tonight</a>
+           <button onClick={showFreeMovies}><Film size={15} /> Free now</button>
            <button onClick={() => openPlaylist('my-list')}><ListVideo size={15} /> My playlist <span>{savedIds.length}</span></button>
         </nav>
         <label className="search-box">
@@ -510,7 +520,8 @@ function App() {
 
         <section className="content" id="discover">
           <div className="category-row" aria-label="Filter by genre">
-            {genres.map((genre) => <button key={genre} className={activeGenre === genre && !activePlaylistId ? 'active' : ''} onClick={() => { setActiveGenre(genre); clearPlaylist(); }}>{genre}</button>)}
+            <button className={freeOnly && !activePlaylistId ? 'active' : ''} onClick={showFreeMovies}>Free now</button>
+            {genres.map((genre) => <button key={genre} className={activeGenre === genre && !activePlaylistId && !freeOnly ? 'active' : ''} onClick={() => { setActiveGenre(genre); setFreeOnly(false); clearPlaylist(); }}>{genre}</button>)}
           </div>
 
           <section className="playlist-section">
@@ -532,8 +543,8 @@ function App() {
                 <div className="movie-grid">{movies.slice(0, 4).map((movie) => <MovieCard key={movie.id} movie={movie} saved={savedIds.includes(movie.id)} onOpen={setSelectedMovie} onToggleSaved={toggleSaved} />)}</div>
               </section>
               <section className="catalog-section" id="free-tonight">
-                <SectionTitle eyebrow={activeGenre === 'All' ? 'Free picks + legal watch guides' : `${activeGenre} picks`} title="Browse the reel" />
-                {filteredMovies.length === 0 ? <div className="empty-list"><Search size={27} /><h3>No movies found.</h3><p>Try another title or genre.</p></div> : <div className="movie-grid">{filteredMovies.map((movie) => <MovieCard key={movie.id} movie={movie} saved={savedIds.includes(movie.id)} onOpen={setSelectedMovie} onToggleSaved={toggleSaved} />)}</div>}
+                <SectionTitle eyebrow={freeOnly ? 'No account or subscription required' : activeGenre === 'All' ? 'Free picks + legal watch guides' : `${activeGenre} picks`} title={freeOnly ? 'Free now' : 'Browse the reel'} />
+                {filteredMovies.length === 0 ? <div className="empty-list"><Search size={27} /><h3>No free movies found.</h3><p>Try another title or browse the full reel.</p></div> : <div className="movie-grid">{filteredMovies.map((movie) => <MovieCard key={movie.id} movie={movie} saved={savedIds.includes(movie.id)} onOpen={setSelectedMovie} onToggleSaved={toggleSaved} />)}</div>}
               </section>
             </>
           )}
