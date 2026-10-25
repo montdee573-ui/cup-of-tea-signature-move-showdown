@@ -9,6 +9,42 @@ export interface HealthStatus {
   status: string;
 }
 
+export type MoveCardEra = typeof MoveCardEra[keyof typeof MoveCardEra];
+
+
+export const MoveCardEra = {
+  Classic: 'Classic',
+  Current: 'Current',
+} as const;
+
+export type MoveCardSourceType = typeof MoveCardSourceType[keyof typeof MoveCardSourceType];
+
+
+export const MoveCardSourceType = {
+  user_clip: 'user_clip',
+  official: 'official',
+} as const;
+
+export interface MoveCard {
+  id: number;
+  slug: string;
+  athleteName: string;
+  sport: string;
+  era: MoveCardEra;
+  team: string;
+  moveName: string;
+  tagline: string;
+  explanation: string;
+  cues: string[];
+  sourceType: MoveCardSourceType;
+  sourceLabel: string;
+  /** @nullable */
+  sourceUrl: string | null;
+  /** @nullable */
+  coverImageUrl: string | null;
+  createdAt: string;
+}
+
 export type ContestantVerificationStatus = typeof ContestantVerificationStatus[keyof typeof ContestantVerificationStatus];
 
 

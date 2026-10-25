@@ -14,3 +14,6 @@ export * from './contestantVerificationStatus';
 export * from './contestSummary';
 export * from './errorResponse';
 export * from './healthStatus';
+export * from './moveCard';
+export * from './moveCardEra';
+export * from './moveCardSourceType';

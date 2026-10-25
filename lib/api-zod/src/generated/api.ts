@@ -138,3 +138,55 @@ export const GetContestSummaryResponse = zod.object({
 })
 
 
+/**
+ * @summary List athlete move cards
+ */
+export const ListMoveCardsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "slug": zod.string(),
+  "athleteName": zod.string(),
+  "sport": zod.string(),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string(),
+  "moveName": zod.string(),
+  "tagline": zod.string(),
+  "explanation": zod.string(),
+  "cues": zod.array(zod.string()),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string(),
+  "sourceUrl": zod.string().url().nullable(),
+  "coverImageUrl": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListMoveCardsResponse = zod.array(ListMoveCardsResponseItem)
+
+
+/**
+ * @summary Get an athlete move card
+ */
+
+
+
+export const GetMoveCardParams = zod.object({
+  "slug": zod.coerce.string().min(1)
+})
+
+export const GetMoveCardResponse = zod.object({
+  "id": zod.number().int(),
+  "slug": zod.string(),
+  "athleteName": zod.string(),
+  "sport": zod.string(),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string(),
+  "moveName": zod.string(),
+  "tagline": zod.string(),
+  "explanation": zod.string(),
+  "cues": zod.array(zod.string()),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string(),
+  "sourceUrl": zod.string().url().nullable(),
+  "coverImageUrl": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+

@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: contest
     description: Signature Move Showdown contest operations
+  - name: athletes
+    description: Curated professional athlete signature-move cards
 paths:
   /healthz:
     get:
@@ -95,6 +97,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContestSummary"
+  /move-cards:
+    get:
+      operationId: listMoveCards
+      tags: [athletes]
+      summary: List athlete move cards
+      responses:
+        "200":
+          description: Curated athlete cards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MoveCard"
+  /move-cards/{slug}:
+    get:
+      operationId: getMoveCard
+      tags: [athletes]
+      summary: Get an athlete move card
+      parameters:
+        - $ref: "#/components/parameters/MoveCardSlug"
+      responses:
+        "200":
+          description: Athlete move card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveCard"
+        "404":
+          description: Move card not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   parameters:
     ContestantId:
@@ -104,6 +140,13 @@ components:
       schema:
         type: integer
         minimum: 1
+    MoveCardSlug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
   schemas:
     HealthStatus:
       type: object
@@ -112,6 +155,61 @@ components:
           type: string
       required:
         - status
+    MoveCard:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        athleteName:
+          type: string
+        sport:
+          type: string
+        era:
+          type: string
+          enum: [Classic, Current]
+        team:
+          type: string
+        moveName:
+          type: string
+        tagline:
+          type: string
+        explanation:
+          type: string
+        cues:
+          type: array
+          items:
+            type: string
+        sourceType:
+          type: string
+          enum: [user_clip, official]
+        sourceLabel:
+          type: string
+        sourceUrl:
+          type: ["string", "null"]
+          format: uri
+        coverImageUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - slug
+        - athleteName
+        - sport
+        - era
+        - team
+        - moveName
+        - tagline
+        - explanation
+        - cues
+        - sourceType
+        - sourceLabel
+        - sourceUrl
+        - coverImageUrl
+        - createdAt
     Contestant:
       type: object
       properties:

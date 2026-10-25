@@ -24,7 +24,8 @@ import type {
   Contestant,
   ContestantInput,
   ErrorResponse,
-  HealthStatus
+  HealthStatus,
+  MoveCard
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -439,6 +440,160 @@ export function useGetContestSummary<TData = Awaited<ReturnType<typeof getContes
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetContestSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMoveCardsUrl = () => {
+
+
+
+
+  return `/api/move-cards`
+}
+
+/**
+ * @summary List athlete move cards
+ */
+export const listMoveCards = async ( options?: Parameters<typeof customFetch>[1]): Promise<MoveCard[]> => {
+
+  return customFetch<MoveCard[]>(getListMoveCardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMoveCardsQueryKey = () => {
+    return [
+    `/api/move-cards`
+    ] as const;
+    }
+
+
+export const getListMoveCardsQueryOptions = <TData = Awaited<ReturnType<typeof listMoveCards>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMoveCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMoveCardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMoveCards>>> = ({ signal }) => listMoveCards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMoveCards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMoveCardsQueryResult = NonNullable<Awaited<ReturnType<typeof listMoveCards>>>
+export type ListMoveCardsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List athlete move cards
+ */
+
+export function useListMoveCards<TData = Awaited<ReturnType<typeof listMoveCards>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMoveCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMoveCardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMoveCardUrl = (slug: string,) => {
+
+
+
+
+  return `/api/move-cards/${slug}`
+}
+
+/**
+ * @summary Get an athlete move card
+ */
+export const getMoveCard = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<MoveCard> => {
+
+  return customFetch<MoveCard>(getGetMoveCardUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMoveCardQueryKey = (slug: string,) => {
+    return [
+    `/api/move-cards/${slug}`
+    ] as const;
+    }
+
+
+export const getGetMoveCardQueryOptions = <TData = Awaited<ReturnType<typeof getMoveCard>>, TError = ErrorType<ErrorResponse>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMoveCard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMoveCardQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMoveCard>>> = ({ signal }) => getMoveCard(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMoveCard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMoveCardQueryResult = NonNullable<Awaited<ReturnType<typeof getMoveCard>>>
+export type GetMoveCardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get an athlete move card
+ */
+
+export function useGetMoveCard<TData = Awaited<ReturnType<typeof getMoveCard>>, TError = ErrorType<ErrorResponse>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMoveCard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMoveCardQueryOptions(slug,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
