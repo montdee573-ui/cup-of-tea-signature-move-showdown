@@ -19,6 +19,7 @@ export * from './createStudioReelInputDurationSeconds';
 export * from './createStudioReelInputResolution';
 export * from './errorResponse';
 export * from './healthStatus';
+export * from './merchCatalogItem';
 export * from './moveCard';
 export * from './moveCardEra';
 export * from './moveCardSourceType';

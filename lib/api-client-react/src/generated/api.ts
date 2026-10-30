@@ -26,6 +26,7 @@ import type {
   CreateStudioReelInput,
   ErrorResponse,
   HealthStatus,
+  MerchCatalogItem,
   MoveCard,
   StudioLoginInput,
   StudioReel,
@@ -600,6 +601,84 @@ export function useGetMoveCard<TData = Awaited<ReturnType<typeof getMoveCard>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMoveCardQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMerchCatalogUrl = () => {
+
+
+
+
+  return `/api/merch/catalog`
+}
+
+/**
+ * Read-only catalog. Does not create or publish products.
+ * @summary List Printful products for planning
+ */
+export const listMerchCatalog = async ( options?: Parameters<typeof customFetch>[1]): Promise<MerchCatalogItem[]> => {
+
+  return customFetch<MerchCatalogItem[]>(getListMerchCatalogUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMerchCatalogQueryKey = () => {
+    return [
+    `/api/merch/catalog`
+    ] as const;
+    }
+
+
+export const getListMerchCatalogQueryOptions = <TData = Awaited<ReturnType<typeof listMerchCatalog>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMerchCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMerchCatalogQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMerchCatalog>>> = ({ signal }) => listMerchCatalog({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMerchCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMerchCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof listMerchCatalog>>>
+export type ListMerchCatalogQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List Printful products for planning
+ */
+
+export function useListMerchCatalog<TData = Awaited<ReturnType<typeof listMerchCatalog>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMerchCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMerchCatalogQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

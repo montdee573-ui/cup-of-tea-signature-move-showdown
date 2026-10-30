@@ -191,6 +191,20 @@ export const GetMoveCardResponse = zod.object({
 
 
 /**
+ * Read-only catalog. Does not create or publish products.
+ * @summary List Printful products for planning
+ */
+export const ListMerchCatalogResponseItem = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "type": zod.string().nullable(),
+  "variantCount": zod.number().int(),
+  "imageUrl": zod.string().nullable()
+})
+export const ListMerchCatalogResponse = zod.array(ListMerchCatalogResponseItem)
+
+
+/**
  * @summary Check studio owner session
  */
 export const GetStudioSessionResponse = zod.object({

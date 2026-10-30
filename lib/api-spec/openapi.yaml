@@ -16,6 +16,8 @@ tags:
     description: Curated professional athlete signature-move cards
   - name: studio
     description: Owner-protected AI reel production studio
+  - name: merch
+    description: Read-only Printful catalog for merchandise planning
 paths:
   /healthz:
     get:
@@ -129,6 +131,27 @@ paths:
                 $ref: "#/components/schemas/MoveCard"
         "404":
           description: Move card not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /merch/catalog:
+    get:
+      operationId: listMerchCatalog
+      tags: [merch]
+      summary: List Printful products for planning
+      description: Read-only catalog. Does not create or publish products.
+      responses:
+        "200":
+          description: Printful catalog items available for planning
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MerchCatalogItem"
+        "502":
+          description: Printful catalog is unavailable
           content:
             application/json:
               schema:
@@ -339,6 +362,20 @@ components:
         - sourceUrl
         - coverImageUrl
         - createdAt
+    MerchCatalogItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: ["string", "null"]
+        variantCount:
+          type: integer
+        imageUrl:
+          type: ["string", "null"]
+      required: [id, title, type, variantCount, imageUrl]
     Contestant:
       type: object
       properties:

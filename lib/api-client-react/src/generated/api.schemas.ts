@@ -45,6 +45,16 @@ export interface MoveCard {
   createdAt: string;
 }
 
+export interface MerchCatalogItem {
+  id: number;
+  title: string;
+  /** @nullable */
+  type: string | null;
+  variantCount: number;
+  /** @nullable */
+  imageUrl: string | null;
+}
+
 export type ContestantVerificationStatus = typeof ContestantVerificationStatus[keyof typeof ContestantVerificationStatus];
 
 

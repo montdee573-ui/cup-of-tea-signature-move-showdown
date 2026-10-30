@@ -25,6 +25,7 @@ import {
   useCreateStudioReel,
 } from '@workspace/api-client-react';
 import type { MoveCard, StudioReel } from '@workspace/api-client-react';
+import SubmissionBuilder from './pages/SubmissionBuilder';
 
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
@@ -44,6 +45,7 @@ function Shell({ children }: { children: ReactNode }) {
         <Link href="/" className={location === '/' ? 'nav-active' : ''} data-testid="link-discover"><Sparkles size={14} /> Discover</Link>
         {location === '/' ? <a href="#collection" data-testid="link-collection"><CircleDot size={14} /> The archive</a> : <Link href="/" data-testid="link-collection"><CircleDot size={14} /> The archive</Link>}
         <Link href="/launch" className={location === '/launch' ? 'nav-active' : ''} data-testid="link-launch"><Megaphone size={14} /> Launch</Link>
+        <Link href="/submit" className={location === '/submit' ? 'nav-active' : ''} data-testid="link-submit-move"><Zap size={14} /> Submit a move</Link>
       </nav>
       <span className="public-label"><span /> OPEN ARCHIVE · NO LOGIN</span>
     </header>
@@ -408,7 +410,7 @@ function Launch() {
       <Studio />
 
       <section className="production-strip" data-testid="text-production-notes">
-        <div className="production-heading"><span className="launch-label">IN THE EDIT SUITE</span><h2>Assets received.<br /><em>Ready for the cut.</em></h2></div>
+        <div className="production-heading"><span className="launch-label">IN THE EDIT SUITE</span><h2>Clip-based drafts ready.<br /><em>AI generation awaits approval.</em></h2></div>
         <div className="production-assets"><div><span className="asset-count">02</span><p>Vertical edits<br /><b>34.1 sec · 720 × 1280</b></p></div><div><span className="asset-count">01</span><p>Landscape clip<br /><b>10.1 sec · 1920 × 1080</b></p></div></div>
         <p className="date-note">Refresh any on-screen dates before publishing. Do not reuse the expired date shown in the older vertical edit.</p>
       </section>
@@ -425,6 +427,7 @@ export default function App() {
     <Route path="/" component={Collection} />
     <Route path="/cards/:slug" component={Detail} />
     <Route path="/launch" component={Launch} />
+    <Route path="/submit" component={SubmissionBuilder} />
     <Route component={NotFound} />
   </Switch>;
 }
