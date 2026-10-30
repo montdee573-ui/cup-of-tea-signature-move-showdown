@@ -137,6 +137,184 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /community-cards:
+    get:
+      operationId: listCommunityCards
+      tags: [submissions]
+      summary: List approved participant cards
+      responses:
+        "200":
+          description: Approved entries published in the community archive
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommunityCard"
+  /community-cards/{id}:
+    get:
+      operationId: getCommunityCard
+      tags: [submissions]
+      summary: Get an approved participant card
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Approved participant card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityCard"
+        "404":
+          description: Approved card not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /community-cards/{id}/video:
+    get:
+      operationId: getCommunityCardVideo
+      tags: [submissions]
+      summary: Stream an approved participant video
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Approved video content
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+            video/webm:
+              schema:
+                type: string
+                format: binary
+            video/quicktime:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Approved video not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /showdowns:
+    get:
+      operationId: listShowdowns
+      tags: [contest]
+      summary: List free community matchups and results
+      parameters:
+        - name: voterToken
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Matchups with current vote counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Showdown"
+    post:
+      operationId: createShowdown
+      tags: [contest]
+      summary: Create a free matchup from approved cards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShowdownInput"
+      responses:
+        "201":
+          description: Matchup created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Showdown"
+        "400":
+          description: Invalid card pairing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: This matchup already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Matchup creation rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /showdowns/{id}/votes:
+    post:
+      operationId: voteOnShowdown
+      tags: [contest]
+      summary: Cast one free vote in a matchup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShowdownVoteInput"
+      responses:
+        "200":
+          description: Vote accepted with updated results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShowdownResults"
+        "400":
+          description: Invalid vote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Matchup not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: This voter has already voted in this matchup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Voting rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /merch/catalog:
     get:
       operationId: listMerchCatalog
@@ -457,6 +635,13 @@ components:
       schema:
         type: string
         minLength: 1
+    ShowdownId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
   schemas:
     HealthStatus:
       type: object
@@ -576,6 +761,110 @@ components:
         - referenceClipUrl
         - visualProofName
         - createdAt
+    CommunityCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        handle:
+          type: string
+        sport:
+          type: string
+        category:
+          type: string
+        moveName:
+          type: string
+        team:
+          type: ["string", "null"]
+        design:
+          type: string
+          enum: [holo, court]
+        createdAt:
+          type: string
+          format: date-time
+        videoUrl:
+          type: string
+      required: [id, displayName, handle, sport, category, moveName, team, design, createdAt, videoUrl]
+    ShowdownCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        handle:
+          type: string
+        sport:
+          type: string
+        moveName:
+          type: string
+        team:
+          type: ["string", "null"]
+        videoUrl:
+          type: string
+      required: [id, displayName, handle, sport, moveName, team, videoUrl]
+    Showdown:
+      type: object
+      properties:
+        id:
+          type: integer
+        mode:
+          type: string
+          enum: [sport, exhibition]
+        left:
+          $ref: "#/components/schemas/ShowdownCard"
+        right:
+          $ref: "#/components/schemas/ShowdownCard"
+        leftVotes:
+          type: integer
+        rightVotes:
+          type: integer
+        myVoteEntryId:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, mode, left, right, leftVotes, rightVotes, myVoteEntryId, createdAt]
+    ShowdownResults:
+      type: object
+      properties:
+        showdownId:
+          type: integer
+        leftVotes:
+          type: integer
+        rightVotes:
+          type: integer
+        myVoteEntryId:
+          type: string
+          format: uuid
+      required: [showdownId, leftVotes, rightVotes, myVoteEntryId]
+    ShowdownInput:
+      type: object
+      properties:
+        firstEntryId:
+          type: string
+          format: uuid
+        secondEntryId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum: [sport, exhibition]
+      required: [firstEntryId, secondEntryId, mode]
+    ShowdownVoteInput:
+      type: object
+      properties:
+        entryId:
+          type: string
+          format: uuid
+        voterToken:
+          type: string
+          format: uuid
+      required: [entryId, voterToken]
     ContestantInput:
       type: object
       properties:

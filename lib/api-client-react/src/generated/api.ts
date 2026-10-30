@@ -20,17 +20,23 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CommunityCard,
   ContestSummary,
   Contestant,
   ContestantInput,
   CreateStudioReelInput,
   ErrorResponse,
   HealthStatus,
+  ListShowdownsParams,
   MerchCatalogItem,
   MoveCard,
   MoveSubmission,
   MoveSubmissionReceipt,
   MoveSubmissionReviewInput,
+  Showdown,
+  ShowdownInput,
+  ShowdownResults,
+  ShowdownVoteInput,
   StudioLoginInput,
   StudioReel,
   StudioReelsResponse,
@@ -615,6 +621,498 @@ export function useGetMoveCard<TData = Awaited<ReturnType<typeof getMoveCard>>, 
 
 
 
+
+export const getListCommunityCardsUrl = () => {
+
+
+
+
+  return `/api/community-cards`
+}
+
+/**
+ * @summary List approved participant cards
+ */
+export const listCommunityCards = async ( options?: Parameters<typeof customFetch>[1]): Promise<CommunityCard[]> => {
+
+  return customFetch<CommunityCard[]>(getListCommunityCardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCommunityCardsQueryKey = () => {
+    return [
+    `/api/community-cards`
+    ] as const;
+    }
+
+
+export const getListCommunityCardsQueryOptions = <TData = Awaited<ReturnType<typeof listCommunityCards>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCommunityCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCommunityCardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCommunityCards>>> = ({ signal }) => listCommunityCards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCommunityCards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCommunityCardsQueryResult = NonNullable<Awaited<ReturnType<typeof listCommunityCards>>>
+export type ListCommunityCardsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List approved participant cards
+ */
+
+export function useListCommunityCards<TData = Awaited<ReturnType<typeof listCommunityCards>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCommunityCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCommunityCardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCommunityCardUrl = (id: string,) => {
+
+
+
+
+  return `/api/community-cards/${id}`
+}
+
+/**
+ * @summary Get an approved participant card
+ */
+export const getCommunityCard = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<CommunityCard> => {
+
+  return customFetch<CommunityCard>(getGetCommunityCardUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommunityCardQueryKey = (id: string,) => {
+    return [
+    `/api/community-cards/${id}`
+    ] as const;
+    }
+
+
+export const getGetCommunityCardQueryOptions = <TData = Awaited<ReturnType<typeof getCommunityCard>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommunityCard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommunityCardQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommunityCard>>> = ({ signal }) => getCommunityCard(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommunityCard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommunityCardQueryResult = NonNullable<Awaited<ReturnType<typeof getCommunityCard>>>
+export type GetCommunityCardQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get an approved participant card
+ */
+
+export function useGetCommunityCard<TData = Awaited<ReturnType<typeof getCommunityCard>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommunityCard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommunityCardQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCommunityCardVideoUrl = (id: string,) => {
+
+
+
+
+  return `/api/community-cards/${id}/video`
+}
+
+/**
+ * @summary Stream an approved participant video
+ */
+export const getCommunityCardVideo = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetCommunityCardVideoUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommunityCardVideoQueryKey = (id: string,) => {
+    return [
+    `/api/community-cards/${id}/video`
+    ] as const;
+    }
+
+
+export const getGetCommunityCardVideoQueryOptions = <TData = Awaited<ReturnType<typeof getCommunityCardVideo>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommunityCardVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommunityCardVideoQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommunityCardVideo>>> = ({ signal }) => getCommunityCardVideo(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommunityCardVideo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommunityCardVideoQueryResult = NonNullable<Awaited<ReturnType<typeof getCommunityCardVideo>>>
+export type GetCommunityCardVideoQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Stream an approved participant video
+ */
+
+export function useGetCommunityCardVideo<TData = Awaited<ReturnType<typeof getCommunityCardVideo>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommunityCardVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommunityCardVideoQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListShowdownsUrl = (params: ListShowdownsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/showdowns?${stringifiedParams}` : `/api/showdowns`
+}
+
+/**
+ * @summary List free community matchups and results
+ */
+export const listShowdowns = async (params: ListShowdownsParams, options?: Parameters<typeof customFetch>[1]): Promise<Showdown[]> => {
+
+  return customFetch<Showdown[]>(getListShowdownsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListShowdownsQueryKey = (params?: ListShowdownsParams,) => {
+    return [
+    `/api/showdowns`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListShowdownsQueryOptions = <TData = Awaited<ReturnType<typeof listShowdowns>>, TError = ErrorType<unknown>>(params: ListShowdownsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listShowdowns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListShowdownsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listShowdowns>>> = ({ signal }) => listShowdowns(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listShowdowns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListShowdownsQueryResult = NonNullable<Awaited<ReturnType<typeof listShowdowns>>>
+export type ListShowdownsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List free community matchups and results
+ */
+
+export function useListShowdowns<TData = Awaited<ReturnType<typeof listShowdowns>>, TError = ErrorType<unknown>>(
+ params: ListShowdownsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listShowdowns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListShowdownsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateShowdownUrl = () => {
+
+
+
+
+  return `/api/showdowns`
+}
+
+/**
+ * @summary Create a free matchup from approved cards
+ */
+export const createShowdown = async (showdownInput: ShowdownInput, options?: Parameters<typeof customFetch>[1]): Promise<Showdown> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Showdown>(getCreateShowdownUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(showdownInput)
+  }
+);}
+
+
+
+
+
+export const getCreateShowdownMutationKey = () => ['createShowdown'] as const;
+
+export const getCreateShowdownMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createShowdown>>, TError,CreateShowdownMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createShowdown>>, TError,CreateShowdownMutationVariables, TContext> => {
+
+const mutationKey = getCreateShowdownMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createShowdown>>, CreateShowdownMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createShowdown(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateShowdownMutationResult = NonNullable<Awaited<ReturnType<typeof createShowdown>>>
+    export type CreateShowdownMutationBody = BodyType<ShowdownInput>
+    export type CreateShowdownMutationError = ErrorType<ErrorResponse>
+    export type CreateShowdownMutationVariables = {data: BodyType<ShowdownInput>}
+
+    /**
+ * @summary Create a free matchup from approved cards
+ */
+export const useCreateShowdown = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createShowdown>>, TError,CreateShowdownMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createShowdown>>,
+        TError,
+        CreateShowdownMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateShowdownMutationOptions(options));
+    }
+
+export const getVoteOnShowdownUrl = (id: number,) => {
+
+
+
+
+  return `/api/showdowns/${id}/votes`
+}
+
+/**
+ * @summary Cast one free vote in a matchup
+ */
+export const voteOnShowdown = async (id: number,
+    showdownVoteInput: ShowdownVoteInput, options?: Parameters<typeof customFetch>[1]): Promise<ShowdownResults> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ShowdownResults>(getVoteOnShowdownUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(showdownVoteInput)
+  }
+);}
+
+
+
+
+
+export const getVoteOnShowdownMutationKey = () => ['voteOnShowdown'] as const;
+
+export const getVoteOnShowdownMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voteOnShowdown>>, TError,VoteOnShowdownMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof voteOnShowdown>>, TError,VoteOnShowdownMutationVariables, TContext> => {
+
+const mutationKey = getVoteOnShowdownMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof voteOnShowdown>>, VoteOnShowdownMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  voteOnShowdown(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VoteOnShowdownMutationResult = NonNullable<Awaited<ReturnType<typeof voteOnShowdown>>>
+    export type VoteOnShowdownMutationBody = BodyType<ShowdownVoteInput>
+    export type VoteOnShowdownMutationError = ErrorType<ErrorResponse>
+    export type VoteOnShowdownMutationVariables = {id: number;data: BodyType<ShowdownVoteInput>}
+
+    /**
+ * @summary Cast one free vote in a matchup
+ */
+export const useVoteOnShowdown = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voteOnShowdown>>, TError,VoteOnShowdownMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof voteOnShowdown>>,
+        TError,
+        VoteOnShowdownMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVoteOnShowdownMutationOptions(options));
+    }
 
 export const getListMerchCatalogUrl = () => {
 

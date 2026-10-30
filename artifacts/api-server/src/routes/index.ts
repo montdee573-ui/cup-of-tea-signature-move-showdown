@@ -5,6 +5,8 @@ import moveCardsRouter from "./move-cards";
 import studioRouter from "./studio";
 import merchRouter from "./merch";
 import moveSubmissionsRouter from "./move-submissions";
+import communityCardsRouter from "./community-cards";
+import showdownsRouter from "./showdowns";
 
 const router: IRouter = Router();
 
@@ -14,5 +16,7 @@ router.use(moveCardsRouter);
 router.use(studioRouter);
 router.use(merchRouter);
 router.use(moveSubmissionsRouter);
+router.use(communityCardsRouter);
+router.use(showdownsRouter);
 
 export default router;

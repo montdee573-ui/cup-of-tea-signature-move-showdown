@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './communityCard';
+export * from './communityCardDesign';
 export * from './contestant';
 export * from './contestantCoreVerdict';
 export * from './contestantInput';
@@ -19,6 +21,7 @@ export * from './createStudioReelInputDurationSeconds';
 export * from './createStudioReelInputResolution';
 export * from './errorResponse';
 export * from './healthStatus';
+export * from './listShowdownsParams';
 export * from './merchCatalogItem';
 export * from './moveCard';
 export * from './moveCardEra';
@@ -33,6 +36,13 @@ export * from './moveSubmissionReceiptStatus';
 export * from './moveSubmissionReviewInput';
 export * from './moveSubmissionReviewInputStatus';
 export * from './moveSubmissionStatus';
+export * from './showdown';
+export * from './showdownCard';
+export * from './showdownInput';
+export * from './showdownInputMode';
+export * from './showdownMode';
+export * from './showdownResults';
+export * from './showdownVoteInput';
 export * from './studioLoginInput';
 export * from './studioReel';
 export * from './studioReelsResponse';

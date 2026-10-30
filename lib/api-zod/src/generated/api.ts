@@ -191,6 +191,151 @@ export const GetMoveCardResponse = zod.object({
 
 
 /**
+ * @summary List approved participant cards
+ */
+export const ListCommunityCardsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "sport": zod.string(),
+  "category": zod.string(),
+  "moveName": zod.string(),
+  "team": zod.string().nullable(),
+  "design": zod.enum(['holo', 'court']),
+  "createdAt": zod.coerce.date(),
+  "videoUrl": zod.string()
+})
+export const ListCommunityCardsResponse = zod.array(ListCommunityCardsResponseItem)
+
+
+/**
+ * @summary Get an approved participant card
+ */
+export const GetCommunityCardParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetCommunityCardResponse = zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "sport": zod.string(),
+  "category": zod.string(),
+  "moveName": zod.string(),
+  "team": zod.string().nullable(),
+  "design": zod.enum(['holo', 'court']),
+  "createdAt": zod.coerce.date(),
+  "videoUrl": zod.string()
+})
+
+
+/**
+ * @summary Stream an approved participant video
+ */
+export const GetCommunityCardVideoParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetCommunityCardVideoResponse = zod.unknown()
+
+
+/**
+ * @summary List free community matchups and results
+ */
+export const ListShowdownsQueryParams = zod.object({
+  "voterToken": zod.coerce.string().uuid()
+})
+
+export const ListShowdownsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "mode": zod.enum(['sport', 'exhibition']),
+  "left": zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "sport": zod.string(),
+  "moveName": zod.string(),
+  "team": zod.string().nullable(),
+  "videoUrl": zod.string()
+}),
+  "right": zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "sport": zod.string(),
+  "moveName": zod.string(),
+  "team": zod.string().nullable(),
+  "videoUrl": zod.string()
+}),
+  "leftVotes": zod.number().int(),
+  "rightVotes": zod.number().int(),
+  "myVoteEntryId": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListShowdownsResponse = zod.array(ListShowdownsResponseItem)
+
+
+/**
+ * @summary Create a free matchup from approved cards
+ */
+export const CreateShowdownBody = zod.object({
+  "firstEntryId": zod.string().uuid(),
+  "secondEntryId": zod.string().uuid(),
+  "mode": zod.enum(['sport', 'exhibition'])
+})
+
+export const CreateShowdownResponse = zod.object({
+  "id": zod.number().int(),
+  "mode": zod.enum(['sport', 'exhibition']),
+  "left": zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "sport": zod.string(),
+  "moveName": zod.string(),
+  "team": zod.string().nullable(),
+  "videoUrl": zod.string()
+}),
+  "right": zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "sport": zod.string(),
+  "moveName": zod.string(),
+  "team": zod.string().nullable(),
+  "videoUrl": zod.string()
+}),
+  "leftVotes": zod.number().int(),
+  "rightVotes": zod.number().int(),
+  "myVoteEntryId": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Cast one free vote in a matchup
+ */
+
+
+
+export const VoteOnShowdownParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const VoteOnShowdownBody = zod.object({
+  "entryId": zod.string().uuid(),
+  "voterToken": zod.string().uuid()
+})
+
+export const VoteOnShowdownResponse = zod.object({
+  "showdownId": zod.number().int(),
+  "leftVotes": zod.number().int(),
+  "rightVotes": zod.number().int(),
+  "myVoteEntryId": zod.string().uuid()
+})
+
+
+/**
  * Read-only catalog. Does not create or publish products.
  * @summary List Printful products for planning
  */

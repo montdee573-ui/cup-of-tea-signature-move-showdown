@@ -1,4 +1,4 @@
 - [App Storage access checks](app-storage-access-checks.md) — Bucket metadata reads may be denied even when private object writes work; probe object access instead.
 - [Replicate model liveness](replicate-model-liveness.md) — A successful model metadata check does not prove its upstream generation endpoint is still active.
 - [Anonymous submissions](anonymous-submissions.md) — Participants must be able to submit without an account; keep public archive browsing open.
-- [POD merchandising scope](pod-merchandising-scope.md) — Prepare optional merch associations and POD fulfillment links; do not enable sales or checkout yet.
+- [POD merchandising scope](pod-merchandising-scope.md) — Keep sales off and ensure merchandise never affects free entry, votes, or contest outcomes.

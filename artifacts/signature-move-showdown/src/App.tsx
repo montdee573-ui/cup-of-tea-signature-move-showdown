@@ -12,8 +12,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetMoveCardQueryKey,
   getListMoveCardsQueryKey,
+  getListCommunityCardsQueryKey,
   useGetMoveCard,
   useListMoveCards,
+  useListCommunityCards,
   getGetStudioSessionQueryKey,
   getGetStudioSettingsQueryKey,
   getListStudioReelsQueryKey,
@@ -24,9 +26,11 @@ import {
   useListStudioReels,
   useCreateStudioReel,
 } from '@workspace/api-client-react';
-import type { MoveCard, StudioReel } from '@workspace/api-client-react';
+import type { CommunityCard, MoveCard, StudioReel } from '@workspace/api-client-react';
 import SubmissionBuilder from './pages/SubmissionBuilder';
 import SubmissionReview from './pages/SubmissionReview';
+import CommunityCardPage from './pages/CommunityCard';
+import Showdown from './pages/Showdown';
 
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
@@ -47,6 +51,7 @@ function Shell({ children }: { children: ReactNode }) {
         {location === '/' ? <a href="#collection" data-testid="link-collection"><CircleDot size={14} /> The archive</a> : <Link href="/" data-testid="link-collection"><CircleDot size={14} /> The archive</Link>}
         <Link href="/launch" className={location === '/launch' ? 'nav-active' : ''} data-testid="link-launch"><Megaphone size={14} /> Launch</Link>
         <Link href="/submit" className={location === '/submit' ? 'nav-active' : ''} data-testid="link-submit-move"><Zap size={14} /> Submit a move</Link>
+        <Link href="/showdown" className={location === '/showdown' ? 'nav-active' : ''} data-testid="link-showdown"><CircleDot size={14} /> Free showdown</Link>
         <Link href="/review" className={location === '/review' ? 'nav-active' : ''} data-testid="link-review-submissions"><LockKeyhole size={14} /> Review desk</Link>
       </nav>
       <span className="public-label"><span /> OPEN ARCHIVE · NO LOGIN</span>
@@ -60,14 +65,16 @@ function Shell({ children }: { children: ReactNode }) {
   </>;
 }
 
-function artStyle(card: MoveCard): CSSProperties {
+type CardArtData = Pick<MoveCard, 'athleteName' | 'sport' | 'moveName' | 'coverImageUrl'> & { era: string };
+
+function artStyle(card: CardArtData): CSSProperties {
   const image = card.coverImageUrl || (card.athleteName.toLowerCase().includes('kobe') ? kobeImage : '');
   return image
     ? { backgroundImage: `linear-gradient(180deg, transparent 34%, rgba(10,8,20,.9)), url("${image}")` }
     : { backgroundImage: `radial-gradient(ellipse at 75% 22%, rgba(238,75,242,.44), transparent 36%), linear-gradient(145deg, #132c40, #191127 55%, #090b15)` };
 }
 
-function CardArt({ card, large = false }: { card: MoveCard; large?: boolean }) {
+function CardArt({ card, large = false }: { card: CardArtData; large?: boolean }) {
   return <div className={`card-art ${large ? 'card-art-large' : ''}`} style={artStyle(card)}>
     <div className="art-grid" />
     {!card.coverImageUrl && !card.athleteName.toLowerCase().includes('kobe') && <span className="art-initials">{card.athleteName.split(' ').map((part) => part[0]).slice(0, 2).join('')}</span>}
@@ -91,12 +98,22 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   </div>;
 }
 
-function MoveTile({ card, index }: { card: MoveCard; index: number }) {
-  return <Link href={`/cards/${card.slug}`} className="move-tile" data-testid={`card-move-${card.slug}`}>
+type ArchiveTile = CardArtData & {
+  id: number | string;
+  slug: string;
+  href: string;
+  team: string;
+  tagline: string;
+  sourceType: 'official' | 'user_clip';
+  isCommunity: boolean;
+};
+
+function MoveTile({ card, index }: { card: ArchiveTile; index: number }) {
+  return <Link href={card.href} className="move-tile" data-testid={`card-move-${card.slug}`}>
     <CardArt card={card} />
     <div className="tile-meta">
       <span className="tile-index">{String(index + 1).padStart(2, '0')} / {card.era}</span>
-      <span className={`source-pill ${card.sourceType === 'user_clip' ? 'source-user' : ''}`}>{card.sourceType === 'user_clip' ? 'USER CLIP' : 'OFFICIAL SOURCE'}</span>
+      <span className={`source-pill ${card.sourceType === 'user_clip' ? 'source-user' : ''}`}>{card.isCommunity ? 'COMMUNITY ENTRY' : card.sourceType === 'user_clip' ? 'USER CLIP' : 'OFFICIAL SOURCE'}</span>
     </div>
     <h3>{card.athleteName}</h3>
     <p className="tile-move">{card.moveName}</p>
@@ -109,16 +126,53 @@ function Collection() {
   const { data: cards, isLoading, isError, refetch } = useListMoveCards({
     query: { queryKey: getListMoveCardsQueryKey() },
   });
+  const community = useListCommunityCards({
+    query: { queryKey: getListCommunityCardsQueryKey(), refetchOnMount: 'always' },
+  });
   const [search, setSearch] = useState('');
   const [era, setEra] = useState('All eras');
   const [source, setSource] = useState('All clips');
-  const filtered = useMemo(() => (cards ?? []).filter((card) => {
+  const [sport, setSport] = useState('All sports');
+  const [move, setMove] = useState('All moves');
+  const archiveCards = useMemo<ArchiveTile[]>(() => [
+    ...(cards ?? []).map((card) => ({
+      ...card,
+      id: card.id,
+      slug: card.slug,
+      href: `/cards/${card.slug}`,
+      isCommunity: false,
+    })),
+    ...(community.data ?? []).map((card: CommunityCard) => ({
+      id: card.id,
+      slug: `community-${card.id}`,
+      href: `/community-cards/${card.id}`,
+      athleteName: card.displayName,
+      sport: card.sport,
+      era: 'Community',
+      team: card.team ?? '',
+      moveName: card.moveName,
+      tagline: `${card.handle} · ${card.category}`,
+      coverImageUrl: null,
+      sourceType: 'user_clip' as const,
+      isCommunity: true,
+    })),
+  ], [cards, community.data]);
+  const sports = useMemo(() => [...new Set(archiveCards.map((card) => card.sport))].sort(), [archiveCards]);
+  const moves = useMemo(() => [...new Set(archiveCards
+    .filter((card) => sport === 'All sports' || card.sport === sport)
+    .map((card) => card.moveName))].sort(), [archiveCards, sport]);
+  const filtered = useMemo(() => archiveCards.filter((card) => {
     const term = search.toLowerCase().trim();
-    return (!term || `${card.athleteName} ${card.moveName} ${card.team} ${card.tagline}`.toLowerCase().includes(term))
+    return (!term || `${card.athleteName} ${card.moveName} ${card.sport} ${card.team} ${card.tagline}`.toLowerCase().includes(term))
       && (era === 'All eras' || card.era === era)
+      && (sport === 'All sports' || card.sport === sport)
+      && (move === 'All moves' || card.moveName === move)
       && (source === 'All clips' || card.sourceType === (source === 'Official sources' ? 'official' : 'user_clip'));
-  }), [cards, era, search, source]);
-  const featured = cards?.find((card) => card.athleteName.toLowerCase().includes('kobe')) ?? cards?.[0];
+  }), [archiveCards, era, move, search, source, sport]);
+  const featured = archiveCards.find((card) => card.athleteName.toLowerCase().includes('kobe')) ?? archiveCards[0];
+  const loading = isLoading || community.isLoading;
+  const archiveError = isError || community.isError;
+  const retryArchive = () => { void refetch(); void community.refetch(); };
 
   return <Shell>
     <main className="page">
@@ -145,20 +199,26 @@ function Collection() {
       <section className="archive" id="collection">
         <div className="archive-head">
           <div><div className="eyebrow"><Film size={12} /> THE COLLECTION</div><h2>Moves worth rewinding.</h2></div>
-          <span className="archive-count" data-testid="text-card-count">{cards?.length ?? 0} <small>CARDS</small></span>
+          <span className="archive-count" data-testid="text-card-count">{archiveCards.length} <small>CARDS</small></span>
         </div>
         <div className="filters">
           <label className="search-field"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a player or move..." aria-label="Search players and moves" data-testid="input-search" /></label>
-          <div className="filter-tabs" aria-label="Filter by era">{['All eras', 'Classic', 'Current'].map((item) =>
+          <div className="filter-tabs" aria-label="Filter by era">{['All eras', 'Classic', 'Current', 'Community'].map((item) =>
             <button key={item} className={era === item ? 'selected' : ''} onClick={() => setEra(item)} data-testid={`filter-era-${item.toLowerCase().replace(' ', '-')}`}>{item}</button>)}</div>
           <div className="filter-tabs source-tabs" aria-label="Filter by source">{['All clips', 'Official sources', 'User clips'].map((item) =>
             <button key={item} className={source === item ? 'selected' : ''} onClick={() => setSource(item)} data-testid={`filter-source-${item.toLowerCase().replace(' ', '-')}`}>{item}</button>)}</div>
+          <label className="archive-select">Sport<select value={sport} onChange={(event) => { setSport(event.target.value); setMove('All moves'); }} aria-label="Filter by sport" data-testid="filter-sport">
+            <option>All sports</option>{sports.map((item) => <option key={item}>{item}</option>)}
+          </select></label>
+          <label className="archive-select">Move<select value={moves.includes(move) ? move : 'All moves'} onChange={(event) => setMove(event.target.value)} aria-label="Filter by move" data-testid="filter-move">
+            <option>All moves</option>{moves.map((item) => <option key={item}>{item}</option>)}
+          </select></label>
         </div>
-        {isLoading ? <LoadingState /> : isError ? <ErrorState onRetry={() => void refetch()} /> :
-          !cards?.length ? <div className="state-panel empty-panel" data-testid="status-empty"><CircleDot size={27} /><h2>The archive is taking shape.</h2><p>New player cards will appear here as they’re added.</p></div> :
+        {loading ? <LoadingState /> : archiveError ? <ErrorState onRetry={retryArchive} /> :
+          !archiveCards.length ? <div className="state-panel empty-panel" data-testid="status-empty"><CircleDot size={27} /><h2>The archive is taking shape.</h2><p>Approved participant cards will join the collection here.</p></div> :
           filtered.length ? <div className="card-grid">{filtered.map((card, index) => <MoveTile key={card.id} card={card} index={index} />)}</div> :
-          <div className="state-panel empty-panel" data-testid="status-no-results"><Search size={25} /><h2>No plays found.</h2><p>Try a different player, move, era, or source.</p><button className="text-button" onClick={() => { setSearch(''); setEra('All eras'); setSource('All clips'); }} data-testid="button-clear-filters">Clear filters</button></div>}
-        <div className="collection-note"><span>01 — {String(cards?.length ?? 0).padStart(2, '0')}</span><p>Not every clip tells the whole story. Follow the source, then watch the feet.</p><span className="note-line" /></div>
+          <div className="state-panel empty-panel" data-testid="status-no-results"><Search size={25} /><h2>No plays found.</h2><p>Try a different player, sport, move, era, or source.</p><button className="text-button" onClick={() => { setSearch(''); setEra('All eras'); setSource('All clips'); setSport('All sports'); setMove('All moves'); }} data-testid="button-clear-filters">Clear filters</button></div>}
+        <div className="collection-note"><span>01 — {String(archiveCards.length).padStart(2, '0')}</span><p>Not every clip tells the whole story. Follow the source, then watch the feet.</p><span className="note-line" /></div>
       </section>
     </main>
   </Shell>;
@@ -428,6 +488,8 @@ export default function App() {
   return <Switch>
     <Route path="/" component={Collection} />
     <Route path="/cards/:slug" component={Detail} />
+    <Route path="/community-cards/:id" component={CommunityCardPage} />
+    <Route path="/showdown" component={Showdown} />
     <Route path="/launch" component={Launch} />
     <Route path="/submit" component={SubmissionBuilder} />
     <Route path="/review" component={SubmissionReview} />

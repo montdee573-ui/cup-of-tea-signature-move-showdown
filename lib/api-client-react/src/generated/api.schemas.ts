@@ -94,6 +94,85 @@ export interface Contestant {
   createdAt: string;
 }
 
+export type CommunityCardDesign = typeof CommunityCardDesign[keyof typeof CommunityCardDesign];
+
+
+export const CommunityCardDesign = {
+  holo: 'holo',
+  court: 'court',
+} as const;
+
+export interface CommunityCard {
+  id: string;
+  displayName: string;
+  handle: string;
+  sport: string;
+  category: string;
+  moveName: string;
+  /** @nullable */
+  team: string | null;
+  design: CommunityCardDesign;
+  createdAt: string;
+  videoUrl: string;
+}
+
+export interface ShowdownCard {
+  id: string;
+  displayName: string;
+  handle: string;
+  sport: string;
+  moveName: string;
+  /** @nullable */
+  team: string | null;
+  videoUrl: string;
+}
+
+export type ShowdownMode = typeof ShowdownMode[keyof typeof ShowdownMode];
+
+
+export const ShowdownMode = {
+  sport: 'sport',
+  exhibition: 'exhibition',
+} as const;
+
+export interface Showdown {
+  id: number;
+  mode: ShowdownMode;
+  left: ShowdownCard;
+  right: ShowdownCard;
+  leftVotes: number;
+  rightVotes: number;
+  /** @nullable */
+  myVoteEntryId: string | null;
+  createdAt: string;
+}
+
+export interface ShowdownResults {
+  showdownId: number;
+  leftVotes: number;
+  rightVotes: number;
+  myVoteEntryId: string;
+}
+
+export type ShowdownInputMode = typeof ShowdownInputMode[keyof typeof ShowdownInputMode];
+
+
+export const ShowdownInputMode = {
+  sport: 'sport',
+  exhibition: 'exhibition',
+} as const;
+
+export interface ShowdownInput {
+  firstEntryId: string;
+  secondEntryId: string;
+  mode: ShowdownInputMode;
+}
+
+export interface ShowdownVoteInput {
+  entryId: string;
+  voterToken: string;
+}
+
 export type ContestantInputCategory = typeof ContestantInputCategory[keyof typeof ContestantInputCategory];
 
 
@@ -342,4 +421,8 @@ export interface MoveSubmission {
   reviewedAt: string | null;
   videoUrl: string;
 }
+
+export type ListShowdownsParams = {
+voterToken: string;
+};
 
