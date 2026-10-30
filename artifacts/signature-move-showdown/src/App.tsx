@@ -3,8 +3,9 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Link, Route, Switch, useParams } from 'wouter';
 import {
   ArrowLeft, ArrowUpRight, CircleDot, ChevronRight, CircleAlert, Film,
-  Search, Sparkles, Timer, Zap,
+  Search, Sparkles, Timer, Zap, Megaphone, Copy, Check, ArrowRight, ShieldCheck,
 } from 'lucide-react';
+import { useLocation } from 'wouter';
 import {
   getGetMoveCardQueryKey,
   getListMoveCardsQueryKey,
@@ -23,12 +24,14 @@ function Brand() {
 }
 
 function Shell({ children }: { children: ReactNode }) {
+  const [location] = useLocation();
   return <>
     <header className="topbar">
       <Brand />
       <nav className="topnav" aria-label="Main navigation">
-        <Link href="/" className="nav-active" data-testid="link-discover"><Sparkles size={14} /> Discover</Link>
-        <a href="#collection" data-testid="link-collection"><CircleDot size={14} /> The archive</a>
+        <Link href="/" className={location === '/' ? 'nav-active' : ''} data-testid="link-discover"><Sparkles size={14} /> Discover</Link>
+        {location === '/' ? <a href="#collection" data-testid="link-collection"><CircleDot size={14} /> The archive</a> : <Link href="/" data-testid="link-collection"><CircleDot size={14} /> The archive</Link>}
+        <Link href="/launch" className={location === '/launch' ? 'nav-active' : ''} data-testid="link-launch"><Megaphone size={14} /> Launch</Link>
       </nav>
       <span className="public-label"><span /> OPEN ARCHIVE · NO LOGIN</span>
     </header>
@@ -187,10 +190,142 @@ function NotFound() {
   return <Shell><main className="detail-page"><div className="state-panel"><CircleAlert size={25} /><h2>Not in the playbook.</h2><p>This page doesn’t exist in the archive.</p><Link className="button-primary" href="/">Return to the archive</Link></div></main></Shell>;
 }
 
+const promoBriefs = [
+  {
+    number: '01',
+    title: 'The Challenge',
+    message: 'Your move deserves a card.',
+    caption: 'You’ve got a move people remember. Put it on the board, earn your card, and let the community see what makes it yours.',
+    cta: 'Invite your community to submit a move.',
+    mood: 'cyan',
+    direction: 'Open with a single move, then land on the card reveal.',
+  },
+  {
+    number: '02',
+    title: 'Get Your Card',
+    message: 'Submit your move. Become a card.',
+    caption: 'One signature move. One card that carries your name. Step into the Cup of Tea Signature Move Showdown and make your play count.',
+    cta: 'Share the invitation to submit.',
+    mood: 'violet',
+    direction: 'Make the card the payoff: movement first, identity second.',
+  },
+  {
+    number: '03',
+    title: 'Wear the Movement',
+    message: 'Rep your move. Wear your identity.',
+    caption: 'The move is the statement. We’re imagining ways to rep it beyond the screen—more on that in Phase 2.',
+    cta: 'Tease the idea; invite people to follow the campaign.',
+    mood: 'pink',
+    direction: 'Concept tease only. Merchandise is planned for Phase 2 and is not for sale.',
+    tease: true,
+  },
+  {
+    number: '04',
+    title: 'The Community',
+    message: 'Support. Vote. Make it legendary.',
+    caption: 'Every move has a story. Back the ones that move you, show up for the community, and help make this showdown legendary.',
+    cta: 'Invite people to support and vote when voting opens.',
+    mood: 'cyan',
+    direction: 'Build the crowd around the moves—not around a checkout.',
+  },
+  {
+    number: '05',
+    title: 'The Final Push',
+    message: 'Submit. Share. Join the showdown.',
+    caption: 'Your move deserves its moment. Submit it, share the challenge with your people, and join the Cup of Tea Signature Move Showdown.',
+    cta: 'Invite people to submit, share, and join.',
+    mood: 'violet',
+    direction: 'A clear three-beat close: submit your move, share the invite, join in.',
+  },
+];
+
+function Launch() {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copyCaption = async (id: string, text: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const field = document.createElement('textarea');
+        field.value = text;
+        field.style.position = 'fixed';
+        field.style.opacity = '0';
+        document.body.appendChild(field);
+        field.select();
+        const successful = document.execCommand('copy');
+        field.remove();
+        if (!successful) throw new Error('Clipboard copy unavailable');
+      }
+      setCopied(id);
+      window.setTimeout(() => setCopied((current) => current === id ? null : current), 1800);
+    } catch {
+      setCopied(null);
+    }
+  };
+
+  return <Shell>
+    <main className="launch-page">
+      <section className="launch-hero" data-testid="launch-campaign-overview">
+        <div className="launch-hero-grid" aria-hidden="true" />
+        <div className="launch-hero-content">
+          <div className="launch-kicker"><span className="launch-live-dot" /> PHASE 1 / CAMPAIGN PREP</div>
+          <h1>Cup of Tea<br /><em>Signature Move</em><br />Showdown<span className="launch-period">.</span></h1>
+          <p className="launch-deck">A move with your name on it. Five short-form reels to invite the community in—and give every signature its moment.</p>
+          <div className="launch-hero-actions">
+            <a className="launch-cta" href="#reel-briefs" data-testid="button-view-briefs">Explore the five briefs <ArrowRight size={15} /></a>
+            <span className="launch-no-login">FREE TO ENTER <b>·</b> FREE TO VOTE</span>
+          </div>
+        </div>
+        <div className="launch-mark" aria-hidden="true"><span>CT</span><i>SM</i><b>01—05</b></div>
+        <div className="launch-signal"><span>COMMUNITY<br />SHOWDOWN</span><span className="signal-lines"><i /><i /><i /><i /><i /></span></div>
+      </section>
+
+      <section className="launch-truth" aria-label="Important campaign information" data-testid="status-campaign-terms">
+        <div className="truth-icon"><ShieldCheck size={20} /></div>
+        <div className="truth-copy"><span className="launch-label">THE PROMISE</span><strong>Entry is free. Voting is free.</strong><p>Purchases never affect eligibility, votes, or winners. The POD provider and payment checkout are not connected yet.</p></div>
+        <div className="phase-planned"><span>PHASE 2</span><strong>PLANNED</strong><small>Merchandise is not live.</small></div>
+      </section>
+
+      <section className="brief-section" id="reel-briefs">
+        <header className="brief-heading">
+          <div><div className="launch-label"><Megaphone size={13} /> SHORT-FORM CAMPAIGN</div><h2>Five reels.<br /><em>One community.</em></h2></div>
+          <p>Ready-to-use creative direction for a vertical-first launch. Each brief carries the same clear promise: the community comes first.</p>
+        </header>
+        <div className="brief-list">
+          {promoBriefs.map((brief) => <article className={`brief-card brief-${brief.mood}`} key={brief.number} data-testid={`card-brief-${brief.number}`}>
+            <div className="brief-index"><span>{brief.number}</span><i /></div>
+            <div className="brief-main">
+              <div className="brief-title-row"><span className="brief-title">{brief.title}</span>{brief.tease && <span className="tease-tag">TEASE ONLY · PHASE 2</span>}</div>
+              <h3>“{brief.message}”</h3>
+              <div className="brief-detail-grid">
+                <div className="brief-detail"><span className="brief-detail-label">SOCIAL CAPTION</span><p data-testid={`text-caption-${brief.number}`}>{brief.caption}</p><button className="copy-caption" onClick={() => void copyCaption(brief.number, brief.caption)} data-testid={`button-copy-caption-${brief.number}`} aria-label={`Copy caption for ${brief.title}`}><span>{copied === brief.number ? 'Copied' : 'Copy caption'}</span>{copied === brief.number ? <Check size={14} /> : <Copy size={14} />}</button></div>
+                <div className="brief-detail brief-direction"><span className="brief-detail-label">TRUTHFUL CTA</span><p>{brief.cta}</p><span className="creative-note">{brief.direction}</span></div>
+              </div>
+              <div className="brief-footer"><span className="format-tag">9:16 VERTICAL</span><span>TIKTOK</span><span>INSTAGRAM REELS</span><span>YOUTUBE SHORTS</span></div>
+            </div>
+            <div className="brief-side-number" aria-hidden="true">{brief.number}</div>
+          </article>)}
+        </div>
+      </section>
+
+      <section className="production-strip" data-testid="text-production-notes">
+        <div className="production-heading"><span className="launch-label">IN THE EDIT SUITE</span><h2>Assets received.<br /><em>Ready for the cut.</em></h2></div>
+        <div className="production-assets"><div><span className="asset-count">02</span><p>Vertical edits<br /><b>34.1 sec · 720 × 1280</b></p></div><div><span className="asset-count">01</span><p>Landscape clip<br /><b>10.1 sec · 1920 × 1080</b></p></div></div>
+        <p className="date-note">Refresh any on-screen dates before publishing. Do not reuse the expired date shown in the older vertical edit.</p>
+      </section>
+
+      <footer className="launch-footer">
+        <span>THE MOVE IS YOURS.</span><span>THE SHOWDOWN IS OURS.</span><i>01 / 05 — PHASE 1</i>
+      </footer>
+    </main>
+  </Shell>;
+}
+
 export default function App() {
   return <Switch>
     <Route path="/" component={Collection} />
     <Route path="/cards/:slug" component={Detail} />
+    <Route path="/launch" component={Launch} />
     <Route component={NotFound} />
   </Switch>;
 }
