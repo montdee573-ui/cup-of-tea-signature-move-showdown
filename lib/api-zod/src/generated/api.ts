@@ -190,3 +190,125 @@ export const GetMoveCardResponse = zod.object({
 })
 
 
+/**
+ * @summary Check studio owner session
+ */
+export const GetStudioSessionResponse = zod.object({
+  "configured": zod.boolean(),
+  "authenticated": zod.boolean()
+})
+
+
+/**
+ * @summary Sign in to the reel studio
+ */
+
+
+
+export const CreateStudioSessionBody = zod.object({
+  "password": zod.string().min(1)
+})
+
+export const CreateStudioSessionResponse = zod.object({
+  "configured": zod.boolean(),
+  "authenticated": zod.boolean()
+})
+
+
+/**
+ * @summary Sign out of the reel studio
+ */
+export const DeleteStudioSessionResponse = zod.void()
+
+
+/**
+ * @summary Read model and output settings
+ */
+export const GetStudioSettingsResponse = zod.object({
+  "model": zod.string(),
+  "durationOptions": zod.array(zod.number().int()),
+  "aspectRatio": zod.string(),
+  "resolution": zod.string(),
+  "audioEnabled": zod.boolean(),
+  "costPerSecondUsd": zod.number(),
+  "storageReady": zod.boolean(),
+  "providerReady": zod.boolean(),
+  "firstTestPassed": zod.boolean(),
+  "canGenerate": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List generated reels and refresh active statuses
+ */
+export const ListStudioReelsResponse = zod.object({
+  "reels": zod.array(zod.object({
+  "id": zod.number().int(),
+  "briefId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['starting', 'processing', 'succeeded', 'failed', 'aborted']),
+  "model": zod.string(),
+  "durationSeconds": zod.number().int(),
+  "aspectRatio": zod.string(),
+  "resolution": zod.string(),
+  "audioEnabled": zod.boolean(),
+  "estimatedCostUsd": zod.number(),
+  "isTest": zod.boolean(),
+  "videoUrl": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "firstTestPassed": zod.boolean()
+})
+
+
+/**
+ * @summary Confirm and create a paid reel prediction
+ */
+export const createStudioReelBodyEstimatedCostUsdMin = 0.01;
+
+
+
+export const CreateStudioReelBody = zod.object({
+  "briefId": zod.enum(['performance', 'premium-card', 'card-showdown', 'enter-vote', 'merch-tease']),
+  "durationSeconds": zod.union([zod.literal(4),zod.literal(6),zod.literal(8)]),
+  "model": zod.string(),
+  "aspectRatio": zod.enum(['9:16']),
+  "resolution": zod.enum(['720p']),
+  "audioEnabled": zod.literal(true),
+  "estimatedCostUsd": zod.number().min(createStudioReelBodyEstimatedCostUsdMin),
+  "confirmCost": zod.literal(true)
+})
+
+export const CreateStudioReelResponse = zod.object({
+  "id": zod.number().int(),
+  "briefId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['starting', 'processing', 'succeeded', 'failed', 'aborted']),
+  "model": zod.string(),
+  "durationSeconds": zod.number().int(),
+  "aspectRatio": zod.string(),
+  "resolution": zod.string(),
+  "audioEnabled": zod.boolean(),
+  "estimatedCostUsd": zod.number(),
+  "isTest": zod.boolean(),
+  "videoUrl": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Stream a completed MP4 reel
+ */
+
+
+
+export const GetStudioReelVideoParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const GetStudioReelVideoResponse = zod.unknown()
+
+

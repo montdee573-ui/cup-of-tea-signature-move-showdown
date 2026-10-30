@@ -1,18 +1,30 @@
 import { useMemo, useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { Link, Route, Switch, useParams } from 'wouter';
 import {
   ArrowLeft, ArrowUpRight, CircleDot, ChevronRight, CircleAlert, Film,
   Search, Sparkles, Timer, Zap, Megaphone, Copy, Check, ArrowRight, ShieldCheck,
+  LockKeyhole, LogOut, Play, Download, RefreshCw, CircleCheck, AlertTriangle,
+  Video, Volume2, CreditCard, X,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetMoveCardQueryKey,
   getListMoveCardsQueryKey,
   useGetMoveCard,
   useListMoveCards,
+  getGetStudioSessionQueryKey,
+  getGetStudioSettingsQueryKey,
+  getListStudioReelsQueryKey,
+  useGetStudioSession,
+  useCreateStudioSession,
+  useDeleteStudioSession,
+  useGetStudioSettings,
+  useListStudioReels,
+  useCreateStudioReel,
 } from '@workspace/api-client-react';
-import type { MoveCard } from '@workspace/api-client-react';
+import type { MoveCard, StudioReel } from '@workspace/api-client-react';
 
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
@@ -191,53 +203,138 @@ function NotFound() {
 }
 
 const promoBriefs = [
-  {
-    number: '01',
-    title: 'The Challenge',
-    message: 'Your move deserves a card.',
-    caption: 'You’ve got a move people remember. Put it on the board, earn your card, and let the community see what makes it yours.',
-    cta: 'Invite your community to submit a move.',
-    mood: 'cyan',
-    direction: 'Open with a single move, then land on the card reveal.',
-  },
-  {
-    number: '02',
-    title: 'Get Your Card',
-    message: 'Submit your move. Become a card.',
-    caption: 'One signature move. One card that carries your name. Step into the Cup of Tea Signature Move Showdown and make your play count.',
-    cta: 'Share the invitation to submit.',
-    mood: 'violet',
-    direction: 'Make the card the payoff: movement first, identity second.',
-  },
-  {
-    number: '03',
-    title: 'Wear the Movement',
-    message: 'Rep your move. Wear your identity.',
-    caption: 'The move is the statement. We’re imagining ways to rep it beyond the screen—more on that in Phase 2.',
-    cta: 'Tease the idea; invite people to follow the campaign.',
-    mood: 'pink',
-    direction: 'Concept tease only. Merchandise is planned for Phase 2 and is not for sale.',
-    tease: true,
-  },
-  {
-    number: '04',
-    title: 'The Community',
-    message: 'Support. Vote. Make it legendary.',
-    caption: 'Every move has a story. Back the ones that move you, show up for the community, and help make this showdown legendary.',
-    cta: 'Invite people to support and vote when voting opens.',
-    mood: 'cyan',
-    direction: 'Build the crowd around the moves—not around a checkout.',
-  },
-  {
-    number: '05',
-    title: 'The Final Push',
-    message: 'Submit. Share. Join the showdown.',
-    caption: 'Your move deserves its moment. Submit it, share the challenge with your people, and join the Cup of Tea Signature Move Showdown.',
-    cta: 'Invite people to submit, share, and join.',
-    mood: 'violet',
-    direction: 'A clear three-beat close: submit your move, share the invite, join in.',
-  },
+  { number: '01', id: 'performance', title: 'Signature-move performance', message: 'One move. Pure expression.', caption: 'A signature move is a language of its own. Show the footwork, timing, and split-second choice behind an unforgettable play.', cta: 'Celebrate movement without depicting an identifiable athlete.', mood: 'cyan', direction: 'Generic, non-identifiable athlete only. No recognizable real person, likeness, or uniform.' },
+  { number: '02', id: 'premium-card', title: 'Premium trading card', message: 'Your move, made collectible.', caption: 'From a moment on the court to a card worth keeping. Bring a signature move into focus with a premium collectible concept.', cta: 'Invite the community to submit a move and earn a place in the archive.', mood: 'violet', direction: 'Showcase the card concept; do not imply a purchase is required to participate.' },
+  { number: '03', id: 'card-showdown', title: 'Card-versus-card showdown', message: 'Two cards. One community.', caption: 'Every card carries a different kind of brilliance. Compare the moves and get ready to back the one that moves you.', cta: 'Invite people to explore the archive and join the showdown.', mood: 'pink', direction: 'Frame the contest around the moves and community—not spending.' },
+  { number: '04', id: 'enter-vote', title: 'Free entry & voting', message: 'Show up. Vote. That’s the whole ticket.', caption: 'Bring your move to the Cup of Tea Signature Move Showdown. When voting opens, cast your vote and celebrate the community.', cta: 'Entry is free. Voting is free.', mood: 'cyan', direction: 'Purchases never affect eligibility, votes, or winners. No checkout or live payment.' },
+  { number: '05', id: 'merch-tease', title: 'Planned merchandise collection', message: 'The movement may travel further.', caption: 'We’re imagining ways to carry signature moves beyond the screen. A future collection is in the works—this is only a first look.', cta: 'Follow the campaign for future updates.', mood: 'violet', direction: 'Concept tease only. Planned for Phase 2; not for sale.', tease: true },
 ];
+
+const studioTargetModel = 'Google Veo 3.1 Fast on Replicate';
+const statusLabel: Record<StudioReel['status'], string> = { starting: 'Starting', processing: 'Processing', succeeded: 'Ready', failed: 'Failed', aborted: 'Stopped' };
+const costLabel = (amount: number) => `$${amount.toFixed(2)}`;
+
+function Studio() {
+  const queryClient = useQueryClient();
+  const session = useGetStudioSession({ query: { queryKey: getGetStudioSessionQueryKey(), retry: false } });
+  const settings = useGetStudioSettings({ query: { queryKey: getGetStudioSettingsQueryKey(), retry: false } });
+  const reels = useListStudioReels({
+    query: {
+      queryKey: getListStudioReelsQueryKey(),
+      retry: false,
+      refetchInterval: (query) => query.state.data?.reels.some((reel) => reel.status === 'starting' || reel.status === 'processing') ? 3500 : false,
+    },
+  });
+  const createSession = useCreateStudioSession();
+  const deleteSession = useDeleteStudioSession();
+  const createReel = useCreateStudioReel();
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [brief, setBrief] = useState<(typeof promoBriefs)[number] | null>(null);
+  const [duration, setDuration] = useState(4);
+  const [confirmCost, setConfirmCost] = useState(false);
+  const authenticated = Boolean(session.data?.authenticated);
+  const tested = Boolean(reels.data?.firstTestPassed || settings.data?.firstTestPassed);
+  const rate = settings.data?.costPerSecondUsd ?? 0.15;
+  const estimate = rate * duration;
+  const firstTestEstimate = rate * 4;
+  const model = settings.data?.model || studioTargetModel;
+  const ready = Boolean(authenticated && settings.data?.canGenerate && settings.data?.providerReady && settings.data?.storageReady);
+  const durationOptions = settings.data?.durationOptions?.length ? settings.data.durationOptions : [4, 6, 8];
+  const invalidateSession = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetStudioSessionQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetStudioSettingsQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getListStudioReelsQueryKey() });
+  };
+  const signIn = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoginError('');
+    createSession.mutate({ data: { password } }, {
+      onSuccess: () => { setPassword(''); invalidateSession(); },
+      onError: (error) => setLoginError(error instanceof Error ? error.message : 'Owner sign-in was not accepted.'),
+    });
+  };
+  const requestRun = (item: (typeof promoBriefs)[number]) => {
+    if (!ready || (!tested && item.id !== 'performance')) return;
+    setBrief(item);
+    setDuration(tested ? 6 : 4);
+    setConfirmCost(false);
+  };
+  const runConfirmed = () => {
+    if (!brief || !confirmCost || !ready) return;
+    const runDuration = tested ? duration : 4;
+    createReel.mutate({
+      data: {
+        briefId: brief.id as 'performance' | 'premium-card' | 'card-showdown' | 'enter-vote' | 'merch-tease',
+        durationSeconds: runDuration as 4 | 6 | 8,
+        model,
+        aspectRatio: '9:16',
+        resolution: '720p',
+        audioEnabled: true,
+        estimatedCostUsd: rate * runDuration,
+        confirmCost: true,
+      },
+    }, {
+      onSuccess: () => {
+        setBrief(null);
+        setConfirmCost(false);
+        void queryClient.invalidateQueries({ queryKey: getListStudioReelsQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getGetStudioSettingsQueryKey() });
+      },
+    });
+  };
+
+  return <section className="studio-section" id="studio" aria-labelledby="studio-heading" data-testid="studio-panel">
+    <header className="studio-heading">
+      <div><div className="launch-label"><Video size={13} /> PRIVATE PRODUCTION SUITE</div><h2 id="studio-heading">The reel<br /><em>studio.</em></h2><p>Owner-operated generation for the five campaign concepts above. Public archive browsing stays open; production stays private.</p></div>
+      <div className="studio-badge"><LockKeyhole size={14} /> OWNER ACCESS ONLY</div>
+    </header>
+
+    {(session.isError || settings.isError || reels.isError) && <div className="studio-alert" role="status" data-testid="status-studio-unavailable"><AlertTriangle size={18} /><div><strong>Studio connection unavailable</strong><p>{session.error instanceof Error ? session.error.message : settings.error instanceof Error ? settings.error.message : reels.error instanceof Error ? reels.error.message : 'Provider, account, or storage configuration is unavailable.'} Production is disabled; no run has been started.</p></div><button type="button" onClick={() => { void session.refetch(); void settings.refetch(); void reels.refetch(); }} data-testid="button-retry-studio"><RefreshCw size={14} /> Retry</button></div>}
+
+    <div className="studio-grid">
+      <div className="studio-access-panel">
+        <div className="studio-access-top"><span className={`access-indicator ${authenticated ? 'is-ready' : ''}`} /><span data-testid="status-owner-session">{session.isLoading ? 'CHECKING OWNER SESSION' : authenticated ? 'OWNER SESSION ACTIVE' : 'OWNER SESSION REQUIRED'}</span></div>
+        {authenticated ? <div className="owner-active"><div><strong>Production access</strong><p>Your session is private to the studio owner.</p></div><button className="studio-quiet-button" type="button" onClick={() => deleteSession.mutate(undefined, { onSuccess: invalidateSession })} disabled={deleteSession.isPending} data-testid="button-studio-signout"><LogOut size={14} /> {deleteSession.isPending ? 'Signing out' : 'Sign out'}</button></div> :
+           <form className="studio-login" onSubmit={signIn}><label htmlFor="studio-password">Owner passphrase</label><input type="text" name="username" autoComplete="username" value="studio-owner" readOnly tabIndex={-1} aria-hidden="true" className="sr-only" /><div className="studio-login-row"><input id="studio-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter studio passphrase" disabled={createSession.isPending} data-testid="input-studio-password" /><button type="submit" disabled={!session.data?.configured || !password.trim() || createSession.isPending} data-testid="button-studio-login"><LockKeyhole size={14} /> {createSession.isPending ? 'Checking' : 'Unlock studio'}</button></div>
+            {session.data?.configured === false && <p className="form-note" data-testid="status-studio-not-configured">Owner access is not configured on this server.</p>}{loginError && <p className="form-error" data-testid="status-login-error">{loginError}</p>}</form>}
+        <div className="studio-access-foot"><ShieldCheck size={14} /><span>Paid predictions require owner login and a separate cost confirmation for every run.</span></div>
+      </div>
+
+      <div className="studio-config-panel">
+        <div className="config-head"><span className="launch-label">CURRENT OUTPUT PROFILE</span><span className={`config-state ${ready ? 'ready' : 'blocked'}`} data-testid="status-provider-readiness">{ready ? 'READY TO PRODUCE' : 'GENERATION BLOCKED'}</span></div>
+        <div className="config-model"><span className="model-mark"><Film size={18} /></span><div><small>MODEL / PROVIDER</small><strong data-testid="text-studio-model">{model}</strong></div></div>
+        <div className="config-specs"><div><span>FRAME</span><strong data-testid="text-studio-aspect">9:16 vertical</strong></div><div><span>RESOLUTION</span><strong data-testid="text-studio-resolution">720p</strong></div><div><span>AUDIO</span><strong data-testid="text-studio-audio">Native audio on</strong></div><div><span>RATE</span><strong data-testid="text-studio-rate">{costLabel(rate)}/sec</strong></div></div>
+        <p className="provider-message" data-testid="text-studio-config-message">{settings.data?.message || (settings.isLoading ? 'Checking provider, account, and storage configuration…' : 'Provider readiness is not confirmed. Generation remains disabled until the server reports ready.')}</p>
+        <div className="config-checks"><span className={settings.data?.providerReady ? 'check-good' : 'check-off'}><CircleDot size={11} /> PROVIDER {settings.data?.providerReady ? 'READY' : 'UNAVAILABLE'}</span><span className={settings.data?.storageReady ? 'check-good' : 'check-off'}><CircleDot size={11} /> STORAGE {settings.data?.storageReady ? 'READY' : 'UNAVAILABLE'}</span></div>
+      </div>
+    </div>
+
+    <div className="test-gate" data-testid="status-first-test-gate"><span className={`test-gate-icon ${tested ? 'passed' : ''}`}>{tested ? <CircleCheck size={18} /> : <Timer size={18} />}</span><div><span className="launch-label">FIRST-RUN SAFETY CHECK</span><strong>{tested ? 'Short test passed. Other briefs are unlocked.' : 'A successful 4-second test unlocks the remaining briefs.'}</strong><p>First run is fixed at 4 seconds with a {costLabel(firstTestEstimate)} estimate. No other concept can run before success is reported.</p></div><span className={`test-gate-state ${tested ? 'passed' : ''}`}>{tested ? 'PASSED' : 'REQUIRED'}</span></div>
+
+    <div className="studio-run-head"><div><span className="launch-label">CHOOSE A CAMPAIGN BRIEF</span><h3>Every run starts with a review.</h3></div><span className="cost-policy"><CreditCard size={13} /> NO CHECKOUT · ESTIMATES ONLY</span></div>
+    <div className="studio-brief-grid">{promoBriefs.map((item) => {
+      const locked = !tested && item.id !== 'performance';
+      return <article className={`studio-brief ${locked ? 'is-locked' : ''}`} key={item.id} data-testid={`studio-brief-${item.id}`}><div className="studio-brief-number">{item.number}</div><div className="studio-brief-copy"><span>{item.title}</span><p>{item.direction}</p></div><button type="button" onClick={() => requestRun(item)} disabled={!ready || locked} data-testid={`button-run-${item.id}`}>{locked ? <LockKeyhole size={14} /> : <Play size={14} />}{locked ? 'Test first' : 'Review run'}</button></article>;
+    })}</div>
+
+    <section className="reel-history" aria-labelledby="reel-history-heading"><div className="reel-history-head"><div><span className="launch-label">STUDIO OUTPUTS</span><h3 id="reel-history-heading">Run history</h3></div><button type="button" className="studio-quiet-button" onClick={() => void reels.refetch()} disabled={reels.isFetching} data-testid="button-refresh-reels"><RefreshCw size={14} /> Refresh</button></div>
+      {reels.isLoading ? <div className="reel-skeleton" data-testid="status-reels-loading"><span /><span /><span /></div> : reels.isError ? <div className="reel-empty error" data-testid="status-reels-error"><AlertTriangle size={18} /><div><strong>Run history is unavailable.</strong><p>Check the owner session and try again. Existing reels are not assumed.</p></div></div> : !reels.data?.reels.length ? <div className="reel-empty" data-testid="status-reels-empty"><Film size={20} /><div><strong>No generated reels yet.</strong><p>Confirmed outputs and their playback will appear here.</p></div></div> :
+        <div className="reel-list">{reels.data.reels.map((reel) => <article className="reel-item" key={reel.id} data-testid={`reel-${reel.id}`}><div className="reel-icon"><Film size={16} /></div><div className="reel-info"><div className="reel-title-line"><strong>{reel.title}</strong><span className={`reel-status status-${reel.status}`} data-testid={`status-reel-${reel.id}`}>{reel.status === 'succeeded' ? <CircleCheck size={12} /> : <CircleDot size={12} />}{statusLabel[reel.status]}</span></div><p>{reel.model} · {reel.durationSeconds}s · {reel.aspectRatio} · {reel.resolution} · {reel.audioEnabled ? 'Native audio on' : 'Audio off'} · est. {costLabel(reel.estimatedCostUsd)}{reel.isTest ? ' · First test' : ''}</p>{reel.error && <small className="reel-error" data-testid={`text-reel-error-${reel.id}`}>{reel.error}</small>}
+          {reel.status === 'succeeded' && reel.videoUrl && <div className="reel-playback"><video controls playsInline preload="metadata" src={reel.videoUrl} aria-label={`Generated reel: ${reel.title}`} data-testid={`video-reel-${reel.id}`} /><a href={reel.videoUrl} download data-testid={`link-download-reel-${reel.id}`}><Download size={14} /> Download video</a></div>}</div></article>)}</div>}
+    </section>
+
+    {brief && <div className="confirm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !createReel.isPending) setBrief(null); }}><section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-heading" data-testid="dialog-run-confirmation">
+      <button className="confirm-close" type="button" onClick={() => setBrief(null)} disabled={createReel.isPending} aria-label="Close confirmation" data-testid="button-close-confirmation"><X size={17} /></button>
+      <span className="launch-label"><ShieldCheck size={13} /> FINAL COST REVIEW</span><h3 id="confirm-heading">Confirm this<br /><em>production run.</em></h3><p className="confirm-brief-name">{brief.number} / {brief.title}{!tested && ' · FIRST TEST'}</p>
+      <div className="confirm-spec-list"><div><span>MODEL</span><strong data-testid="confirm-model">{model}</strong></div><div><span>DURATION</span>{tested ? <select value={duration} onChange={(event) => setDuration(Number(event.target.value))} data-testid="select-run-duration">{durationOptions.map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}</select> : <strong data-testid="confirm-duration">4 seconds · test</strong>}</div><div><span>ASPECT RATIO</span><strong data-testid="confirm-aspect">Vertical 9:16</strong></div><div><span>RESOLUTION</span><strong data-testid="confirm-resolution">720p</strong></div><div><span>AUDIO</span><strong data-testid="confirm-audio"><Volume2 size={14} /> Native audio on</strong></div></div>
+       <div className="confirm-estimate"><span>ESTIMATED GENERATION COST</span><strong data-testid="text-confirm-estimate">{costLabel(tested ? estimate : firstTestEstimate)}</strong><small>{tested ? `${duration} seconds × ${costLabel(rate)} per output second.` : `4 seconds × ${costLabel(rate)} per output second.`} Estimate only; no checkout or payment is taken here.</small></div>
+      <label className="confirm-check"><input type="checkbox" checked={confirmCost} onChange={(event) => setConfirmCost(event.target.checked)} data-testid="checkbox-confirm-cost" /><span>I reviewed and explicitly approve this exact model, duration, format, native-audio setting, and estimate.</span></label>
+      {createReel.isError && <p className="form-error" data-testid="status-generation-error">{createReel.error instanceof Error ? createReel.error.message : 'The run could not be started. No success is assumed.'}</p>}
+       <div className="confirm-actions"><button type="button" className="studio-quiet-button" onClick={() => setBrief(null)} disabled={createReel.isPending} data-testid="button-cancel-run">Cancel</button><button type="button" className="confirm-run-button" onClick={runConfirmed} disabled={!confirmCost || !ready || createReel.isPending} data-testid="button-confirm-run">{createReel.isPending ? 'Starting…' : `Confirm ${costLabel(tested ? estimate : firstTestEstimate)} run`}</button></div>
+    </section></div>}
+  </section>;
+}
 
 function Launch() {
   const [copied, setCopied] = useState<string | null>(null);
@@ -270,7 +367,7 @@ function Launch() {
         <div className="launch-hero-content">
           <div className="launch-kicker"><span className="launch-live-dot" /> PHASE 1 / CAMPAIGN PREP</div>
           <h1>Cup of Tea<br /><em>Signature Move</em><br />Showdown<span className="launch-period">.</span></h1>
-          <p className="launch-deck">A move with your name on it. Five short-form reels to invite the community in—and give every signature its moment.</p>
+          <p className="launch-deck">Five short-form concepts for the Cup of Tea Signature Move Showdown. A free public archive up front; a private production suite behind the curtain.</p>
           <div className="launch-hero-actions">
             <a className="launch-cta" href="#reel-briefs" data-testid="button-view-briefs">Explore the five briefs <ArrowRight size={15} /></a>
             <span className="launch-no-login">FREE TO ENTER <b>·</b> FREE TO VOTE</span>
@@ -282,7 +379,7 @@ function Launch() {
 
       <section className="launch-truth" aria-label="Important campaign information" data-testid="status-campaign-terms">
         <div className="truth-icon"><ShieldCheck size={20} /></div>
-        <div className="truth-copy"><span className="launch-label">THE PROMISE</span><strong>Entry is free. Voting is free.</strong><p>Purchases never affect eligibility, votes, or winners. The POD provider and payment checkout are not connected yet.</p></div>
+          <div className="truth-copy"><span className="launch-label">THE PROMISE</span><strong>Entry is free. Voting is free.</strong><p>Purchases never affect eligibility, votes, or winners. There is no checkout or live payment.</p></div>
         <div className="phase-planned"><span>PHASE 2</span><strong>PLANNED</strong><small>Merchandise is not live.</small></div>
       </section>
 
@@ -307,6 +404,8 @@ function Launch() {
           </article>)}
         </div>
       </section>
+
+      <Studio />
 
       <section className="production-strip" data-testid="text-production-notes">
         <div className="production-heading"><span className="launch-label">IN THE EDIT SUITE</span><h2>Assets received.<br /><em>Ready for the cut.</em></h2></div>

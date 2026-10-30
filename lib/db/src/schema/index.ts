@@ -19,3 +19,4 @@
 
 export * from "./contestants";
 export * from "./move-cards";
+export * from "./studio-reels";

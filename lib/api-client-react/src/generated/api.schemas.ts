@@ -117,3 +117,108 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface StudioSession {
+  configured: boolean;
+  authenticated: boolean;
+}
+
+export interface StudioLoginInput {
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface StudioSettings {
+  model: string;
+  durationOptions: number[];
+  aspectRatio: string;
+  resolution: string;
+  audioEnabled: boolean;
+  costPerSecondUsd: number;
+  storageReady: boolean;
+  providerReady: boolean;
+  firstTestPassed: boolean;
+  canGenerate: boolean;
+  message: string;
+}
+
+export type CreateStudioReelInputBriefId = typeof CreateStudioReelInputBriefId[keyof typeof CreateStudioReelInputBriefId];
+
+
+export const CreateStudioReelInputBriefId = {
+  performance: 'performance',
+  'premium-card': 'premium-card',
+  'card-showdown': 'card-showdown',
+  'enter-vote': 'enter-vote',
+  'merch-tease': 'merch-tease',
+} as const;
+
+export type CreateStudioReelInputDurationSeconds = typeof CreateStudioReelInputDurationSeconds[keyof typeof CreateStudioReelInputDurationSeconds];
+
+
+export const CreateStudioReelInputDurationSeconds = {
+  NUMBER_4: 4,
+  NUMBER_6: 6,
+  NUMBER_8: 8,
+} as const;
+
+export type CreateStudioReelInputAspectRatio = typeof CreateStudioReelInputAspectRatio[keyof typeof CreateStudioReelInputAspectRatio];
+
+
+export const CreateStudioReelInputAspectRatio = {
+  '9:16': '9:16',
+} as const;
+
+export type CreateStudioReelInputResolution = typeof CreateStudioReelInputResolution[keyof typeof CreateStudioReelInputResolution];
+
+
+export const CreateStudioReelInputResolution = {
+  '720p': '720p',
+} as const;
+
+export interface CreateStudioReelInput {
+  briefId: CreateStudioReelInputBriefId;
+  durationSeconds: CreateStudioReelInputDurationSeconds;
+  model: string;
+  aspectRatio: CreateStudioReelInputAspectRatio;
+  resolution: CreateStudioReelInputResolution;
+  audioEnabled: true;
+  /** @minimum 0.01 */
+  estimatedCostUsd: number;
+  confirmCost: true;
+}
+
+export type StudioReelStatus = typeof StudioReelStatus[keyof typeof StudioReelStatus];
+
+
+export const StudioReelStatus = {
+  starting: 'starting',
+  processing: 'processing',
+  succeeded: 'succeeded',
+  failed: 'failed',
+  aborted: 'aborted',
+} as const;
+
+export interface StudioReel {
+  id: number;
+  briefId: string;
+  title: string;
+  status: StudioReelStatus;
+  model: string;
+  durationSeconds: number;
+  aspectRatio: string;
+  resolution: string;
+  audioEnabled: boolean;
+  estimatedCostUsd: number;
+  isTest: boolean;
+  /** @nullable */
+  videoUrl: string | null;
+  /** @nullable */
+  error: string | null;
+  createdAt: string;
+}
+
+export interface StudioReelsResponse {
+  reels: StudioReel[];
+  firstTestPassed: boolean;
+}
+

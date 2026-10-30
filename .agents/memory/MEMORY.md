@@ -1,0 +1,2 @@
+- [App Storage access checks](app-storage-access-checks.md) — Bucket metadata reads may be denied even when private object writes work; probe object access instead.
+- [Replicate model liveness](replicate-model-liveness.md) — A successful model metadata check does not prove its upstream generation endpoint is still active.

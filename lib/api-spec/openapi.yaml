@@ -14,6 +14,8 @@ tags:
     description: Signature Move Showdown contest operations
   - name: athletes
     description: Curated professional athlete signature-move cards
+  - name: studio
+    description: Owner-protected AI reel production studio
 paths:
   /healthz:
     get:
@@ -127,6 +129,133 @@ paths:
                 $ref: "#/components/schemas/MoveCard"
         "404":
           description: Move card not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/session:
+    get:
+      operationId: getStudioSession
+      tags: [studio]
+      summary: Check studio owner session
+      responses:
+        "200":
+          description: Studio setup and session status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudioSession"
+    post:
+      operationId: createStudioSession
+      tags: [studio]
+      summary: Sign in to the reel studio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudioLoginInput"
+      responses:
+        "200":
+          description: Owner session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudioSession"
+        "401":
+          description: Invalid studio password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteStudioSession
+      tags: [studio]
+      summary: Sign out of the reel studio
+      responses:
+        "204":
+          description: Studio session cleared
+  /studio/settings:
+    get:
+      operationId: getStudioSettings
+      tags: [studio]
+      summary: Read model and output settings
+      responses:
+        "200":
+          description: Model, output, estimate, and workflow readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudioSettings"
+  /studio/reels:
+    get:
+      operationId: listStudioReels
+      tags: [studio]
+      summary: List generated reels and refresh active statuses
+      responses:
+        "200":
+          description: Persisted reel runs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudioReelsResponse"
+    post:
+      operationId: createStudioReel
+      tags: [studio]
+      summary: Confirm and create a paid reel prediction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStudioReelInput"
+      responses:
+        "201":
+          description: Reel prediction created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudioReel"
+        "400":
+          description: Invalid settings or missing explicit cost confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Replicate, model, or storage is not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/reels/{id}/video:
+    get:
+      operationId: getStudioReelVideo
+      tags: [studio]
+      summary: Stream a completed MP4 reel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Stored MP4 video
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Reel video is not available
           content:
             application/json:
               schema:
@@ -305,4 +434,151 @@ components:
           type: string
       required:
         - error
+    StudioSession:
+      type: object
+      properties:
+        configured:
+          type: boolean
+        authenticated:
+          type: boolean
+      required: [configured, authenticated]
+    StudioLoginInput:
+      type: object
+      properties:
+        password:
+          type: string
+          minLength: 1
+      required: [password]
+    StudioSettings:
+      type: object
+      properties:
+        model:
+          type: string
+        durationOptions:
+          type: array
+          items:
+            type: integer
+        aspectRatio:
+          type: string
+        resolution:
+          type: string
+        audioEnabled:
+          type: boolean
+        costPerSecondUsd:
+          type: number
+        storageReady:
+          type: boolean
+        providerReady:
+          type: boolean
+        firstTestPassed:
+          type: boolean
+        canGenerate:
+          type: boolean
+        message:
+          type: string
+      required:
+        - model
+        - durationOptions
+        - aspectRatio
+        - resolution
+        - audioEnabled
+        - costPerSecondUsd
+        - storageReady
+        - providerReady
+        - firstTestPassed
+        - canGenerate
+        - message
+    CreateStudioReelInput:
+      type: object
+      properties:
+        briefId:
+          type: string
+          enum: [performance, premium-card, card-showdown, enter-vote, merch-tease]
+        durationSeconds:
+          type: integer
+          enum: [4, 6, 8]
+        model:
+          type: string
+        aspectRatio:
+          type: string
+          enum: ["9:16"]
+        resolution:
+          type: string
+          enum: ["720p"]
+        audioEnabled:
+          type: boolean
+          enum: [true]
+        estimatedCostUsd:
+          type: number
+          minimum: 0.01
+        confirmCost:
+          type: boolean
+          enum: [true]
+      required:
+        - briefId
+        - durationSeconds
+        - model
+        - aspectRatio
+        - resolution
+        - audioEnabled
+        - estimatedCostUsd
+        - confirmCost
+    StudioReel:
+      type: object
+      properties:
+        id:
+          type: integer
+        briefId:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [starting, processing, succeeded, failed, aborted]
+        model:
+          type: string
+        durationSeconds:
+          type: integer
+        aspectRatio:
+          type: string
+        resolution:
+          type: string
+        audioEnabled:
+          type: boolean
+        estimatedCostUsd:
+          type: number
+        isTest:
+          type: boolean
+        videoUrl:
+          type: ["string", "null"]
+        error:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - briefId
+        - title
+        - status
+        - model
+        - durationSeconds
+        - aspectRatio
+        - resolution
+        - audioEnabled
+        - estimatedCostUsd
+        - isTest
+        - videoUrl
+        - error
+        - createdAt
+    StudioReelsResponse:
+      type: object
+      properties:
+        reels:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudioReel"
+        firstTestPassed:
+          type: boolean
+      required: [reels, firstTestPassed]
 

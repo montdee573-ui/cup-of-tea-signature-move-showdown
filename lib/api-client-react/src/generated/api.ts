@@ -23,9 +23,15 @@ import type {
   ContestSummary,
   Contestant,
   ContestantInput,
+  CreateStudioReelInput,
   ErrorResponse,
   HealthStatus,
-  MoveCard
+  MoveCard,
+  StudioLoginInput,
+  StudioReel,
+  StudioReelsResponse,
+  StudioSession,
+  StudioSettings
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -594,6 +600,564 @@ export function useGetMoveCard<TData = Awaited<ReturnType<typeof getMoveCard>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMoveCardQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetStudioSessionUrl = () => {
+
+
+
+
+  return `/api/studio/session`
+}
+
+/**
+ * @summary Check studio owner session
+ */
+export const getStudioSession = async ( options?: Parameters<typeof customFetch>[1]): Promise<StudioSession> => {
+
+  return customFetch<StudioSession>(getGetStudioSessionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudioSessionQueryKey = () => {
+    return [
+    `/api/studio/session`
+    ] as const;
+    }
+
+
+export const getGetStudioSessionQueryOptions = <TData = Awaited<ReturnType<typeof getStudioSession>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudioSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudioSessionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudioSession>>> = ({ signal }) => getStudioSession({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudioSession>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStudioSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getStudioSession>>>
+export type GetStudioSessionQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check studio owner session
+ */
+
+export function useGetStudioSession<TData = Awaited<ReturnType<typeof getStudioSession>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudioSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStudioSessionQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateStudioSessionUrl = () => {
+
+
+
+
+  return `/api/studio/session`
+}
+
+/**
+ * @summary Sign in to the reel studio
+ */
+export const createStudioSession = async (studioLoginInput: StudioLoginInput, options?: Parameters<typeof customFetch>[1]): Promise<StudioSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudioSession>(getCreateStudioSessionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(studioLoginInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStudioSessionMutationKey = () => ['createStudioSession'] as const;
+
+export const getCreateStudioSessionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStudioSession>>, TError,CreateStudioSessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStudioSession>>, TError,CreateStudioSessionMutationVariables, TContext> => {
+
+const mutationKey = getCreateStudioSessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStudioSession>>, CreateStudioSessionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStudioSession(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStudioSessionMutationResult = NonNullable<Awaited<ReturnType<typeof createStudioSession>>>
+    export type CreateStudioSessionMutationBody = BodyType<StudioLoginInput>
+    export type CreateStudioSessionMutationError = ErrorType<ErrorResponse>
+    export type CreateStudioSessionMutationVariables = {data: BodyType<StudioLoginInput>}
+
+    /**
+ * @summary Sign in to the reel studio
+ */
+export const useCreateStudioSession = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStudioSession>>, TError,CreateStudioSessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createStudioSession>>,
+        TError,
+        CreateStudioSessionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateStudioSessionMutationOptions(options));
+    }
+
+export const getDeleteStudioSessionUrl = () => {
+
+
+
+
+  return `/api/studio/session`
+}
+
+/**
+ * @summary Sign out of the reel studio
+ */
+export const deleteStudioSession = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteStudioSessionUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteStudioSessionMutationKey = () => ['deleteStudioSession'] as const;
+
+export const getDeleteStudioSessionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStudioSession>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStudioSession>>, TError,void, TContext> => {
+
+const mutationKey = getDeleteStudioSessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStudioSession>>, void> = () => {
+
+
+          return  deleteStudioSession(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStudioSessionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStudioSession>>>
+
+    export type DeleteStudioSessionMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Sign out of the reel studio
+ */
+export const useDeleteStudioSession = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStudioSession>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStudioSession>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteStudioSessionMutationOptions(options));
+    }
+
+export const getGetStudioSettingsUrl = () => {
+
+
+
+
+  return `/api/studio/settings`
+}
+
+/**
+ * @summary Read model and output settings
+ */
+export const getStudioSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<StudioSettings> => {
+
+  return customFetch<StudioSettings>(getGetStudioSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudioSettingsQueryKey = () => {
+    return [
+    `/api/studio/settings`
+    ] as const;
+    }
+
+
+export const getGetStudioSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getStudioSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudioSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudioSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudioSettings>>> = ({ signal }) => getStudioSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudioSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStudioSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getStudioSettings>>>
+export type GetStudioSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read model and output settings
+ */
+
+export function useGetStudioSettings<TData = Awaited<ReturnType<typeof getStudioSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudioSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStudioSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListStudioReelsUrl = () => {
+
+
+
+
+  return `/api/studio/reels`
+}
+
+/**
+ * @summary List generated reels and refresh active statuses
+ */
+export const listStudioReels = async ( options?: Parameters<typeof customFetch>[1]): Promise<StudioReelsResponse> => {
+
+  return customFetch<StudioReelsResponse>(getListStudioReelsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStudioReelsQueryKey = () => {
+    return [
+    `/api/studio/reels`
+    ] as const;
+    }
+
+
+export const getListStudioReelsQueryOptions = <TData = Awaited<ReturnType<typeof listStudioReels>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStudioReels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStudioReelsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStudioReels>>> = ({ signal }) => listStudioReels({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStudioReels>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListStudioReelsQueryResult = NonNullable<Awaited<ReturnType<typeof listStudioReels>>>
+export type ListStudioReelsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List generated reels and refresh active statuses
+ */
+
+export function useListStudioReels<TData = Awaited<ReturnType<typeof listStudioReels>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStudioReels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListStudioReelsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateStudioReelUrl = () => {
+
+
+
+
+  return `/api/studio/reels`
+}
+
+/**
+ * @summary Confirm and create a paid reel prediction
+ */
+export const createStudioReel = async (createStudioReelInput: CreateStudioReelInput, options?: Parameters<typeof customFetch>[1]): Promise<StudioReel> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudioReel>(getCreateStudioReelUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createStudioReelInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStudioReelMutationKey = () => ['createStudioReel'] as const;
+
+export const getCreateStudioReelMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStudioReel>>, TError,CreateStudioReelMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStudioReel>>, TError,CreateStudioReelMutationVariables, TContext> => {
+
+const mutationKey = getCreateStudioReelMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStudioReel>>, CreateStudioReelMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStudioReel(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStudioReelMutationResult = NonNullable<Awaited<ReturnType<typeof createStudioReel>>>
+    export type CreateStudioReelMutationBody = BodyType<CreateStudioReelInput>
+    export type CreateStudioReelMutationError = ErrorType<ErrorResponse>
+    export type CreateStudioReelMutationVariables = {data: BodyType<CreateStudioReelInput>}
+
+    /**
+ * @summary Confirm and create a paid reel prediction
+ */
+export const useCreateStudioReel = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStudioReel>>, TError,CreateStudioReelMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createStudioReel>>,
+        TError,
+        CreateStudioReelMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateStudioReelMutationOptions(options));
+    }
+
+export const getGetStudioReelVideoUrl = (id: number,) => {
+
+
+
+
+  return `/api/studio/reels/${id}/video`
+}
+
+/**
+ * @summary Stream a completed MP4 reel
+ */
+export const getStudioReelVideo = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetStudioReelVideoUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudioReelVideoQueryKey = (id: number,) => {
+    return [
+    `/api/studio/reels/${id}/video`
+    ] as const;
+    }
+
+
+export const getGetStudioReelVideoQueryOptions = <TData = Awaited<ReturnType<typeof getStudioReelVideo>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudioReelVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudioReelVideoQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudioReelVideo>>> = ({ signal }) => getStudioReelVideo(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudioReelVideo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStudioReelVideoQueryResult = NonNullable<Awaited<ReturnType<typeof getStudioReelVideo>>>
+export type GetStudioReelVideoQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Stream a completed MP4 reel
+ */
+
+export function useGetStudioReelVideo<TData = Awaited<ReturnType<typeof getStudioReelVideo>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudioReelVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStudioReelVideoQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
