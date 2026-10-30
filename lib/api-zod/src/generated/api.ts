@@ -326,3 +326,86 @@ export const GetStudioReelVideoParams = zod.object({
 export const GetStudioReelVideoResponse = zod.unknown()
 
 
+/**
+ * @summary Submit a move video for review
+ */
+export const createMoveSubmissionHeaderXSubmissionMetadataMax = 4096;
+
+
+
+export const CreateMoveSubmissionHeader = zod.object({
+  "X-Submission-Metadata": zod.string().max(createMoveSubmissionHeaderXSubmissionMetadataMax).describe('Base64url-encoded UTF-8 JSON matching MoveSubmissionInput')
+})
+
+export const CreateMoveSubmissionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['pending']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List pending submissions for the owner
+ */
+export const ListMoveSubmissionsForReviewResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "sport": zod.string(),
+  "category": zod.string(),
+  "moveName": zod.string(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "team": zod.string().nullable(),
+  "design": zod.enum(['holo', 'court']),
+  "videoFileName": zod.string(),
+  "videoContentType": zod.string(),
+  "videoSizeBytes": zod.number().int(),
+  "consentAt": zod.coerce.date(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "videoUrl": zod.string()
+})
+export const ListMoveSubmissionsForReviewResponse = zod.array(ListMoveSubmissionsForReviewResponseItem)
+
+
+/**
+ * @summary Approve or reject a pending move submission
+ */
+export const ReviewMoveSubmissionParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const ReviewMoveSubmissionBody = zod.object({
+  "status": zod.enum(['approved', 'rejected'])
+})
+
+export const ReviewMoveSubmissionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "sport": zod.string(),
+  "category": zod.string(),
+  "moveName": zod.string(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "team": zod.string().nullable(),
+  "design": zod.enum(['holo', 'court']),
+  "videoFileName": zod.string(),
+  "videoContentType": zod.string(),
+  "videoSizeBytes": zod.number().int(),
+  "consentAt": zod.coerce.date(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "videoUrl": zod.string()
+})
+
+
+/**
+ * @summary Stream a private submission video for the owner
+ */
+export const GetMoveSubmissionVideoParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetMoveSubmissionVideoResponse = zod.unknown()
+
+

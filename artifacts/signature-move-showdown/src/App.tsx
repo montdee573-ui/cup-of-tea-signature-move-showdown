@@ -26,6 +26,7 @@ import {
 } from '@workspace/api-client-react';
 import type { MoveCard, StudioReel } from '@workspace/api-client-react';
 import SubmissionBuilder from './pages/SubmissionBuilder';
+import SubmissionReview from './pages/SubmissionReview';
 
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
@@ -46,6 +47,7 @@ function Shell({ children }: { children: ReactNode }) {
         {location === '/' ? <a href="#collection" data-testid="link-collection"><CircleDot size={14} /> The archive</a> : <Link href="/" data-testid="link-collection"><CircleDot size={14} /> The archive</Link>}
         <Link href="/launch" className={location === '/launch' ? 'nav-active' : ''} data-testid="link-launch"><Megaphone size={14} /> Launch</Link>
         <Link href="/submit" className={location === '/submit' ? 'nav-active' : ''} data-testid="link-submit-move"><Zap size={14} /> Submit a move</Link>
+        <Link href="/review" className={location === '/review' ? 'nav-active' : ''} data-testid="link-review-submissions"><LockKeyhole size={14} /> Review desk</Link>
       </nav>
       <span className="public-label"><span /> OPEN ARCHIVE · NO LOGIN</span>
     </header>
@@ -428,6 +430,7 @@ export default function App() {
     <Route path="/cards/:slug" component={Detail} />
     <Route path="/launch" component={Launch} />
     <Route path="/submit" component={SubmissionBuilder} />
+    <Route path="/review" component={SubmissionReview} />
     <Route component={NotFound} />
   </Switch>;
 }

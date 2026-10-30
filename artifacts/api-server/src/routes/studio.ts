@@ -106,6 +106,10 @@ function isOwner(req: SessionRequest): boolean {
   }
 }
 
+export function isStudioOwner(req: Request): boolean {
+  return isOwner(req as SessionRequest);
+}
+
 function encodeReel(row: typeof studioReelsTable.$inferSelect) {
   return {
     id: row.id,

@@ -40,6 +40,11 @@ export function reelVideoFile(id: number): File {
   return storage.bucket(bucketName).file(objectName);
 }
 
+export function moveSubmissionVideoFile(id: string): File {
+  const { bucketName, objectName } = parsePrivatePath(`move-submissions/${id}`);
+  return storage.bucket(bucketName).file(objectName);
+}
+
 export async function verifyStorageAccess(): Promise<void> {
   const { bucketName, objectPrefix } = privateDirectory();
   const file = storage.bucket(bucketName).file(`${objectPrefix}/reel-studio/.probe-${randomUUID()}`);
@@ -62,4 +67,24 @@ export async function saveReelVideo(id: number, bytes: Buffer): Promise<void> {
       cacheControl: "public, max-age=31536000, immutable",
     },
   });
+}
+
+export async function saveMoveSubmissionVideo(
+  id: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<string> {
+  const objectPath = `move-submissions/${id}`;
+  await moveSubmissionVideoFile(id).save(bytes, {
+    resumable: false,
+    metadata: {
+      contentType,
+      cacheControl: "private, no-store, max-age=0",
+    },
+  });
+  return objectPath;
+}
+
+export async function deleteMoveSubmissionVideo(id: string): Promise<void> {
+  await moveSubmissionVideoFile(id).delete({ ignoreNotFound: true });
 }

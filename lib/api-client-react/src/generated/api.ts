@@ -28,6 +28,9 @@ import type {
   HealthStatus,
   MerchCatalogItem,
   MoveCard,
+  MoveSubmission,
+  MoveSubmissionReceipt,
+  MoveSubmissionReviewInput,
   StudioLoginInput,
   StudioReel,
   StudioReelsResponse,
@@ -1237,6 +1240,337 @@ export function useGetStudioReelVideo<TData = Awaited<ReturnType<typeof getStudi
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetStudioReelVideoQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMoveSubmissionUrl = () => {
+
+
+
+
+  return `/api/move-submissions`
+}
+
+/**
+ * @summary Submit a move video for review
+ */
+export const createMoveSubmission = async (createMoveSubmissionBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<MoveSubmissionReceipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MoveSubmissionReceipt>(getCreateMoveSubmissionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'video/mp4', ...getHeaders(options?.headers) },
+    body: createMoveSubmissionBody
+  }
+);}
+
+
+
+
+
+export const getCreateMoveSubmissionMutationKey = () => ['createMoveSubmission'] as const;
+
+export const getCreateMoveSubmissionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMoveSubmission>>, TError,CreateMoveSubmissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMoveSubmission>>, TError,CreateMoveSubmissionMutationVariables, TContext> => {
+
+const mutationKey = getCreateMoveSubmissionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMoveSubmission>>, CreateMoveSubmissionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMoveSubmission(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMoveSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof createMoveSubmission>>>
+    export type CreateMoveSubmissionMutationBody = BodyType<Blob>
+    export type CreateMoveSubmissionMutationError = ErrorType<ErrorResponse>
+    export type CreateMoveSubmissionMutationVariables = {data: BodyType<Blob>}
+
+    /**
+ * @summary Submit a move video for review
+ */
+export const useCreateMoveSubmission = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMoveSubmission>>, TError,CreateMoveSubmissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMoveSubmission>>,
+        TError,
+        CreateMoveSubmissionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateMoveSubmissionMutationOptions(options));
+    }
+
+export const getListMoveSubmissionsForReviewUrl = () => {
+
+
+
+
+  return `/api/studio/move-submissions/review`
+}
+
+/**
+ * @summary List pending submissions for the owner
+ */
+export const listMoveSubmissionsForReview = async ( options?: Parameters<typeof customFetch>[1]): Promise<MoveSubmission[]> => {
+
+  return customFetch<MoveSubmission[]>(getListMoveSubmissionsForReviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMoveSubmissionsForReviewQueryKey = () => {
+    return [
+    `/api/studio/move-submissions/review`
+    ] as const;
+    }
+
+
+export const getListMoveSubmissionsForReviewQueryOptions = <TData = Awaited<ReturnType<typeof listMoveSubmissionsForReview>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMoveSubmissionsForReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMoveSubmissionsForReviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMoveSubmissionsForReview>>> = ({ signal }) => listMoveSubmissionsForReview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMoveSubmissionsForReview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMoveSubmissionsForReviewQueryResult = NonNullable<Awaited<ReturnType<typeof listMoveSubmissionsForReview>>>
+export type ListMoveSubmissionsForReviewQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List pending submissions for the owner
+ */
+
+export function useListMoveSubmissionsForReview<TData = Awaited<ReturnType<typeof listMoveSubmissionsForReview>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMoveSubmissionsForReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMoveSubmissionsForReviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewMoveSubmissionUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/move-submissions/${id}/review`
+}
+
+/**
+ * @summary Approve or reject a pending move submission
+ */
+export const reviewMoveSubmission = async (id: string,
+    moveSubmissionReviewInput: MoveSubmissionReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<MoveSubmission> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MoveSubmission>(getReviewMoveSubmissionUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(moveSubmissionReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewMoveSubmissionMutationKey = () => ['reviewMoveSubmission'] as const;
+
+export const getReviewMoveSubmissionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewMoveSubmission>>, TError,ReviewMoveSubmissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewMoveSubmission>>, TError,ReviewMoveSubmissionMutationVariables, TContext> => {
+
+const mutationKey = getReviewMoveSubmissionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewMoveSubmission>>, ReviewMoveSubmissionMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewMoveSubmission(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewMoveSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof reviewMoveSubmission>>>
+    export type ReviewMoveSubmissionMutationBody = BodyType<MoveSubmissionReviewInput>
+    export type ReviewMoveSubmissionMutationError = ErrorType<ErrorResponse>
+    export type ReviewMoveSubmissionMutationVariables = {id: string;data: BodyType<MoveSubmissionReviewInput>}
+
+    /**
+ * @summary Approve or reject a pending move submission
+ */
+export const useReviewMoveSubmission = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewMoveSubmission>>, TError,ReviewMoveSubmissionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewMoveSubmission>>,
+        TError,
+        ReviewMoveSubmissionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewMoveSubmissionMutationOptions(options));
+    }
+
+export const getGetMoveSubmissionVideoUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/move-submissions/${id}/video`
+}
+
+/**
+ * @summary Stream a private submission video for the owner
+ */
+export const getMoveSubmissionVideo = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetMoveSubmissionVideoUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMoveSubmissionVideoQueryKey = (id: string,) => {
+    return [
+    `/api/studio/move-submissions/${id}/video`
+    ] as const;
+    }
+
+
+export const getGetMoveSubmissionVideoQueryOptions = <TData = Awaited<ReturnType<typeof getMoveSubmissionVideo>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMoveSubmissionVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMoveSubmissionVideoQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMoveSubmissionVideo>>> = ({ signal }) => getMoveSubmissionVideo(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMoveSubmissionVideo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMoveSubmissionVideoQueryResult = NonNullable<Awaited<ReturnType<typeof getMoveSubmissionVideo>>>
+export type GetMoveSubmissionVideoQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Stream a private submission video for the owner
+ */
+
+export function useGetMoveSubmissionVideo<TData = Awaited<ReturnType<typeof getMoveSubmissionVideo>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMoveSubmissionVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMoveSubmissionVideoQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

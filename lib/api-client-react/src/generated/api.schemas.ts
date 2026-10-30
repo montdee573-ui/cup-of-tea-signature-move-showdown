@@ -232,3 +232,114 @@ export interface StudioReelsResponse {
   firstTestPassed: boolean;
 }
 
+export type MoveSubmissionInputCategory = typeof MoveSubmissionInputCategory[keyof typeof MoveSubmissionInputCategory];
+
+
+export const MoveSubmissionInputCategory = {
+  Open: 'Open',
+  'Men\'s': 'Men\'s',
+  'Women\'s': 'Women\'s',
+  Mixed: 'Mixed',
+} as const;
+
+export type MoveSubmissionInputDesign = typeof MoveSubmissionInputDesign[keyof typeof MoveSubmissionInputDesign];
+
+
+export const MoveSubmissionInputDesign = {
+  holo: 'holo',
+  court: 'court',
+} as const;
+
+export interface MoveSubmissionInput {
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  sport: string;
+  category: MoveSubmissionInputCategory;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  moveName: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  displayName: string;
+  /**
+     * @minLength 1
+     * @maxLength 30
+     */
+  handle: string;
+  /** @maxLength 60 */
+  team?: string;
+  /** @maxLength 150 */
+  videoFileName?: string;
+  design: MoveSubmissionInputDesign;
+  consent: true;
+}
+
+export type MoveSubmissionReceiptStatus = typeof MoveSubmissionReceiptStatus[keyof typeof MoveSubmissionReceiptStatus];
+
+
+export const MoveSubmissionReceiptStatus = {
+  pending: 'pending',
+} as const;
+
+export interface MoveSubmissionReceipt {
+  id: string;
+  status: MoveSubmissionReceiptStatus;
+  createdAt: string;
+}
+
+export type MoveSubmissionReviewInputStatus = typeof MoveSubmissionReviewInputStatus[keyof typeof MoveSubmissionReviewInputStatus];
+
+
+export const MoveSubmissionReviewInputStatus = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface MoveSubmissionReviewInput {
+  status: MoveSubmissionReviewInputStatus;
+}
+
+export type MoveSubmissionDesign = typeof MoveSubmissionDesign[keyof typeof MoveSubmissionDesign];
+
+
+export const MoveSubmissionDesign = {
+  holo: 'holo',
+  court: 'court',
+} as const;
+
+export type MoveSubmissionStatus = typeof MoveSubmissionStatus[keyof typeof MoveSubmissionStatus];
+
+
+export const MoveSubmissionStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface MoveSubmission {
+  id: string;
+  sport: string;
+  category: string;
+  moveName: string;
+  displayName: string;
+  handle: string;
+  /** @nullable */
+  team: string | null;
+  design: MoveSubmissionDesign;
+  videoFileName: string;
+  videoContentType: string;
+  videoSizeBytes: number;
+  consentAt: string;
+  status: MoveSubmissionStatus;
+  createdAt: string;
+  /** @nullable */
+  reviewedAt: string | null;
+  videoUrl: string;
+}
+

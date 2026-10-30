@@ -18,6 +18,8 @@ tags:
     description: Owner-protected AI reel production studio
   - name: merch
     description: Read-only Printful catalog for merchandise planning
+  - name: submissions
+    description: Account-free move video submissions and owner moderation
 paths:
   /healthz:
     get:
@@ -279,6 +281,162 @@ paths:
                 format: binary
         "404":
           description: Reel video is not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /move-submissions:
+    post:
+      operationId: createMoveSubmission
+      tags: [submissions]
+      summary: Submit a move video for review
+      parameters:
+        - name: X-Submission-Metadata
+          in: header
+          required: true
+          description: Base64url-encoded UTF-8 JSON matching MoveSubmissionInput
+          schema:
+            type: string
+            maxLength: 4096
+      requestBody:
+        required: true
+        content:
+          video/mp4:
+            schema:
+              type: string
+              format: binary
+          video/webm:
+            schema:
+              type: string
+              format: binary
+          video/quicktime:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Video stored privately and submitted for moderation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveSubmissionReceipt"
+        "400":
+          description: Invalid metadata, consent, or video type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Video exceeds the upload limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Upload rate or concurrency limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/move-submissions/review:
+    get:
+      operationId: listMoveSubmissionsForReview
+      tags: [submissions]
+      summary: List pending submissions for the owner
+      responses:
+        "200":
+          description: Private review queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MoveSubmission"
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/move-submissions/{id}/review:
+    patch:
+      operationId: reviewMoveSubmission
+      tags: [submissions]
+      summary: Approve or reject a pending move submission
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveSubmissionReviewInput"
+      responses:
+        "200":
+          description: Moderation decision saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveSubmission"
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Submission has already been reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/move-submissions/{id}/video:
+    get:
+      operationId: getMoveSubmissionVideo
+      tags: [submissions]
+      summary: Stream a private submission video for the owner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Private video content
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+            video/webm:
+              schema:
+                type: string
+                format: binary
+            video/quicktime:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Submission video not found
           content:
             application/json:
               schema:
@@ -618,4 +776,117 @@ components:
         firstTestPassed:
           type: boolean
       required: [reels, firstTestPassed]
+    MoveSubmissionInput:
+      type: object
+      properties:
+        sport:
+          type: string
+          minLength: 1
+          maxLength: 50
+        category:
+          type: string
+          enum: [Open, "Men's", "Women's", Mixed]
+        moveName:
+          type: string
+          minLength: 1
+          maxLength: 60
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        handle:
+          type: string
+          minLength: 1
+          maxLength: 30
+        team:
+          type: string
+          maxLength: 60
+        videoFileName:
+          type: string
+          maxLength: 150
+        design:
+          type: string
+          enum: [holo, court]
+        consent:
+          type: boolean
+          enum: [true]
+      required: [sport, category, moveName, displayName, handle, design, consent]
+    MoveSubmissionReceipt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, status, createdAt]
+    MoveSubmissionReviewInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+      required: [status]
+    MoveSubmission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sport:
+          type: string
+        category:
+          type: string
+        moveName:
+          type: string
+        displayName:
+          type: string
+        handle:
+          type: string
+        team:
+          type: ["string", "null"]
+        design:
+          type: string
+          enum: [holo, court]
+        videoFileName:
+          type: string
+        videoContentType:
+          type: string
+        videoSizeBytes:
+          type: integer
+        consentAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        createdAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: ["string", "null"]
+          format: date-time
+        videoUrl:
+          type: string
+      required:
+        - id
+        - sport
+        - category
+        - moveName
+        - displayName
+        - handle
+        - team
+        - design
+        - videoFileName
+        - videoContentType
+        - videoSizeBytes
+        - consentAt
+        - status
+        - createdAt
+        - reviewedAt
+        - videoUrl
 
