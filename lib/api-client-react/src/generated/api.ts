@@ -48,6 +48,7 @@ import type {
   MoveSubmission,
   MoveSubmissionReceipt,
   MoveSubmissionReviewInput,
+  ResendEmailWebhookEvent,
   Showdown,
   ShowdownInput,
   ShowdownResults,
@@ -1470,6 +1471,95 @@ export const useEmailStudioContestResult = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getEmailStudioContestResultMutationOptions(options));
+    }
+
+export const getReceiveResendEmailEventUrl = () => {
+
+
+
+
+  return `/api/webhooks/resend`
+}
+
+/**
+ * Verifies Svix signature headers and records newer delivery, bounce, and complaint events without returning provider details.
+ * @summary Receive a signed Resend result-email event
+ */
+export const receiveResendEmailEvent = async (resendEmailWebhookEvent: ResendEmailWebhookEvent, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getReceiveResendEmailEventUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(resendEmailWebhookEvent)
+  }
+);}
+
+
+
+
+
+export const getReceiveResendEmailEventMutationKey = () => ['receiveResendEmailEvent'] as const;
+
+export const getReceiveResendEmailEventMutationOptions = <TError = ErrorType<void | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveResendEmailEvent>>, TError,ReceiveResendEmailEventMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof receiveResendEmailEvent>>, TError,ReceiveResendEmailEventMutationVariables, TContext> => {
+
+const mutationKey = getReceiveResendEmailEventMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receiveResendEmailEvent>>, ReceiveResendEmailEventMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  receiveResendEmailEvent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReceiveResendEmailEventMutationResult = NonNullable<Awaited<ReturnType<typeof receiveResendEmailEvent>>>
+    export type ReceiveResendEmailEventMutationBody = BodyType<ResendEmailWebhookEvent>
+    export type ReceiveResendEmailEventMutationError = ErrorType<void | ErrorResponse>
+    export type ReceiveResendEmailEventMutationVariables = {data: BodyType<ResendEmailWebhookEvent>}
+
+    /**
+ * @summary Receive a signed Resend result-email event
+ */
+export const useReceiveResendEmailEvent = <TError = ErrorType<void | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveResendEmailEvent>>, TError,ReceiveResendEmailEventMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof receiveResendEmailEvent>>,
+        TError,
+        ReceiveResendEmailEventMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReceiveResendEmailEventMutationOptions(options));
     }
 
 export const getListMerchCatalogUrl = () => {

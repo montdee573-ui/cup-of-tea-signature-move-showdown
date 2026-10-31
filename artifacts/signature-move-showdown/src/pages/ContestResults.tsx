@@ -93,12 +93,15 @@ function ResultRecord({
     {isCleared ? <>
       <div className="result-clearance-note"><ShieldCheck size={15} /><p><strong>Owner clearance</strong>{result.clearanceNote}</p></div>
       <div className={`result-email-delivery is-${result.emailDeliveryStatus}`} data-testid={`email-delivery-${result.id}`} role="status">
-        {result.emailDeliveryStatus === "sent" ? <MailCheck size={15} /> : <Mail size={15} />}
+        {["sent", "delivered"].includes(result.emailDeliveryStatus) ? <MailCheck size={15} /> : <Mail size={15} />}
         <p><strong>Email delivery: {result.emailDeliveryStatus === "not_sent" ? "not sent" : result.emailDeliveryStatus}</strong>
           {result.emailSentAt && <span>Accepted by the email service {new Date(result.emailSentAt).toLocaleString()}.</span>}
+          {result.emailDeliveryStatus === "delivered" && <span>Resend confirmed delivery to the recipient.</span>}
+          {result.emailDeliveryStatus === "bounced" && <span>Resend reported that delivery failed.</span>}
+          {result.emailDeliveryStatus === "complained" && <span>The recipient marked the email as spam.</span>}
           {result.emailDeliveryError && <span>{result.emailDeliveryError}</span>}
         </p>
-        {result.emailDeliveryStatus !== "sent" && result.emailDeliveryStatus !== "sending" && <button
+        {!["sent", "sending", "delivered", "bounced", "complained"].includes(result.emailDeliveryStatus) && <button
           type="button"
           className="result-clear-button result-email-button"
           disabled={emailBusy}

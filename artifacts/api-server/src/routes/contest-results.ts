@@ -21,7 +21,7 @@ function encodeResult(row: typeof contestResultsTable.$inferSelect) {
   return {
     ...row,
     status: row.status as "draft" | "cleared",
-    emailDeliveryStatus: row.emailDeliveryStatus as "not_sent" | "sending" | "sent" | "failed",
+    emailDeliveryStatus: row.emailDeliveryStatus as "not_sent" | "sending" | "sent" | "failed" | "delivered" | "bounced" | "complained",
   };
 }
 
@@ -138,7 +138,7 @@ router.post("/studio/contest-results/:id/email", async (req, res): Promise<void>
     res.status(409).json({ error: "Only an owner-cleared final can be emailed." });
     return;
   }
-  if (result.emailDeliveryStatus === "sent") {
+  if (["sent", "delivered", "bounced", "complained"].includes(result.emailDeliveryStatus)) {
     res.status(409).json({ error: "This final has already been emailed." });
     return;
   }
@@ -171,6 +171,9 @@ router.post("/studio/contest-results/:id/email", async (req, res): Promise<void>
     emailDeliveryStatus: "sending",
     emailSentAt: null,
     emailDeliveryError: null,
+    emailProviderId: null,
+    emailLastWebhookEventId: null,
+    emailLastWebhookAt: null,
   }).where(and(
     eq(contestResultsTable.id, params.data.id),
     eq(contestResultsTable.status, "cleared"),
@@ -224,10 +227,33 @@ router.post("/studio/contest-results/:id/email", async (req, res): Promise<void>
       return;
     }
 
+    let providerResponse: unknown;
+    try {
+      providerResponse = await response.json();
+    } catch {
+      providerResponse = null;
+    }
+    const providerEmailId = providerResponse && typeof providerResponse === "object" &&
+      "id" in providerResponse && typeof providerResponse.id === "string"
+      ? providerResponse.id
+      : null;
+    if (!providerEmailId) {
+      await db.update(contestResultsTable).set({
+        emailDeliveryStatus: "failed",
+        emailDeliveryError: "The email service accepted the request without a trackable message ID.",
+      }).where(and(
+        eq(contestResultsTable.id, claimed.id),
+        eq(contestResultsTable.emailDeliveryStatus, "sending"),
+      ));
+      res.status(502).json({ error: "The email service did not return a trackable message ID." });
+      return;
+    }
+
     const [sent] = await db.update(contestResultsTable).set({
       emailDeliveryStatus: "sent",
       emailSentAt: new Date(),
       emailDeliveryError: null,
+      emailProviderId: providerEmailId,
     }).where(and(
       eq(contestResultsTable.id, claimed.id),
       eq(contestResultsTable.emailDeliveryStatus, "sending"),

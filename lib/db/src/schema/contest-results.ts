@@ -19,6 +19,9 @@ export const contestResultsTable = pgTable("contest_results", {
   emailDeliveryStatus: text("email_delivery_status").notNull().default("not_sent"),
   emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
   emailDeliveryError: text("email_delivery_error"),
+  emailProviderId: text("email_provider_id").unique(),
+  emailLastWebhookEventId: text("email_last_webhook_event_id"),
+  emailLastWebhookAt: timestamp("email_last_webhook_at", { withTimezone: true }),
 });
 
 export type ContestResult = typeof contestResultsTable.$inferSelect;

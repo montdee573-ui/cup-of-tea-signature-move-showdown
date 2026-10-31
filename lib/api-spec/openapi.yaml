@@ -468,6 +468,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/resend:
+    post:
+      operationId: receiveResendEmailEvent
+      tags: [webhooks]
+      summary: Receive a signed Resend result-email event
+      description: Verifies Svix signature headers and records newer delivery, bounce, and complaint events without returning provider details.
+      parameters:
+        - name: svix-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: svix-timestamp
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: svix-signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendEmailWebhookEvent"
+      responses:
+        "204":
+          description: Event recorded or safely ignored as an older duplicate
+        "400":
+          description: Invalid or unsupported event
+        "401":
+          description: Signature is missing, invalid, or expired
+        "404":
+          description: Email ID does not match a contest result
         "503":
           description: Email recipient or sender is not configured
           content:
@@ -1642,7 +1679,7 @@ components:
           format: date-time
         emailDeliveryStatus:
           type: string
-          enum: [not_sent, sending, sent, failed]
+          enum: [not_sent, sending, sent, failed, delivered, bounced, complained]
         emailSentAt:
           type: ["string", "null"]
           format: date-time
@@ -1667,6 +1704,22 @@ components:
         - emailDeliveryStatus
         - emailSentAt
         - emailDeliveryError
+    ResendEmailWebhookEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [email.delivered, email.bounced, email.complained]
+        created_at:
+          type: string
+          format: date-time
+        data:
+          type: object
+          properties:
+            email_id:
+              type: string
+          required: [email_id]
+      required: [type, created_at, data]
     ContestResultInput:
       type: object
       properties:

@@ -358,7 +358,7 @@ export const ListStudioContestResultsResponseItem = zod.object({
   "clearanceNote": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "clearedAt": zod.coerce.date().nullable(),
-  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed']),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable()
 })
@@ -420,7 +420,7 @@ export const CreateStudioContestResultResponse = zod.object({
   "clearanceNote": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "clearedAt": zod.coerce.date().nullable(),
-  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed']),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable()
 })
@@ -461,7 +461,7 @@ export const ClearStudioContestResultResponse = zod.object({
   "clearanceNote": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "clearedAt": zod.coerce.date().nullable(),
-  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed']),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable()
 })
@@ -497,10 +497,31 @@ export const EmailStudioContestResultResponse = zod.object({
   "clearanceNote": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "clearedAt": zod.coerce.date().nullable(),
-  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed']),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable()
 })
+
+
+/**
+ * Verifies Svix signature headers and records newer delivery, bounce, and complaint events without returning provider details.
+ * @summary Receive a signed Resend result-email event
+ */
+export const ReceiveResendEmailEventHeader = zod.object({
+  "svix-id": zod.string(),
+  "svix-timestamp": zod.string(),
+  "svix-signature": zod.string()
+})
+
+export const ReceiveResendEmailEventBody = zod.object({
+  "type": zod.enum(['email.delivered', 'email.bounced', 'email.complained']),
+  "created_at": zod.coerce.date(),
+  "data": zod.object({
+  "email_id": zod.string()
+})
+})
+
+export const ReceiveResendEmailEventResponse = zod.void()
 
 
 /**

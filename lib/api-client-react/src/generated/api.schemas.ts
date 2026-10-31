@@ -306,6 +306,9 @@ export const ContestResultEmailDeliveryStatus = {
   sending: 'sending',
   sent: 'sent',
   failed: 'failed',
+  delivered: 'delivered',
+  bounced: 'bounced',
+  complained: 'complained',
 } as const;
 
 export interface ContestResult {
@@ -332,6 +335,25 @@ export interface ContestResult {
   emailSentAt: string | null;
   /** @nullable */
   emailDeliveryError: string | null;
+}
+
+export type ResendEmailWebhookEventType = typeof ResendEmailWebhookEventType[keyof typeof ResendEmailWebhookEventType];
+
+
+export const ResendEmailWebhookEventType = {
+  emaildelivered: 'email.delivered',
+  emailbounced: 'email.bounced',
+  emailcomplained: 'email.complained',
+} as const;
+
+export type ResendEmailWebhookEventData = {
+  email_id: string;
+};
+
+export interface ResendEmailWebhookEvent {
+  type: ResendEmailWebhookEventType;
+  created_at: string;
+  data: ResendEmailWebhookEventData;
 }
 
 export interface ContestResultInput {

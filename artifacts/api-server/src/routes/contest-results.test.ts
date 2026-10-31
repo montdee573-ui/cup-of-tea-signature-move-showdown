@@ -5,7 +5,8 @@ import cookieParser from "cookie-parser";
 import express, { type Request } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import contestResultsRouter from "./contest-results";
-import { resetContestResultRows } from "./contest-results-test-db";
+import resendWebhookRouter from "./resend-webhook";
+import { getContestResultRowsForTest, resetContestResultRows } from "./contest-results-test-db";
 
 const SESSION_SECRET = "contest-results-test-session-secret";
 const ADMIN_PASSWORD = "contest-results-test-owner-password";
@@ -28,6 +29,7 @@ before(async () => {
   process.env.SESSION_SECRET = SESSION_SECRET;
   process.env.REEL_STUDIO_ADMIN_PASSWORD = ADMIN_PASSWORD;
 
+  app.use("/webhooks/resend", express.raw({ type: "application/json", limit: "64kb" }));
   app.use(express.json());
   app.use(cookieParser());
   app.use((req: Request, _res, next) => {
@@ -37,6 +39,7 @@ before(async () => {
     next();
   });
   app.use(contestResultsRouter);
+  app.use(resendWebhookRouter);
 
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -248,6 +251,7 @@ test("an owner can email a cleared result once and sees the saved delivery statu
   const body = await response.json() as { emailDeliveryStatus: string; emailSentAt: string | null };
     assert.equal(body.emailDeliveryStatus, "sent");
   assert.ok(Number.isFinite(Date.parse(body.emailSentAt ?? "")));
+    assert.equal(body.emailDeliveryStatus, "sent");
     assert.equal(sentRequest?.connectorName, "resend");
     assert.equal(sentRequest?.path, "/emails");
     assert.equal(sentRequest?.options?.method, "POST");
@@ -256,6 +260,7 @@ test("an owner can email a cleared result once and sees the saved delivery statu
     assert.equal(mail.to, "results@example.test");
     assert.equal(mail.from, "contest@example.test");
     assert.match(mail.text, /Vote winner: Winner/);
+    assert.equal(getContestResultRowsForTest()[0].emailProviderId, "email_test_1");
 
     const secondResponse = await request("/studio/contest-results/1/email", {
       method: "POST",
@@ -266,6 +271,104 @@ test("an owner can email a cleared result once and sees the saved delivery statu
     ReplitConnectors.prototype.proxy = originalProxy;
     delete process.env.CONTEST_RESULTS_EMAIL_TO;
     delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+  }
+});
+
+function signedWebhookRequest(body: unknown, options: {
+  eventId?: string;
+  timestamp?: number;
+  secret?: string;
+  signatureOverride?: string;
+} = {}): Promise<Response> {
+  const eventId = options.eventId ?? "evt_test_1";
+  const timestamp = options.timestamp ?? Math.floor(Date.now() / 1000);
+  const rawBody = JSON.stringify(body);
+  const secret = options.secret ?? process.env.RESEND_WEBHOOK_SECRET!;
+  const digest = createHmac("sha256", Buffer.from(secret.slice("whsec_".length), "base64"))
+    .update(`${eventId}.${timestamp}.${rawBody}`)
+    .digest("base64");
+  const signature = options.signatureOverride ?? `v1,${digest}`;
+  return fetch(`${baseUrl}/webhooks/resend`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "svix-id": eventId,
+      "svix-timestamp": String(timestamp),
+      "svix-signature": signature,
+    },
+    body: rawBody,
+  });
+}
+
+test("verified Resend events update owner-visible delivery status and ignore old duplicates", async () => {
+  resetContestResultRows([{
+    status: "cleared",
+    emailDeliveryStatus: "sent",
+    emailProviderId: "email_tracking_1",
+  }]);
+  const testSecret = `whsec_${Buffer.from("test webhook signing secret with enough bytes").toString("base64")}`;
+  process.env.RESEND_WEBHOOK_SECRET = testSecret;
+  try {
+    const delivered = { type: "email.delivered", created_at: "2026-10-31T12:00:01.000Z", data: { email_id: "email_tracking_1" } };
+    const deliveredResponse = await signedWebhookRequest(delivered, { eventId: "evt_delivered" });
+    assert.equal(deliveredResponse.status, 204);
+    const deliveredResults = await request("/studio/contest-results", {}, true);
+    const [deliveredOwnerView] = await deliveredResults.json() as Array<{ emailDeliveryStatus: string }>;
+    assert.equal(deliveredOwnerView.emailDeliveryStatus, "delivered");
+
+    const newer = { type: "email.bounced", created_at: "2026-10-31T12:00:02.000Z", data: { email_id: "email_tracking_1" } };
+    const newerResponse = await signedWebhookRequest(newer, { eventId: "evt_newer" });
+    assert.equal(newerResponse.status, 204);
+
+    const older = { type: "email.delivered", created_at: "2026-10-31T12:00:01.000Z", data: { email_id: "email_tracking_1" } };
+    const olderResponse = await signedWebhookRequest(older, { eventId: "evt_older" });
+    assert.equal(olderResponse.status, 204);
+
+    const results = await request("/studio/contest-results", {}, true);
+    const [ownerVisible] = await results.json() as Array<{ emailDeliveryStatus: string }>;
+    const stored = getContestResultRowsForTest()[0];
+    assert.equal(ownerVisible.emailDeliveryStatus, "bounced");
+    assert.equal(stored.emailDeliveryStatus, "bounced");
+
+    const complained = { type: "email.complained", created_at: "2026-10-31T12:00:03.000Z", data: { email_id: "email_tracking_1" } };
+    const complainedResponse = await signedWebhookRequest(complained, { eventId: "evt_complained" });
+    assert.equal(complainedResponse.status, 204);
+    const finalResults = await request("/studio/contest-results", {}, true);
+    const [finalOwnerView] = await finalResults.json() as Array<{ emailDeliveryStatus: string }>;
+    const finalStored = getContestResultRowsForTest()[0];
+    assert.equal(finalOwnerView.emailDeliveryStatus, "complained");
+    assert.equal(finalStored.emailLastWebhookEventId, "evt_complained");
+    assert.equal(finalStored.emailLastWebhookAt?.toISOString(), "2026-10-31T12:00:03.000Z");
+  } finally {
+    delete process.env.RESEND_WEBHOOK_SECRET;
+  }
+});
+
+test("forged, stale, and unknown-message webhook events cannot change delivery status", async () => {
+  resetContestResultRows([{
+    status: "cleared",
+    emailDeliveryStatus: "delivered",
+    emailProviderId: "email_tracking_1",
+  }]);
+  const testSecret = `whsec_${Buffer.from("test webhook signing secret with enough bytes").toString("base64")}`;
+  process.env.RESEND_WEBHOOK_SECRET = testSecret;
+  try {
+    const event = { type: "email.complained", created_at: "2026-10-31T12:00:02.000Z", data: { email_id: "email_tracking_1" } };
+    const forged = await signedWebhookRequest(event, { signatureOverride: "v1,Zm9yZ2Vk" });
+    assert.equal(forged.status, 401);
+    const stale = await signedWebhookRequest(event, { timestamp: Math.floor(Date.now() / 1000) - 301 });
+    assert.equal(stale.status, 401);
+    const unknown = await signedWebhookRequest({
+      ...event,
+      data: { email_id: "not-a-result-email" },
+    });
+    assert.equal(unknown.status, 404);
+
+    const results = await request("/studio/contest-results", {}, true);
+    const [stored] = await results.json() as Array<{ emailDeliveryStatus: string }>;
+    assert.equal(stored.emailDeliveryStatus, "delivered");
+  } finally {
+    delete process.env.RESEND_WEBHOOK_SECRET;
   }
 });
 

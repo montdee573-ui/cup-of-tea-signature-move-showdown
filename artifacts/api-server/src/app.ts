@@ -29,6 +29,7 @@ app.use(
   }),
 );
 app.use(cors());
+app.use("/api/webhooks/resend", express.raw({ type: "application/json", limit: "64kb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

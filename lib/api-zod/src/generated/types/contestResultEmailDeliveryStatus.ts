@@ -14,4 +14,7 @@ export const ContestResultEmailDeliveryStatus = {
   sending: 'sending',
   sent: 'sent',
   failed: 'failed',
+  delivered: 'delivered',
+  bounced: 'bounced',
+  complained: 'complained',
 } as const;
