@@ -565,3 +565,68 @@ test("a provider rejection is visible and can be retried", async () => {
     delete process.env.CONTEST_RESULTS_EMAIL_FROM;
   }
 });
+
+test("an accepted delivery with a lost response can be retried with the same idempotency key", async () => {
+  resetContestResultRows([{
+    status: "cleared",
+    clearanceNote: "Verified against both apps.",
+    clearedAt: new Date("2026-10-02T12:00:00.000Z"),
+  }]);
+  process.env.CONTEST_RESULTS_EMAIL_TO = "results@example.test";
+  process.env.CONTEST_RESULTS_EMAIL_FROM = "contest@example.test";
+  const originalProxy = ReplitConnectors.prototype.proxy;
+  const idempotencyKeys: string[] = [];
+  let attempt = 0;
+  ReplitConnectors.prototype.proxy = async function (_connectorName, _path, options) {
+    attempt += 1;
+    idempotencyKeys.push(options?.headers?.["Idempotency-Key"] ?? "");
+    if (attempt === 1) {
+      // The provider accepted the message, but the client never received its response.
+      throw new Error("Provider response timed out after acceptance.");
+    }
+    return new Response(JSON.stringify({ id: "email_accepted_once" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const timedOut = await request("/studio/contest-results/1/email", {
+      method: "POST",
+      body: JSON.stringify({ confirm: true }),
+    }, true);
+    assert.equal(timedOut.status, 502);
+    assert.match((await timedOut.json() as { error: string }).error, /could not send this result/);
+
+    const afterTimeout = await request("/studio/contest-results", {}, true);
+    const [failedResult] = (await afterTimeout.json() as {
+      results: Array<{ emailDeliveryStatus: string; emailDeliveryError: string | null }>;
+    }).results;
+    assert.equal(failedResult.emailDeliveryStatus, "failed");
+    assert.match(failedResult.emailDeliveryError ?? "", /could not send this result/);
+    assert.equal(getContestResultRowsForTest()[0].emailDeliveryStatus, "failed");
+
+    const retry = await request("/studio/contest-results/1/email", {
+      method: "POST",
+      body: JSON.stringify({ confirm: true }),
+    }, true);
+    assert.equal(retry.status, 200);
+    const retryBody = await retry.json() as {
+      emailDeliveryStatus: string;
+      emailSentAt: string | null;
+    };
+    assert.equal(retryBody.emailDeliveryStatus, "sent");
+    assert.ok(Number.isFinite(Date.parse(retryBody.emailSentAt ?? "")));
+
+    assert.deepEqual(idempotencyKeys, ["contest-result-1", "contest-result-1"]);
+    assert.equal(attempt, 2);
+    const saved = getContestResultRowsForTest()[0];
+    assert.equal(saved.emailDeliveryStatus, "sent");
+    assert.equal(saved.emailProviderId, "email_accepted_once");
+    assert.equal(saved.emailDeliveryError, null);
+  } finally {
+    ReplitConnectors.prototype.proxy = originalProxy;
+    delete process.env.CONTEST_RESULTS_EMAIL_TO;
+    delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+  }
+});
