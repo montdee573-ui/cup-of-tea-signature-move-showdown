@@ -111,12 +111,16 @@ test("unauthenticated requests cannot list, create, clear, or email contest resu
     method: "POST",
     body: JSON.stringify({ confirm: true, clearanceNote: "Not authorized" }),
   });
+  const updateResult = await request("/studio/contest-results/1", {
+    method: "PATCH",
+    body: JSON.stringify(createBody()),
+  });
   const emailResult = await request("/studio/contest-results/1/email", {
     method: "POST",
     body: JSON.stringify({ confirm: true }),
   });
 
-  assert.deepEqual([list.status, create.status, clearResult.status, emailResult.status], [401, 401, 401, 401]);
+  assert.deepEqual([list.status, create.status, updateResult.status, clearResult.status, emailResult.status], [401, 401, 401, 401, 401]);
   const results = await request("/studio/contest-results", {}, true);
   assert.deepEqual((await results.json() as { results: unknown[] }).results, []);
 });
@@ -218,6 +222,79 @@ test("an owner can clear a winning result once and records the note and timestam
   const secondResponse = await clear();
   assert.equal(secondResponse.status, 409);
   assert.match((await secondResponse.json() as { error: string }).error, /already been cleared/);
+});
+
+test("an owner can edit every result field while the result remains a draft", async () => {
+  resetContestResultRows([{ status: "draft" }]);
+  const edited = {
+    eventTitle: "  Corrected event  ",
+    division: "  Finals  ",
+    winnerName: "  Updated winner  ",
+    winnerHandle: "  @updated  ",
+    runnerUpName: "  Updated runner-up  ",
+    winnerVotes: 28,
+    runnerUpVotes: 13,
+    coreScore: 91,
+    base44Summary: "  Corrected bracket and result in Base44.  ",
+    viralReelSummary: "  Corrected matching result in Viral Reel.  ",
+  };
+
+  const response = await request("/studio/contest-results/1", {
+    method: "PATCH",
+    body: JSON.stringify(edited),
+  }, true);
+  assert.equal(response.status, 200);
+  const result = await response.json() as typeof edited & {
+    status: string;
+    clearanceNote: string | null;
+    createdAt: string;
+    clearedAt: string | null;
+  };
+  assert.equal(result.eventTitle, "Corrected event");
+  assert.equal(result.division, "Finals");
+  assert.equal(result.winnerName, "Updated winner");
+  assert.equal(result.winnerHandle, "@updated");
+  assert.equal(result.runnerUpName, "Updated runner-up");
+  assert.equal(result.winnerVotes, 28);
+  assert.equal(result.runnerUpVotes, 13);
+  assert.equal(result.coreScore, 91);
+  assert.equal(result.base44Summary, "Corrected bracket and result in Base44.");
+  assert.equal(result.viralReelSummary, "Corrected matching result in Viral Reel.");
+  assert.equal(result.status, "draft");
+  assert.equal(result.clearanceNote, null);
+  assert.equal(result.clearedAt, null);
+
+  const refreshed = await request("/studio/contest-results", {}, true);
+  const [savedDraft] = (await refreshed.json() as { results: Array<typeof result> }).results;
+  assert.equal(savedDraft.eventTitle, "Corrected event");
+  assert.equal(savedDraft.winnerName, "Updated winner");
+  assert.equal(savedDraft.winnerVotes, 28);
+  assert.equal(savedDraft.base44Summary, "Corrected bracket and result in Base44.");
+});
+
+test("draft edits reject invalid details, missing results, and cleared results", async () => {
+  resetContestResultRows();
+  const duplicateParticipants = await request("/studio/contest-results/1", {
+    method: "PATCH",
+    body: JSON.stringify({ ...createBody(), runnerUpName: " Winner " }),
+  }, true);
+  assert.equal(duplicateParticipants.status, 400);
+
+  const missingResult = await request("/studio/contest-results/99", {
+    method: "PATCH",
+    body: JSON.stringify(createBody()),
+  }, true);
+  assert.equal(missingResult.status, 404);
+
+  resetContestResultRows([{ status: "cleared", clearanceNote: "Verified.", clearedAt: new Date() }]);
+  const clearedBefore = getContestResultRowsForTest()[0];
+  const clearedEdit = await request("/studio/contest-results/1", {
+    method: "PATCH",
+    body: JSON.stringify({ ...createBody(), eventTitle: "Changed after clearance" }),
+  }, true);
+  assert.equal(clearedEdit.status, 409);
+  const clearedAfter = getContestResultRowsForTest()[0];
+  assert.deepEqual(clearedAfter, clearedBefore);
 });
 
 test("simultaneous clear requests produce one clearance using the winning request's details", async () => {

@@ -43,6 +43,31 @@ function columnTextFilter(condition: unknown, columnName: string): string | unde
   return visit(condition);
 }
 
+function columnValueFilter(condition: unknown, columnName: string): unknown {
+  const visit = (value: unknown): unknown => {
+    if (!value || typeof value !== "object") return undefined;
+    const chunks = (value as { queryChunks?: unknown[] }).queryChunks;
+    if (!Array.isArray(chunks)) return undefined;
+    for (let index = 0; index < chunks.length; index += 1) {
+      const chunk = chunks[index] as {
+        name?: string;
+        queryChunks?: unknown[];
+        constructor?: { name?: string };
+      };
+      if (chunk?.name === columnName) {
+        const parameter = chunks.slice(index + 1).find((next) =>
+          (next as { constructor?: { name?: string } })?.constructor?.name === "Param") as
+            { value?: unknown } | undefined;
+        return parameter?.value;
+      }
+      const nested = visit(chunk);
+      if (nested !== undefined) return nested;
+    }
+    return undefined;
+  };
+  return visit(condition);
+}
+
 export function resetContestResultRows(seed: Array<Partial<ContestResultRow>> = []): void {
   nextId = 1;
   rows = seed.map((row) => ({
@@ -174,8 +199,12 @@ const testDbOperations = {
           }
           const target = rows[0];
           if (!target) return [];
+          const targetId = columnValueFilter(condition, "id");
+          if (typeof targetId === "number" && target.id !== targetId) return [];
           const providerId = providerIdFilter(condition);
           if (providerId !== undefined && target.emailProviderId !== providerId) return [];
+          const requiredStatus = columnTextFilter(condition, "status");
+          if (requiredStatus && target.status !== requiredStatus) return [];
           if (changes.status === "cleared" && target.status !== "draft") return [];
           if (changes.emailDeliveryStatus === "sending" &&
             (target.status !== "cleared" || !["not_sent", "failed"].includes(target.emailDeliveryStatus))) return [];

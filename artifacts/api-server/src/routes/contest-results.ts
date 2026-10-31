@@ -12,6 +12,9 @@ import {
   EmailStudioContestResultParams,
   EmailStudioContestResultResponse,
   ListStudioContestResultsResponse,
+  UpdateStudioContestResultBody,
+  UpdateStudioContestResultParams,
+  UpdateStudioContestResultResponse,
 } from "@workspace/api-zod";
 import { isStudioOwner } from "./studio";
 
@@ -72,6 +75,53 @@ router.post("/studio/contest-results", async (req, res): Promise<void> => {
 
   req.log.info({ resultId: row.id }, "Saved contest result draft");
   res.status(201).json(CreateStudioContestResultResponse.parse(encodeResult(row)));
+});
+
+router.patch("/studio/contest-results/:id", async (req, res): Promise<void> => {
+  if (!isStudioOwner(req)) {
+    res.status(401).json({ error: "Owner login required." });
+    return;
+  }
+  const params = UpdateStudioContestResultParams.safeParse(req.params);
+  const parsed = UpdateStudioContestResultBody.safeParse(req.body);
+  if (!params.success || !parsed.success) {
+    res.status(400).json({ error: "Enter valid contest result details." });
+    return;
+  }
+  if (parsed.data.winnerName.trim().toLocaleLowerCase() === parsed.data.runnerUpName.trim().toLocaleLowerCase()) {
+    res.status(400).json({ error: "Winner and runner-up must be different participants." });
+    return;
+  }
+
+  const [updated] = await db.update(contestResultsTable).set({
+    eventTitle: parsed.data.eventTitle.trim(),
+    division: parsed.data.division.trim(),
+    winnerName: parsed.data.winnerName.trim(),
+    winnerHandle: parsed.data.winnerHandle.trim(),
+    runnerUpName: parsed.data.runnerUpName.trim(),
+    winnerVotes: parsed.data.winnerVotes,
+    runnerUpVotes: parsed.data.runnerUpVotes,
+    coreScore: parsed.data.coreScore ?? null,
+    base44Summary: parsed.data.base44Summary.trim(),
+    viralReelSummary: parsed.data.viralReelSummary.trim(),
+  }).where(and(
+    eq(contestResultsTable.id, params.data.id),
+    eq(contestResultsTable.status, "draft"),
+  )).returning();
+
+  if (!updated) {
+    const [existing] = await db.select().from(contestResultsTable)
+      .where(eq(contestResultsTable.id, params.data.id));
+    if (!existing) {
+      res.status(404).json({ error: "Contest result draft not found." });
+      return;
+    }
+    res.status(409).json({ error: "This result has already been cleared and cannot be edited." });
+    return;
+  }
+
+  req.log.info({ resultId: updated.id }, "Owner updated contest result draft");
+  res.json(UpdateStudioContestResultResponse.parse(encodeResult(updated)));
 });
 
 router.post("/studio/contest-results/:id/clear", async (req, res): Promise<void> => {

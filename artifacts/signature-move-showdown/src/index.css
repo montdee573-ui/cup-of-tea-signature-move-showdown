@@ -1008,6 +1008,10 @@ button { cursor: pointer; }
 .result-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
 .result-form-actions p { max-width: 540px; margin: 0; color: #8994a5; font-size: 10px; line-height: 1.6; }
 .result-form-actions button { min-width: 170px; }
+.result-form-buttons { display: flex; justify-content: flex-end; gap: 10px; }
+.result-cancel-edit,.result-edit-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 13px; border: 1px solid rgba(205,220,236,.2); border-radius: 4px; color: #b8c5d4; background: rgba(205,220,236,.05); font: 9px var(--font-mono); }
+.result-edit-button { min-height: 32px; color: var(--cyan); }
+.result-record-controls { display: grid; justify-items: end; gap: 9px; }
 .result-history { margin-top: 36px; }
 .result-history .review-queue-heading { margin-bottom: 16px; }
 .result-record-list { display: grid; gap: 14px; }
@@ -1059,8 +1063,11 @@ button { cursor: pointer; }
   .result-fields.two-col,.result-source-grid { grid-template-columns: 1fr; }
   .result-form-actions { align-items: stretch; flex-direction: column; }
   .result-form-actions button { width: 100%; }
+  .result-form-buttons { flex-direction: column-reverse; }
+  .result-form-buttons button { width: 100%; }
   .result-record { padding: 14px; }
   .result-record-head { flex-direction: column; }
+  .result-record-controls { justify-items: start; }
   .result-record-head time { text-align: left; }
   .result-winner > b { font-size: 9px; }
   .result-email-delivery { align-items: flex-start; }

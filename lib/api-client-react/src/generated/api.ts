@@ -1298,6 +1298,95 @@ export const useCreateStudioContestResult = <TError = ErrorType<ErrorResponse>,
       return useMutation(getCreateStudioContestResultMutationOptions(options));
     }
 
+export const getUpdateStudioContestResultUrl = (id: number,) => {
+
+
+
+
+  return `/api/studio/contest-results/${id}`
+}
+
+/**
+ * @summary Update an owner-only contest result draft
+ */
+export const updateStudioContestResult = async (id: number,
+    contestResultInput: ContestResultInput, options?: Parameters<typeof customFetch>[1]): Promise<ContestResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ContestResult>(getUpdateStudioContestResultUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(contestResultInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateStudioContestResultMutationKey = () => ['updateStudioContestResult'] as const;
+
+export const getUpdateStudioContestResultMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStudioContestResult>>, TError,UpdateStudioContestResultMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStudioContestResult>>, TError,UpdateStudioContestResultMutationVariables, TContext> => {
+
+const mutationKey = getUpdateStudioContestResultMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStudioContestResult>>, UpdateStudioContestResultMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateStudioContestResult(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStudioContestResultMutationResult = NonNullable<Awaited<ReturnType<typeof updateStudioContestResult>>>
+    export type UpdateStudioContestResultMutationBody = BodyType<ContestResultInput>
+    export type UpdateStudioContestResultMutationError = ErrorType<ErrorResponse>
+    export type UpdateStudioContestResultMutationVariables = {id: number;data: BodyType<ContestResultInput>}
+
+    /**
+ * @summary Update an owner-only contest result draft
+ */
+export const useUpdateStudioContestResult = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStudioContestResult>>, TError,UpdateStudioContestResultMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateStudioContestResult>>,
+        TError,
+        UpdateStudioContestResultMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateStudioContestResultMutationOptions(options));
+    }
+
 export const getClearStudioContestResultUrl = (id: number,) => {
 
 

@@ -430,6 +430,74 @@ export const CreateStudioContestResultResponse = zod.object({
 
 
 /**
+ * @summary Update an owner-only contest result draft
+ */
+
+
+
+export const UpdateStudioContestResultParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const updateStudioContestResultBodyEventTitleMax = 100;
+
+export const updateStudioContestResultBodyDivisionMax = 80;
+
+export const updateStudioContestResultBodyWinnerNameMax = 80;
+
+export const updateStudioContestResultBodyWinnerHandleMax = 50;
+
+export const updateStudioContestResultBodyRunnerUpNameMax = 80;
+
+export const updateStudioContestResultBodyWinnerVotesMin = 0;
+
+export const updateStudioContestResultBodyRunnerUpVotesMin = 0;
+
+export const updateStudioContestResultBodyCoreScoreMin = 0;
+export const updateStudioContestResultBodyCoreScoreMax = 100;
+
+export const updateStudioContestResultBodyBase44SummaryMax = 2000;
+
+export const updateStudioContestResultBodyViralReelSummaryMax = 2000;
+
+
+
+export const UpdateStudioContestResultBody = zod.object({
+  "eventTitle": zod.string().min(1).max(updateStudioContestResultBodyEventTitleMax),
+  "division": zod.string().min(1).max(updateStudioContestResultBodyDivisionMax),
+  "winnerName": zod.string().min(1).max(updateStudioContestResultBodyWinnerNameMax),
+  "winnerHandle": zod.string().max(updateStudioContestResultBodyWinnerHandleMax),
+  "runnerUpName": zod.string().min(1).max(updateStudioContestResultBodyRunnerUpNameMax),
+  "winnerVotes": zod.number().int().min(updateStudioContestResultBodyWinnerVotesMin),
+  "runnerUpVotes": zod.number().int().min(updateStudioContestResultBodyRunnerUpVotesMin),
+  "coreScore": zod.number().int().min(updateStudioContestResultBodyCoreScoreMin).max(updateStudioContestResultBodyCoreScoreMax).nullish(),
+  "base44Summary": zod.string().min(1).max(updateStudioContestResultBodyBase44SummaryMax),
+  "viralReelSummary": zod.string().min(1).max(updateStudioContestResultBodyViralReelSummaryMax)
+})
+
+export const UpdateStudioContestResultResponse = zod.object({
+  "id": zod.number().int(),
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string(),
+  "status": zod.enum(['draft', 'cleared']),
+  "clearanceNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().nullable(),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
+  "emailSentAt": zod.coerce.date().nullable(),
+  "emailDeliveryError": zod.string().nullable()
+})
+
+
+/**
  * @summary Clear a draft as an official contest result
  */
 

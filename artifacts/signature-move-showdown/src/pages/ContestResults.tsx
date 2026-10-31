@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "wouter";
 import {
   ArrowLeft, BadgeCheck, CircleAlert, ClipboardCheck, LockKeyhole, Mail,
-  MailCheck, LogOut, ShieldCheck, Trophy,
+  MailCheck, LogOut, Pencil, ShieldCheck, Trophy, X,
 } from "lucide-react";
 import {
   getGetStudioSessionQueryKey,
@@ -17,6 +17,7 @@ import {
   useEmailStudioContestResult,
   useGetStudioSession,
   useListStudioContestResults,
+  useUpdateStudioContestResult,
 } from "@workspace/api-client-react";
 import type { ContestResult } from "@workspace/api-client-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -59,6 +60,7 @@ function ResultRecord({
   result,
   emailRecipient,
   onClear,
+  onEdit,
   onEmail,
   busy,
   emailBusy,
@@ -67,6 +69,7 @@ function ResultRecord({
   result: ContestResult;
   emailRecipient: string | null;
   onClear: (id: number, clearanceNote: string) => void;
+  onEdit: (result: ContestResult) => void;
   onEmail: (id: number) => void;
   busy: boolean;
   emailBusy: boolean;
@@ -79,7 +82,10 @@ function ResultRecord({
   return <article className={`result-record ${isCleared ? "is-cleared" : ""}`} data-testid={`result-record-${result.id}`}>
     <header className="result-record-head">
       <div><span className="launch-label">{isCleared ? <BadgeCheck size={13} /> : <ClipboardCheck size={13} />} {isCleared ? "OFFICIAL · OWNER CLEARED" : "DRAFT · PRIVATE"}</span><h3>{result.eventTitle}</h3><p>{result.division}</p></div>
-      <time dateTime={isCleared ? result.clearedAt ?? result.createdAt : result.createdAt}>{new Date(isCleared ? result.clearedAt ?? result.createdAt : result.createdAt).toLocaleString()}</time>
+      <div className="result-record-controls">
+        {!isCleared && <button type="button" className="result-edit-button" onClick={() => onEdit(result)} data-testid={`button-edit-result-${result.id}`}><Pencil size={13} /> Edit draft</button>}
+        <time dateTime={isCleared ? result.clearedAt ?? result.createdAt : result.createdAt}>{new Date(isCleared ? result.clearedAt ?? result.createdAt : result.createdAt).toLocaleString()}</time>
+      </div>
     </header>
     <div className="result-winner">
       <Trophy size={18} />
@@ -145,11 +151,13 @@ export default function ContestResults() {
   const createResult = useCreateStudioContestResult();
   const clearResult = useClearStudioContestResult();
   const emailResult = useEmailStudioContestResult();
+  const updateResult = useUpdateStudioContestResult();
   const canEmail = Boolean(results.data?.emailRecipient && results.data.emailSenderConfigured);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [resultError, setResultError] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
   const form = useForm<ResultFormValues>({
     resolver: zodResolver(resultSchema),
     defaultValues,
@@ -169,14 +177,44 @@ export default function ContestResults() {
   };
   const saveDraft = form.handleSubmit((values) => {
     setResultError("");
+    const onSuccess = () => {
+      form.reset(defaultValues);
+      setEditingDraftId(null);
+      void queryClient.invalidateQueries({ queryKey: getListStudioContestResultsQueryKey() });
+    };
+    const onError = (error: Error) => setResultError(error instanceof Error ? error.message : "Could not save this result draft.");
+    if (editingDraftId !== null) {
+      updateResult.mutate({ id: editingDraftId, data: values }, { onSuccess, onError });
+      return;
+    }
     createResult.mutate({ data: values }, {
-      onSuccess: () => {
-        form.reset(defaultValues);
-        void queryClient.invalidateQueries({ queryKey: getListStudioContestResultsQueryKey() });
-      },
-      onError: (error) => setResultError(error instanceof Error ? error.message : "Could not save this result draft."),
+      onSuccess,
+      onError,
     });
   });
+  const editDraft = (result: ContestResult) => {
+    if (result.status !== "draft") return;
+    setResultError("");
+    setEditingDraftId(result.id);
+    form.reset({
+      eventTitle: result.eventTitle,
+      division: result.division,
+      winnerName: result.winnerName,
+      winnerHandle: result.winnerHandle,
+      runnerUpName: result.runnerUpName,
+      winnerVotes: result.winnerVotes,
+      runnerUpVotes: result.runnerUpVotes,
+      coreScore: result.coreScore,
+      base44Summary: result.base44Summary,
+      viralReelSummary: result.viralReelSummary,
+    });
+    document.getElementById("result-entry-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const cancelEdit = () => {
+    setEditingDraftId(null);
+    setResultError("");
+    form.reset(defaultValues);
+  };
   const clearDraft = (id: number, clearanceNote: string) => {
     setResultError("");
     clearResult.mutate({ id, data: { confirm: true, clearanceNote } }, {
@@ -230,8 +268,8 @@ export default function ContestResults() {
         <div className="review-heading-side"><div className="review-session-state"><span /> OWNER SESSION ACTIVE</div><button className="review-signout" type="button" onClick={signOut} disabled={deleteSession.isPending}><LogOut size={14} /> Sign out</button></div>
       </div>
       <div className="result-guardrail"><LockKeyhole size={17} /><p><strong>No live contest data is connected.</strong> Enter only verified results from both Cup of Tea/Base44 and Viral Reel/Replit. Drafts stay private; only an owner-cleared result can be emailed, and only after you press send. Email requires a configured recipient and sender with Resend connected.</p></div>
-      <section className="result-entry-panel" aria-labelledby="result-entry-title">
-        <div className="review-queue-heading"><div><span className="launch-label">OWNER ENTERED · NEVER FABRICATED</span><h2 id="result-entry-title">Record a final</h2></div></div>
+      <section className="result-entry-panel" id="result-entry-panel" aria-labelledby="result-entry-title">
+        <div className="review-queue-heading"><div><span className="launch-label">{editingDraftId === null ? "OWNER ENTERED · NEVER FABRICATED" : "CORRECT A PRIVATE DRAFT"}</span><h2 id="result-entry-title">{editingDraftId === null ? "Record a final" : "Edit result draft"}</h2></div></div>
         <Form {...form}>
           <form className="result-form" onSubmit={saveDraft}>
             <div className="result-fields two-col">
@@ -251,7 +289,7 @@ export default function ContestResults() {
               <FormField control={form.control} name="viralReelSummary" render={({ field }) => <FormItem className="result-field"><FormLabel>Viral Reel / Replit result notes</FormLabel><FormControl><Textarea {...field} rows={4} maxLength={2000} placeholder="Record the matching verified entry and result information shown in Replit." data-testid="input-result-replit-notes" /></FormControl><FormMessage /></FormItem>} />
             </div>
             {resultError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{resultError}</span></div>}
-            <div className="result-form-actions"><p>Saving creates a private draft only. Ties cannot be cleared as a vote win.</p><button className="review-login-button" type="submit" disabled={createResult.isPending} data-testid="button-save-result-draft">{createResult.isPending ? "Saving draft…" : "Save private draft"}</button></div>
+            <div className="result-form-actions"><p>{editingDraftId === null ? "Saving creates a private draft only. Ties cannot be cleared as a vote win." : "Edits stay private until you clear this result. Ties cannot be cleared as a vote win."}</p><div className="result-form-buttons">{editingDraftId !== null && <button className="result-cancel-edit" type="button" onClick={cancelEdit} disabled={updateResult.isPending}><X size={14} /> Cancel</button>}<button className="review-login-button" type="submit" disabled={createResult.isPending || updateResult.isPending} data-testid={editingDraftId === null ? "button-save-result-draft" : "button-update-result-draft"}>{createResult.isPending || updateResult.isPending ? "Saving draft…" : editingDraftId === null ? "Save private draft" : "Save draft changes"}</button></div></div>
           </form>
         </Form>
       </section>
@@ -269,7 +307,7 @@ export default function ContestResults() {
         {clearResult.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{clearResult.error instanceof Error ? clearResult.error.message : "Could not clear this result."}</span></div>}
         {emailError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{emailError}</span></div>}
         {results.isLoading ? <div className="showdown-loading" role="status">Loading private results…</div> : results.isError ? <div className="review-alert" role="alert"><CircleAlert size={16} /><span>Private results could not be loaded.</span><button type="button" onClick={() => void results.refetch()}>Retry</button></div> : !results.data?.results.length ? <div className="review-empty"><ClipboardCheck size={24} /><h2>No results recorded.</h2><p>There is no final outcome yet. Do not create a draft until both app results have been checked.</p></div> :
-          <div className="result-record-list">{results.data.results.map((result) => <ResultRecord key={result.id} result={result} emailRecipient={results.data.emailRecipient} onClear={clearDraft} onEmail={emailClearedResult} busy={clearResult.isPending && clearResult.variables?.id === result.id} emailBusy={emailResult.isPending && emailResult.variables?.id === result.id} canEmail={canEmail} />)}</div>}
+          <div className="result-record-list">{results.data.results.map((result) => <ResultRecord key={result.id} result={result} emailRecipient={results.data.emailRecipient} onClear={clearDraft} onEdit={editDraft} onEmail={emailClearedResult} busy={clearResult.isPending && clearResult.variables?.id === result.id} emailBusy={emailResult.isPending && emailResult.variables?.id === result.id} canEmail={canEmail} />)}</div>}
       </section>
     </section>}
   </main>;

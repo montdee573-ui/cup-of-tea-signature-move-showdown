@@ -362,6 +362,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /studio/contest-results/{id}:
+    patch:
+      operationId: updateStudioContestResult
+      tags: [studio]
+      summary: Update an owner-only contest result draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContestResultInput"
+      responses:
+        "200":
+          description: Updated draft result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContestResult"
+        "400":
+          description: Invalid result details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Draft result not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Result has already been cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /studio/contest-results/{id}/clear:
     post:
       operationId: clearStudioContestResult
