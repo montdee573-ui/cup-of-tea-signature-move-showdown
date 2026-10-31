@@ -33,6 +33,9 @@ import type {
   CreatorCardAccessResponse,
   CreatorMotionCheckoutInput,
   CreatorMotionCheckoutResponse,
+  CreatorMotionRefundDecisionInput,
+  CreatorMotionRefundRequest,
+  CreatorMotionRefundRequestResponse,
   ErrorResponse,
   HealthStatus,
   ListShowdownsParams,
@@ -2702,6 +2705,261 @@ export const useRetryCreatorMotionGeneration = <TError = ErrorType<ErrorResponse
         TContext
       > => {
       return useMutation(getRetryCreatorMotionGenerationMutationOptions(options));
+    }
+
+export const getRequestCreatorMotionRefundUrl = (id: string,) => {
+
+
+
+
+  return `/api/creator-cards/${id}/refund-request`
+}
+
+/**
+ * @summary Request a refund after a failed reel retry
+ */
+export const requestCreatorMotionRefund = async (id: string,
+    creatorCardAccessInput: CreatorCardAccessInput, options?: Parameters<typeof customFetch>[1]): Promise<CreatorMotionRefundRequestResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreatorMotionRefundRequestResponse>(getRequestCreatorMotionRefundUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(creatorCardAccessInput)
+  }
+);}
+
+
+
+
+
+export const getRequestCreatorMotionRefundMutationKey = () => ['requestCreatorMotionRefund'] as const;
+
+export const getRequestCreatorMotionRefundMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestCreatorMotionRefund>>, TError,RequestCreatorMotionRefundMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestCreatorMotionRefund>>, TError,RequestCreatorMotionRefundMutationVariables, TContext> => {
+
+const mutationKey = getRequestCreatorMotionRefundMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestCreatorMotionRefund>>, RequestCreatorMotionRefundMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  requestCreatorMotionRefund(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestCreatorMotionRefundMutationResult = NonNullable<Awaited<ReturnType<typeof requestCreatorMotionRefund>>>
+    export type RequestCreatorMotionRefundMutationBody = BodyType<CreatorCardAccessInput>
+    export type RequestCreatorMotionRefundMutationError = ErrorType<ErrorResponse>
+    export type RequestCreatorMotionRefundMutationVariables = {id: string;data: BodyType<CreatorCardAccessInput>}
+
+    /**
+ * @summary Request a refund after a failed reel retry
+ */
+export const useRequestCreatorMotionRefund = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestCreatorMotionRefund>>, TError,RequestCreatorMotionRefundMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestCreatorMotionRefund>>,
+        TError,
+        RequestCreatorMotionRefundMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestCreatorMotionRefundMutationOptions(options));
+    }
+
+export const getListCreatorMotionRefundRequestsUrl = () => {
+
+
+
+
+  return `/api/studio/creator-refunds`
+}
+
+/**
+ * @summary List creator refund requests for the owner
+ */
+export const listCreatorMotionRefundRequests = async ( options?: Parameters<typeof customFetch>[1]): Promise<CreatorMotionRefundRequest[]> => {
+
+  return customFetch<CreatorMotionRefundRequest[]>(getListCreatorMotionRefundRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCreatorMotionRefundRequestsQueryKey = () => {
+    return [
+    `/api/studio/creator-refunds`
+    ] as const;
+    }
+
+
+export const getListCreatorMotionRefundRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listCreatorMotionRefundRequests>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCreatorMotionRefundRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCreatorMotionRefundRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCreatorMotionRefundRequests>>> = ({ signal }) => listCreatorMotionRefundRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCreatorMotionRefundRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCreatorMotionRefundRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listCreatorMotionRefundRequests>>>
+export type ListCreatorMotionRefundRequestsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List creator refund requests for the owner
+ */
+
+export function useListCreatorMotionRefundRequests<TData = Awaited<ReturnType<typeof listCreatorMotionRefundRequests>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCreatorMotionRefundRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCreatorMotionRefundRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResolveCreatorMotionRefundRequestUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/creator-refunds/${id}/decision`
+}
+
+/**
+ * @summary Issue a refund through Whop or decline the request
+ */
+export const resolveCreatorMotionRefundRequest = async (id: string,
+    creatorMotionRefundDecisionInput: CreatorMotionRefundDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<CreatorMotionRefundRequestResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreatorMotionRefundRequestResponse>(getResolveCreatorMotionRefundRequestUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(creatorMotionRefundDecisionInput)
+  }
+);}
+
+
+
+
+
+export const getResolveCreatorMotionRefundRequestMutationKey = () => ['resolveCreatorMotionRefundRequest'] as const;
+
+export const getResolveCreatorMotionRefundRequestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveCreatorMotionRefundRequest>>, TError,ResolveCreatorMotionRefundRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveCreatorMotionRefundRequest>>, TError,ResolveCreatorMotionRefundRequestMutationVariables, TContext> => {
+
+const mutationKey = getResolveCreatorMotionRefundRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveCreatorMotionRefundRequest>>, ResolveCreatorMotionRefundRequestMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resolveCreatorMotionRefundRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveCreatorMotionRefundRequestMutationResult = NonNullable<Awaited<ReturnType<typeof resolveCreatorMotionRefundRequest>>>
+    export type ResolveCreatorMotionRefundRequestMutationBody = BodyType<CreatorMotionRefundDecisionInput>
+    export type ResolveCreatorMotionRefundRequestMutationError = ErrorType<ErrorResponse>
+    export type ResolveCreatorMotionRefundRequestMutationVariables = {id: string;data: BodyType<CreatorMotionRefundDecisionInput>}
+
+    /**
+ * @summary Issue a refund through Whop or decline the request
+ */
+export const useResolveCreatorMotionRefundRequest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveCreatorMotionRefundRequest>>, TError,ResolveCreatorMotionRefundRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveCreatorMotionRefundRequest>>,
+        TError,
+        ResolveCreatorMotionRefundRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResolveCreatorMotionRefundRequestMutationOptions(options));
     }
 
 export const getListMoveSubmissionsForReviewUrl = () => {

@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   creatorMotionOrdersTable,
@@ -13,11 +13,19 @@ import {
   GetCreatorCardAccessBody,
   GetCreatorCardAccessParams,
   GetCreatorCardAccessResponse,
+  ListCreatorMotionRefundRequestsResponse,
+  RequestCreatorMotionRefundBody,
+  RequestCreatorMotionRefundParams,
+  RequestCreatorMotionRefundResponse,
+  ResolveCreatorMotionRefundRequestBody,
+  ResolveCreatorMotionRefundRequestParams,
+  ResolveCreatorMotionRefundRequestResponse,
   RetryCreatorMotionGenerationBody,
   RetryCreatorMotionGenerationParams,
   RetryCreatorMotionGenerationResponse,
 } from "@workspace/api-zod";
 import { getWhopClient } from "../lib/whop-client";
+import { isStudioOwner } from "./studio";
 import {
   creatorMotionOffer,
   creatorMotionVideoUrl,
@@ -39,6 +47,7 @@ type WhopPayment = {
   checkout_configuration_id?: string | null;
   refunded_amount?: number | string | null;
   created_at?: string | null;
+  company?: { id?: string } | null;
 };
 
 type WhopCheckout = {
@@ -204,6 +213,35 @@ async function findVerifiedPayment(
   return payment ?? null;
 }
 
+async function readVerifiedStoredPayment(
+  order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
+  companyId: string,
+): Promise<WhopPayment | null> {
+  if (!order.paymentId || !order.checkoutConfigurationId || order.priceUsd === null) return null;
+  const payment = await whopJson<WhopPayment>(
+    `/api/v1/payments/${encodeURIComponent(order.paymentId)}`,
+    { method: "GET" },
+  );
+  if (
+    payment.id !== order.paymentId
+    || payment.company?.id !== companyId
+    || payment.checkout_configuration_id !== order.checkoutConfigurationId
+    || (payment.status !== "paid" && Number(payment.refunded_amount ?? 0) < order.priceUsd)
+    || payment.currency?.toLowerCase() !== "usd"
+    || !Number.isFinite(Number(payment.amount))
+    || Math.round(Number(payment.amount) * 100) !== Math.round(order.priceUsd * 100)
+  ) return null;
+  return payment;
+}
+
+function refundRequestStatus(
+  value: string | undefined,
+): "none" | "requested" | "processing" | "completed" | "declined" {
+  return value === "requested" || value === "processing" || value === "completed" || value === "declined"
+    ? value
+    : "none";
+}
+
 async function refreshOrderStatus(
   order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
   companyId: string,
@@ -294,6 +332,14 @@ router.post("/creator-cards/:id/access", async (req, res): Promise<void> => {
     generationStatus: order?.generationStatus ?? "not_started",
     generationError: order?.generationError ?? null,
     motionVideoUrl: order?.generationStatus === "succeeded" ? creatorMotionVideoUrl(row.id) : null,
+    refundRequestStatus: refundRequestStatus(order?.refundRequestStatus),
+    refundRequestedAt: order?.refundRequestedAt ?? null,
+    refundRequestAllowed: Boolean(
+      order?.status === "paid"
+      && order.generationStatus === "failed"
+      && order.generationRetryCount >= 1
+      && refundRequestStatus(order.refundRequestStatus) === "none",
+    ),
     card: row.status === "approved" ? privateCard(row) : null,
   }));
 });
@@ -469,8 +515,16 @@ router.post("/creator-cards/:id/motion/retry", async (req, res): Promise<void> =
     res.status(409).json({ error: "Only a failed generation can be retried." });
     return;
   }
+  if (refundRequestStatus(order.refundRequestStatus) !== "none") {
+    res.status(409).json({ error: "Generation cannot be retried while a refund request is active or resolved." });
+    return;
+  }
   const [reset] = await db.update(creatorMotionOrdersTable)
-    .set({ generationStatus: "not_started", generationError: null })
+    .set({
+      generationStatus: "not_started",
+      generationError: null,
+      generationRetryCount: order.generationRetryCount + 1,
+    })
     .where(and(
       eq(creatorMotionOrdersTable.submissionId, row.id),
       eq(creatorMotionOrdersTable.status, "paid"),
@@ -492,8 +546,279 @@ router.post("/creator-cards/:id/motion/retry", async (req, res): Promise<void> =
     generationStatus: currentOrder?.generationStatus ?? "failed",
     generationError: currentOrder?.generationError ?? "The reel could not be started.",
     motionVideoUrl: currentOrder?.generationStatus === "succeeded" ? creatorMotionVideoUrl(row.id) : null,
+    refundRequestStatus: refundRequestStatus(currentOrder?.refundRequestStatus),
+    refundRequestedAt: currentOrder?.refundRequestedAt ?? null,
+    refundRequestAllowed: false,
     card: privateCard(row),
   }));
+});
+
+router.post("/creator-cards/:id/refund-request", async (req, res): Promise<void> => {
+  if (!withinRateLimit(req, res, 5)) return;
+  const params = RequestCreatorMotionRefundParams.safeParse(req.params);
+  const body = RequestCreatorMotionRefundBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: "A valid private creator link is required." });
+    return;
+  }
+  const row = await authorizedSubmission(params.data.id, body.data.creatorToken, res);
+  if (!row) return;
+  const order = await readOrder(row.id);
+  if (!order || order.status !== "paid" || !order.paymentId) {
+    res.status(409).json({ error: "A verified payment is required before requesting a refund." });
+    return;
+  }
+  if (order.generationStatus !== "failed" || order.generationRetryCount < 1) {
+    res.status(409).json({ error: "A refund request is available after a paid reel retry fails." });
+    return;
+  }
+  const currentStatus = refundRequestStatus(order.refundRequestStatus);
+  if (currentStatus !== "none") {
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.json(RequestCreatorMotionRefundResponse.parse({
+      refundRequestStatus: currentStatus,
+      refundRequestedAt: order.refundRequestedAt,
+    }));
+    return;
+  }
+  const config = whopConfiguration();
+  if (!config) {
+    res.status(503).json({ error: "Payment status could not be verified. Please try again." });
+    return;
+  }
+  let payment: WhopPayment | null;
+  try {
+    payment = await readVerifiedStoredPayment(order, config.companyId);
+  } catch (error) {
+    req.log.warn({ submissionId: row.id, providerStatus: (error as { status?: number }).status }, "Unable to verify creator refund payment");
+    res.status(503).json({ error: "Payment status could not be verified. Please try again." });
+    return;
+  }
+  if (!payment || Number(payment.refunded_amount ?? 0) !== 0) {
+    res.status(409).json({ error: "This payment is no longer eligible for a refund request." });
+    return;
+  }
+  const requestedAt = new Date();
+  const [updated] = await db.update(creatorMotionOrdersTable)
+    .set({ refundRequestStatus: "requested", refundRequestedAt: requestedAt })
+    .where(and(
+      eq(creatorMotionOrdersTable.submissionId, row.id),
+      eq(creatorMotionOrdersTable.status, "paid"),
+      eq(creatorMotionOrdersTable.generationStatus, "failed"),
+      eq(creatorMotionOrdersTable.generationRetryCount, order.generationRetryCount),
+      eq(creatorMotionOrdersTable.refundRequestStatus, "none"),
+    ))
+    .returning();
+  if (!updated) {
+    res.status(409).json({ error: "The reel or refund state changed. Refresh the page and try again." });
+    return;
+  }
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  res.json(RequestCreatorMotionRefundResponse.parse({
+    refundRequestStatus: "requested",
+    refundRequestedAt: updated.refundRequestedAt,
+  }));
+});
+
+router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  if (!isStudioOwner(req)) {
+    res.status(401).json({ error: "Owner session required." });
+    return;
+  }
+  const orders = await db.select().from(creatorMotionOrdersTable)
+    .where(inArray(creatorMotionOrdersTable.refundRequestStatus, ["requested", "processing"]));
+  const requests = [];
+  for (const order of orders) {
+    const status = refundRequestStatus(order.refundRequestStatus);
+    if (status !== "requested" && status !== "processing") continue;
+    const [submission] = await db.select().from(moveSubmissionsTable)
+      .where(eq(moveSubmissionsTable.id, order.submissionId));
+    if (!submission || order.priceUsd === null || !order.refundRequestedAt) continue;
+    requests.push({
+      submissionId: order.submissionId,
+      creatorName: submission.displayName,
+      moveName: submission.moveName,
+      priceUsd: order.priceUsd,
+      requestedAt: order.refundRequestedAt,
+      refundRequestStatus: status,
+      processingAt: order.refundProcessingAt,
+    });
+  }
+  requests.sort((a, b) => b.requestedAt.getTime() - a.requestedAt.getTime());
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  res.json(ListCreatorMotionRefundRequestsResponse.parse(requests));
+});
+
+router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  if (!isStudioOwner(req)) {
+    res.status(401).json({ error: "Owner session required." });
+    return;
+  }
+  const params = ResolveCreatorMotionRefundRequestParams.safeParse(req.params);
+  const body = ResolveCreatorMotionRefundRequestBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: "A valid refund decision is required." });
+    return;
+  }
+  const order = await readOrder(params.data.id);
+  if (!order || refundRequestStatus(order.refundRequestStatus) === "none") {
+    res.status(404).json({ error: "Refund request not found." });
+    return;
+  }
+  const status = refundRequestStatus(order.refundRequestStatus);
+  if (body.data.decision === "decline") {
+    if (status !== "requested") {
+      res.status(409).json({ error: "This refund request is already being handled or resolved." });
+      return;
+    }
+    const [declined] = await db.update(creatorMotionOrdersTable)
+      .set({ refundRequestStatus: "declined", refundProcessingAt: null })
+      .where(and(
+        eq(creatorMotionOrdersTable.submissionId, params.data.id),
+        eq(creatorMotionOrdersTable.refundRequestStatus, "requested"),
+      ))
+      .returning();
+    if (!declined) {
+      res.status(409).json({ error: "This refund request is already being handled or resolved." });
+      return;
+    }
+    res.json(ResolveCreatorMotionRefundRequestResponse.parse({
+      refundRequestStatus: "declined",
+      refundRequestedAt: declined.refundRequestedAt,
+    }));
+    return;
+  }
+  if (status !== "requested" && status !== "processing") {
+    res.status(409).json({ error: "This refund request is already resolved." });
+    return;
+  }
+  if (!order.paymentId || !order.checkoutConfigurationId || order.priceUsd === null) {
+    res.status(409).json({ error: "The verified Whop payment is not available for this request." });
+    return;
+  }
+  const config = whopConfiguration();
+  if (!config) {
+    res.status(503).json({ error: "Whop could not complete or verify the refund. The request remains open." });
+    return;
+  }
+  if (status === "processing") {
+    const processingAt = order.refundProcessingAt?.getTime() ?? 0;
+    if (Date.now() - processingAt < 120_000) {
+      res.status(409).json({ error: "This refund is still being processed. Refresh the queue shortly." });
+      return;
+    }
+    try {
+      const payment = await readVerifiedStoredPayment(order, config.companyId);
+      if (!payment) {
+        res.status(409).json({ error: "Whop could not verify the original payment. The request remains open." });
+        return;
+      }
+      const refunded = Number(payment.refunded_amount ?? 0);
+      if (refunded >= order.priceUsd) {
+        const [completed] = await db.update(creatorMotionOrdersTable)
+          .set({ refundRequestStatus: "completed", refundProcessingAt: null })
+          .where(and(
+            eq(creatorMotionOrdersTable.submissionId, params.data.id),
+            eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
+          ))
+          .returning();
+        if (!completed) {
+          res.status(409).json({ error: "The refund state changed. Refresh the queue and try again." });
+          return;
+        }
+        res.json(ResolveCreatorMotionRefundRequestResponse.parse({
+          refundRequestStatus: "completed",
+          refundRequestedAt: completed.refundRequestedAt,
+        }));
+        return;
+      }
+      if (refunded !== 0) {
+        res.status(409).json({ error: "This payment has a partial refund and needs manual review in Whop." });
+        return;
+      }
+      await db.update(creatorMotionOrdersTable)
+        .set({ refundRequestStatus: "requested", refundProcessingAt: null })
+        .where(and(
+          eq(creatorMotionOrdersTable.submissionId, params.data.id),
+          eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
+        ));
+      res.status(409).json({ error: "No full refund was recorded. Refresh the queue to try again." });
+      return;
+    } catch (error) {
+      req.log.warn({ submissionId: params.data.id, providerStatus: (error as { status?: number }).status }, "Unable to reconcile creator refund with Whop");
+      res.status(503).json({ error: "Whop refund status could not be verified. The request remains open." });
+      return;
+    }
+  }
+  if (status === "requested") {
+    const [claimed] = await db.update(creatorMotionOrdersTable)
+      .set({ refundRequestStatus: "processing", refundProcessingAt: new Date() })
+      .where(and(
+        eq(creatorMotionOrdersTable.submissionId, params.data.id),
+        eq(creatorMotionOrdersTable.refundRequestStatus, "requested"),
+      ))
+      .returning();
+    if (!claimed) {
+      res.status(409).json({ error: "This refund request is already being handled or resolved." });
+      return;
+    }
+  }
+  try {
+    const payment = await readVerifiedStoredPayment(order, config.companyId);
+    if (!payment) {
+      await db.update(creatorMotionOrdersTable)
+        .set({ refundRequestStatus: "requested", refundProcessingAt: null })
+        .where(eq(creatorMotionOrdersTable.submissionId, params.data.id));
+      res.status(409).json({ error: "Whop could not verify the original payment. The request remains open." });
+      return;
+    }
+    const alreadyRefunded = Number(payment.refunded_amount ?? 0);
+    if (alreadyRefunded < order.priceUsd) {
+      if (alreadyRefunded !== 0) {
+        await db.update(creatorMotionOrdersTable)
+          .set({ refundRequestStatus: "requested", refundProcessingAt: null })
+          .where(eq(creatorMotionOrdersTable.submissionId, params.data.id));
+        res.status(409).json({ error: "This payment has a partial refund and needs manual review in Whop." });
+        return;
+      }
+      await whopJson<WhopPayment>(
+        `/api/v1/payments/${encodeURIComponent(order.paymentId)}/refund`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) },
+      );
+    }
+    const finalPayment = await whopJson<WhopPayment>(
+      `/api/v1/payments/${encodeURIComponent(order.paymentId)}`,
+      { method: "GET" },
+    );
+    if (
+      finalPayment.id !== order.paymentId
+      || finalPayment.company?.id !== config.companyId
+      || finalPayment.checkout_configuration_id !== order.checkoutConfigurationId
+      || finalPayment.currency?.toLowerCase() !== "usd"
+      || Math.round(Number(finalPayment.amount) * 100) !== Math.round(order.priceUsd * 100)
+      || Math.round(Number(finalPayment.refunded_amount ?? 0) * 100) < Math.round(order.priceUsd * 100)
+    ) throw new Error("Whop did not confirm the full refund.");
+    const [completed] = await db.update(creatorMotionOrdersTable)
+      .set({ refundRequestStatus: "completed", refundProcessingAt: null })
+      .where(and(
+        eq(creatorMotionOrdersTable.submissionId, params.data.id),
+        eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
+      ))
+      .returning();
+    if (!completed) throw new Error("The refund result could not be recorded.");
+    res.json(ResolveCreatorMotionRefundRequestResponse.parse({
+      refundRequestStatus: "completed",
+      refundRequestedAt: completed.refundRequestedAt,
+    }));
+  } catch (error) {
+    req.log.error({ submissionId: params.data.id, providerStatus: (error as { status?: number }).status }, "Unable to complete creator refund through Whop");
+    await db.update(creatorMotionOrdersTable)
+      .set({ refundRequestStatus: "requested", refundProcessingAt: null })
+      .where(eq(creatorMotionOrdersTable.submissionId, params.data.id));
+    res.status(503).json({ error: "Whop could not complete or verify the refund. The request remains open." });
+  }
 });
 
 router.get("/creator-cards/:id/motion/video", async (req, res): Promise<void> => {

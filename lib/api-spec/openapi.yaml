@@ -959,6 +959,130 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /creator-cards/{id}/refund-request:
+    post:
+      operationId: requestCreatorMotionRefund
+      tags: [submissions]
+      summary: Request a refund after a failed reel retry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorCardAccessInput"
+      responses:
+        "200":
+          description: Current refund request state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorMotionRefundRequestResponse"
+        "400":
+          description: Invalid creator link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Creator link is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Payment or failed retry is not eligible for a refund request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Whop payment status could not be verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/creator-refunds:
+    get:
+      operationId: listCreatorMotionRefundRequests
+      tags: [studio]
+      summary: List creator refund requests for the owner
+      responses:
+        "200":
+          description: Requests awaiting owner review
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CreatorMotionRefundRequest"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/creator-refunds/{id}/decision:
+    post:
+      operationId: resolveCreatorMotionRefundRequest
+      tags: [studio]
+      summary: Issue a refund through Whop or decline the request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorMotionRefundDecisionInput"
+      responses:
+        "200":
+          description: Updated refund request status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorMotionRefundRequestResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Refund request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Request is no longer eligible for this decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Whop could not complete or verify the refund
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /studio/move-submissions/review:
     get:
       operationId: listMoveSubmissionsForReview
@@ -1844,11 +1968,19 @@ components:
           type: ["string", "null"]
         motionVideoUrl:
           type: ["string", "null"]
+        refundRequestStatus:
+          type: string
+          enum: [none, requested, processing, completed, declined]
+        refundRequestedAt:
+          type: ["string", "null"]
+          format: date-time
+        refundRequestAllowed:
+          type: boolean
         card:
           oneOf:
             - $ref: "#/components/schemas/CreatorCard"
             - type: "null"
-      required: [submissionStatus, motionStatus, offerAvailable, priceUsd, generationStatus, generationError, motionVideoUrl, card]
+      required: [submissionStatus, motionStatus, offerAvailable, priceUsd, generationStatus, generationError, motionVideoUrl, refundRequestStatus, refundRequestedAt, refundRequestAllowed, card]
     CreatorCard:
       type: object
       properties:
@@ -1895,6 +2027,45 @@ components:
           type: boolean
           enum: [true]
       required: [creatorToken, approvedPriceUsd, confirmPurchase]
+    CreatorMotionRefundRequestResponse:
+      type: object
+      properties:
+        refundRequestStatus:
+          type: string
+          enum: [requested, processing, completed, declined]
+        refundRequestedAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [refundRequestStatus, refundRequestedAt]
+    CreatorMotionRefundRequest:
+      type: object
+      properties:
+        submissionId:
+          type: string
+          format: uuid
+        creatorName:
+          type: string
+        moveName:
+          type: string
+        priceUsd:
+          type: number
+        requestedAt:
+          type: string
+          format: date-time
+        refundRequestStatus:
+          type: string
+          enum: [requested, processing]
+        processingAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [submissionId, creatorName, moveName, priceUsd, requestedAt, refundRequestStatus, processingAt]
+    CreatorMotionRefundDecisionInput:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [refund, decline]
+      required: [decision]
     MoveSubmissionReviewInput:
       type: object
       properties:

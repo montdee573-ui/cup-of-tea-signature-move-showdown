@@ -1,5 +1,6 @@
 import { creatorMotionOrdersTable } from "../../../../lib/db/src/schema/creator-motion-orders";
 import { moveSubmissionsTable } from "../../../../lib/db/src/schema/move-submissions";
+import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
 
 type SubmissionRow = typeof moveSubmissionsTable.$inferSelect;
 type MotionOrderRow = typeof creatorMotionOrdersTable.$inferSelect;
@@ -47,6 +48,30 @@ export function resetCreatorCardState(row: Partial<SubmissionRow> = {}): void {
   writes = [];
 }
 
+export function seedCreatorMotionOrder(overrides: Partial<MotionOrderRow> = {}): void {
+  orders = [{
+    id: nextOrderId++,
+    submissionId,
+    checkoutConfigurationId: "checkout_test",
+    checkoutUrl: null,
+    paymentId: "pay_test",
+    status: "paid",
+    priceUsd: 9.99,
+    generationStatus: "failed",
+    generationPredictionId: null,
+    generationObjectPath: null,
+    generationError: "Generation failed.",
+    generationStartedAt: null,
+    generationRetryCount: 1,
+    refundRequestStatus: "none",
+    refundRequestedAt: null,
+    refundProcessingAt: null,
+    createdAt: new Date("2026-10-01T12:00:00.000Z"),
+    paidAt: new Date("2026-10-01T12:00:00.000Z"),
+    ...overrides,
+  }];
+}
+
 export function creatorCardState() {
   return {
     submission: { ...submission },
@@ -84,6 +109,10 @@ export const db: any = {
             generationObjectPath: null,
             generationError: null,
             generationStartedAt: null,
+            generationRetryCount: 0,
+            refundRequestStatus: "none",
+            refundRequestedAt: null,
+            refundProcessingAt: null,
             createdAt: new Date(),
             paidAt: null,
             ...values,
@@ -100,9 +129,24 @@ export const db: any = {
         returning: async () => {
           recordWrite(table);
           if (table !== creatorMotionOrdersTable) return [];
-          const order = orders.find((candidate) =>
-            changes.status !== "creating" || candidate.status === "failed",
-          );
+          const order = orders.find((candidate) => {
+            if (changes.status === "creating") return candidate.status === "failed";
+            if (changes.refundRequestStatus === "requested") {
+              return candidate.refundRequestStatus === "none"
+                && candidate.status === "paid"
+                && candidate.generationStatus === "failed"
+                && candidate.generationRetryCount >= 1;
+            }
+            if (changes.refundRequestStatus === "processing") return candidate.refundRequestStatus === "requested";
+            if (changes.refundRequestStatus === "completed") return candidate.refundRequestStatus === "processing";
+            if (changes.refundRequestStatus === "declined") return candidate.refundRequestStatus === "requested";
+            if (changes.generationStatus === "not_started") {
+              return candidate.status === "paid"
+                && candidate.generationStatus === "failed"
+                && candidate.refundRequestStatus === "none";
+            }
+            return true;
+          });
           if (!order) return [];
           Object.assign(order, changes);
           return [{ ...order }];
@@ -112,4 +156,4 @@ export const db: any = {
   }),
 };
 
-export { creatorMotionOrdersTable, moveSubmissionsTable };
+export { creatorMotionOrdersTable, moveSubmissionsTable, studioReelsTable };

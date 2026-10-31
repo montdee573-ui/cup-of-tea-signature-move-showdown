@@ -774,6 +774,9 @@ export const GetCreatorCardAccessResponse = zod.object({
   "generationStatus": zod.enum(['not_started', 'starting', 'processing', 'succeeded', 'failed']),
   "generationError": zod.string().nullable(),
   "motionVideoUrl": zod.string().nullable(),
+  "refundRequestStatus": zod.enum(['none', 'requested', 'processing', 'completed', 'declined']),
+  "refundRequestedAt": zod.coerce.date().nullable(),
+  "refundRequestAllowed": zod.boolean(),
   "card": zod.union([zod.object({
   "id": zod.string().uuid(),
   "displayName": zod.string(),
@@ -837,6 +840,9 @@ export const RetryCreatorMotionGenerationResponse = zod.object({
   "generationStatus": zod.enum(['not_started', 'starting', 'processing', 'succeeded', 'failed']),
   "generationError": zod.string().nullable(),
   "motionVideoUrl": zod.string().nullable(),
+  "refundRequestStatus": zod.enum(['none', 'requested', 'processing', 'completed', 'declined']),
+  "refundRequestedAt": zod.coerce.date().nullable(),
+  "refundRequestAllowed": zod.boolean(),
   "card": zod.union([zod.object({
   "id": zod.string().uuid(),
   "displayName": zod.string(),
@@ -846,6 +852,60 @@ export const RetryCreatorMotionGenerationResponse = zod.object({
   "team": zod.string().nullable(),
   "design": zod.enum(['holo', 'court'])
 }),zod.null()])
+})
+
+
+/**
+ * @summary Request a refund after a failed reel retry
+ */
+export const RequestCreatorMotionRefundParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const requestCreatorMotionRefundBodyCreatorTokenMin = 43;
+export const requestCreatorMotionRefundBodyCreatorTokenMax = 128;
+
+
+
+export const RequestCreatorMotionRefundBody = zod.object({
+  "creatorToken": zod.string().min(requestCreatorMotionRefundBodyCreatorTokenMin).max(requestCreatorMotionRefundBodyCreatorTokenMax)
+})
+
+export const RequestCreatorMotionRefundResponse = zod.object({
+  "refundRequestStatus": zod.enum(['requested', 'processing', 'completed', 'declined']),
+  "refundRequestedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary List creator refund requests for the owner
+ */
+export const ListCreatorMotionRefundRequestsResponseItem = zod.object({
+  "submissionId": zod.string().uuid(),
+  "creatorName": zod.string(),
+  "moveName": zod.string(),
+  "priceUsd": zod.number(),
+  "requestedAt": zod.coerce.date(),
+  "refundRequestStatus": zod.enum(['requested', 'processing']),
+  "processingAt": zod.coerce.date().nullable()
+})
+export const ListCreatorMotionRefundRequestsResponse = zod.array(ListCreatorMotionRefundRequestsResponseItem)
+
+
+/**
+ * @summary Issue a refund through Whop or decline the request
+ */
+export const ResolveCreatorMotionRefundRequestParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const ResolveCreatorMotionRefundRequestBody = zod.object({
+  "decision": zod.enum(['refund', 'decline'])
+})
+
+export const ResolveCreatorMotionRefundRequestResponse = zod.object({
+  "refundRequestStatus": zod.enum(['requested', 'processing', 'completed', 'declined']),
+  "refundRequestedAt": zod.coerce.date().nullable()
 })
 
 

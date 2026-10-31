@@ -4,6 +4,7 @@ import { Link, useParams } from "wouter";
 import {
   useCreateCreatorMotionCardCheckout,
   useGetCreatorCardAccess,
+  useRequestCreatorMotionRefund,
   useRetryCreatorMotionGeneration,
 } from "@workspace/api-client-react";
 import type { CreatorCardAccessResponse } from "@workspace/api-client-react";
@@ -21,6 +22,7 @@ export default function CreatorCardPage() {
   const access = useGetCreatorCardAccess();
   const checkout = useCreateCreatorMotionCardCheckout();
   const retryGeneration = useRetryCreatorMotionGeneration();
+  const refundRequest = useRequestCreatorMotionRefund();
   const refreshAccess = useRef(access.mutate);
   refreshAccess.current = access.mutate;
 
@@ -81,6 +83,12 @@ export default function CreatorCardPage() {
       onSuccess: () => refreshAccess.current({ id, data: { creatorToken: token } }),
     });
   };
+  const requestRefund = () => {
+    if (!id || !token || !data?.refundRequestAllowed) return;
+    refundRequest.mutate({ id, data: { creatorToken: token } }, {
+      onSuccess: () => refreshAccess.current({ id, data: { creatorToken: token } }),
+    });
+  };
 
   const data: CreatorCardAccessResponse | undefined = access.data;
   const card = data?.card;
@@ -129,11 +137,19 @@ export default function CreatorCardPage() {
                 ? <p className="creator-feedback" role="status">Your reel is generating. This page will update automatically. No additional charge is made while it processes.</p>
                 : null}
               {data.generationStatus === "failed" && <div className="creator-feedback" role="alert">
-                <p>{data.generationError || "The reel did not finish."} You can retry without paying again. If a retry still cannot complete, contact the owner to request a full refund.</p>
-                <button type="button" className="creator-secondary-button" onClick={retryReel} disabled={retryGeneration.isPending}>
+                <p>{data.generationError || "The reel did not finish."} You can retry without paying again. If a retry still cannot complete, request a tracked refund here.</p>
+                {data.refundRequestStatus === "none" && <button type="button" className="creator-secondary-button" onClick={retryReel} disabled={retryGeneration.isPending || refundRequest.isPending}>
                   <RefreshCw size={14} /> {retryGeneration.isPending ? "Retrying generation…" : "Retry at no extra charge"}
-                </button>
+                </button>}
                 {retryGeneration.isError && <p>{retryGeneration.error instanceof Error ? retryGeneration.error.message : "The retry could not be started."}</p>}
+                {data.refundRequestAllowed && <button type="button" className="creator-secondary-button creator-refund-button" onClick={requestRefund} disabled={refundRequest.isPending}>
+                  {refundRequest.isPending ? "Sending refund request…" : "Request a full refund"}
+                </button>}
+                {refundRequest.isError && <p role="alert">{refundRequest.error instanceof Error ? refundRequest.error.message : "The refund request could not be saved. Please try again."}</p>}
+                {data.refundRequestStatus !== "none" && <div className="creator-refund-state" role="status" data-testid="creator-refund-status">
+                  <strong>{data.refundRequestStatus === "requested" ? "Refund request sent" : data.refundRequestStatus === "processing" ? "Refund is being processed" : data.refundRequestStatus === "completed" ? "Refund issued through Whop" : "Refund request declined"}</strong>
+                  <span>{data.refundRequestStatus === "requested" ? "The owner will review your request. Refresh this page to check for an update." : data.refundRequestStatus === "processing" ? "The owner is processing the refund through Whop. Refresh this page for the latest status." : data.refundRequestStatus === "completed" ? "The refund was issued through Whop. Your payment provider may take additional time to post it." : "The owner declined this request. Contact the owner if you need more help."}</span>
+                </div>}
               </div>}
               {data.generationStatus === "succeeded" && data.motionVideoUrl && <>
                 <video className="creator-motion-video" controls playsInline preload="metadata" src={data.motionVideoUrl} aria-label={`Generated four-second reel inspired by ${card?.moveName ?? "your submitted move"}`} data-testid="video-creator-motion" />

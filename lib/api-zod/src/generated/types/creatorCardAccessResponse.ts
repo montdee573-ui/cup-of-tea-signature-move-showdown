@@ -8,6 +8,7 @@
 import type { CreatorCard } from './creatorCard';
 import type { CreatorCardAccessResponseGenerationStatus } from './creatorCardAccessResponseGenerationStatus';
 import type { CreatorCardAccessResponseMotionStatus } from './creatorCardAccessResponseMotionStatus';
+import type { CreatorCardAccessResponseRefundRequestStatus } from './creatorCardAccessResponseRefundRequestStatus';
 import type { CreatorCardAccessResponseSubmissionStatus } from './creatorCardAccessResponseSubmissionStatus';
 
 export interface CreatorCardAccessResponse {
@@ -21,5 +22,9 @@ export interface CreatorCardAccessResponse {
   generationError: string | null;
   /** @nullable */
   motionVideoUrl: string | null;
+  refundRequestStatus: CreatorCardAccessResponseRefundRequestStatus;
+  /** @nullable */
+  refundRequestedAt: Date | null;
+  refundRequestAllowed: boolean;
   card: CreatorCard | null;
 }

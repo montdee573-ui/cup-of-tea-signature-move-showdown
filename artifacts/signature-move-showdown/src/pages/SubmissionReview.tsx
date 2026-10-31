@@ -8,14 +8,17 @@ import {
 import {
   getGetMoveSubmissionVideoUrl,
   getGetStudioSessionQueryKey,
+  getListCreatorMotionRefundRequestsQueryKey,
   getListMoveSubmissionsForReviewQueryKey,
+  useListCreatorMotionRefundRequests,
+  useResolveCreatorMotionRefundRequest,
   useCreateStudioSession,
   useDeleteStudioSession,
   useGetStudioSession,
   useListMoveSubmissionsForReview,
   useReviewMoveSubmission,
 } from "@workspace/api-client-react";
-import type { MoveSubmission } from "@workspace/api-client-react";
+import type { CreatorMotionRefundRequest, MoveSubmission } from "@workspace/api-client-react";
 import MerchMockupStudio from "./MerchMockupStudio";
 
 function readableSize(bytes: number) {
@@ -75,9 +78,18 @@ export default function SubmissionReview() {
       refetchOnMount: "always",
     },
   });
+  const refundQueue = useListCreatorMotionRefundRequests({
+    query: {
+      queryKey: getListCreatorMotionRefundRequestsQueryKey(),
+      enabled: authenticated,
+      retry: false,
+      refetchOnMount: "always",
+    },
+  });
   const createSession = useCreateStudioSession();
   const deleteSession = useDeleteStudioSession();
   const reviewSubmission = useReviewMoveSubmission();
+  const resolveRefund = useResolveCreatorMotionRefundRequest();
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
@@ -101,10 +113,22 @@ export default function SubmissionReview() {
       onSuccess: () => void queryClient.invalidateQueries({ queryKey: getListMoveSubmissionsForReviewQueryKey() }),
     });
   };
+  const resolveRefundRequest = (request: CreatorMotionRefundRequest, decision: "refund" | "decline") => {
+    const confirmation = decision === "refund" && request.refundRequestStatus === "processing"
+      ? `Check the current Whop refund status for ${request.creatorName}?`
+      : decision === "refund"
+        ? `Issue a full refund of $${request.priceUsd.toFixed(2)} through Whop for ${request.creatorName}?`
+      : `Decline the refund request from ${request.creatorName}?`;
+    if (!window.confirm(confirmation)) return;
+    resolveRefund.mutate({ id: request.submissionId, data: { decision } }, {
+      onSuccess: () => void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() }),
+    });
+  };
   const signOut = () => {
     deleteSession.mutate(undefined, {
       onSuccess: () => {
         queryClient.removeQueries({ queryKey: getListMoveSubmissionsForReviewQueryKey() });
+        queryClient.removeQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() });
         refreshSession();
       },
     });
@@ -142,6 +166,35 @@ export default function SubmissionReview() {
         queue.isError ? <div className="review-empty review-error"><CircleAlert size={22} /><h2>Queue unavailable</h2><p>We could not load private submissions. The public archive is unchanged.</p><button type="button" onClick={() => void queue.refetch()}><RefreshCw size={14} /> Try again</button></div> :
           !queue.data?.length ? <div className="review-empty"><ShieldCheck size={24} /><span className="launch-label">ALL CAUGHT UP</span><h2>No moves waiting.</h2><p>New submissions will appear here after they are sent for review.</p><button type="button" onClick={() => void queue.refetch()}><RefreshCw size={14} /> Check again</button></div> :
             <div className="review-list">{queue.data.map((submission) => <SubmissionCard key={submission.id} submission={submission} busy={reviewSubmission.isPending && reviewSubmission.variables?.id === submission.id} onReview={decide} />)}</div>}
+      <section className="refund-review" aria-labelledby="refund-review-title" data-testid="creator-refund-review">
+        <div className="refund-review-head">
+          <div><span className="launch-label">PAYMENT SUPPORT</span><h2 id="refund-review-title">Creator refund requests</h2></div>
+          <button type="button" onClick={() => void refundQueue.refetch()} disabled={refundQueue.isFetching}><RefreshCw size={14} /> Refresh</button>
+        </div>
+        <p className="refund-review-intro">Review failed creator-reel retries. Full refunds are issued through Whop and do not change contest entries or results.</p>
+        {resolveRefund.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{resolveRefund.error instanceof Error ? resolveRefund.error.message : "The refund decision could not be saved. Refresh the queue and try again."}</span></div>}
+        {refundQueue.isLoading ? <p className="refund-review-state" role="status">Loading refund requests…</p> :
+          refundQueue.isError ? <div className="refund-review-state error" role="alert">Refund requests are unavailable. Confirm your owner session and try again.</div> :
+            !refundQueue.data?.length ? <p className="refund-review-state">No refund requests are waiting for review.</p> :
+              <div className="refund-review-list">{refundQueue.data.map((request) => {
+                const busy = resolveRefund.isPending && resolveRefund.variables?.id === request.submissionId;
+                return <article className="refund-review-card" key={request.submissionId} data-testid={`refund-request-${request.submissionId}`}>
+                  <div>
+                    <span className="review-number">SUBMISSION / {request.submissionId.slice(0, 8).toUpperCase()}</span>
+                    <h3>{request.moveName}</h3>
+                    <p>{request.creatorName} · ${request.priceUsd.toFixed(2)} USD</p>
+                    <small>Requested {new Date(request.requestedAt).toLocaleString()}</small>
+                    {request.refundRequestStatus === "processing" && <small>Whop status: refund processing</small>}
+                  </div>
+                  <div className="refund-review-actions">
+                    {request.refundRequestStatus === "requested" && <button type="button" className="refund-decline" onClick={() => resolveRefundRequest(request, "decline")} disabled={busy}>Decline</button>}
+                    <button type="button" className="refund-approve" onClick={() => resolveRefundRequest(request, "refund")} disabled={busy}>
+                      {busy ? "Processing…" : request.refundRequestStatus === "processing" ? "Check Whop status" : "Issue full refund through Whop"}
+                    </button>
+                  </div>
+                </article>;
+              })}</div>}
+      </section>
       <MerchMockupStudio />
       <div className="review-privacy-foot"><LockKeyhole size={14} /><span>Private submissions stay out of all public archive views until moderation is complete.</span></div>
     </section>}

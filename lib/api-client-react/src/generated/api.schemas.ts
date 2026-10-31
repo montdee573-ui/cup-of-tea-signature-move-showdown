@@ -609,6 +609,17 @@ export const CreatorCardAccessResponseGenerationStatus = {
   failed: 'failed',
 } as const;
 
+export type CreatorCardAccessResponseRefundRequestStatus = typeof CreatorCardAccessResponseRefundRequestStatus[keyof typeof CreatorCardAccessResponseRefundRequestStatus];
+
+
+export const CreatorCardAccessResponseRefundRequestStatus = {
+  none: 'none',
+  requested: 'requested',
+  processing: 'processing',
+  completed: 'completed',
+  declined: 'declined',
+} as const;
+
 export type CreatorCardDesign = typeof CreatorCardDesign[keyof typeof CreatorCardDesign];
 
 
@@ -639,6 +650,10 @@ export interface CreatorCardAccessResponse {
   generationError: string | null;
   /** @nullable */
   motionVideoUrl: string | null;
+  refundRequestStatus: CreatorCardAccessResponseRefundRequestStatus;
+  /** @nullable */
+  refundRequestedAt: string | null;
+  refundRequestAllowed: boolean;
   card: CreatorCard | null;
 }
 
@@ -666,6 +681,53 @@ export interface CreatorMotionCheckoutInput {
   /** @minimum 0.01 */
   approvedPriceUsd: number;
   confirmPurchase: true;
+}
+
+export type CreatorMotionRefundRequestResponseRefundRequestStatus = typeof CreatorMotionRefundRequestResponseRefundRequestStatus[keyof typeof CreatorMotionRefundRequestResponseRefundRequestStatus];
+
+
+export const CreatorMotionRefundRequestResponseRefundRequestStatus = {
+  requested: 'requested',
+  processing: 'processing',
+  completed: 'completed',
+  declined: 'declined',
+} as const;
+
+export interface CreatorMotionRefundRequestResponse {
+  refundRequestStatus: CreatorMotionRefundRequestResponseRefundRequestStatus;
+  /** @nullable */
+  refundRequestedAt: string | null;
+}
+
+export type CreatorMotionRefundRequestRefundRequestStatus = typeof CreatorMotionRefundRequestRefundRequestStatus[keyof typeof CreatorMotionRefundRequestRefundRequestStatus];
+
+
+export const CreatorMotionRefundRequestRefundRequestStatus = {
+  requested: 'requested',
+  processing: 'processing',
+} as const;
+
+export interface CreatorMotionRefundRequest {
+  submissionId: string;
+  creatorName: string;
+  moveName: string;
+  priceUsd: number;
+  requestedAt: string;
+  refundRequestStatus: CreatorMotionRefundRequestRefundRequestStatus;
+  /** @nullable */
+  processingAt: string | null;
+}
+
+export type CreatorMotionRefundDecisionInputDecision = typeof CreatorMotionRefundDecisionInputDecision[keyof typeof CreatorMotionRefundDecisionInputDecision];
+
+
+export const CreatorMotionRefundDecisionInputDecision = {
+  refund: 'refund',
+  decline: 'decline',
+} as const;
+
+export interface CreatorMotionRefundDecisionInput {
+  decision: CreatorMotionRefundDecisionInputDecision;
 }
 
 export type MoveSubmissionReviewInputStatus = typeof MoveSubmissionReviewInputStatus[keyof typeof MoveSubmissionReviewInputStatus];

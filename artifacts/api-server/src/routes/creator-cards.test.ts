@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { after, before, test } from "node:test";
+import cookieParser from "cookie-parser";
 import express, { type Request } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import creatorCardsRouter from "./creator-cards";
-import { creatorCardState, resetCreatorCardState } from "./creator-cards-test-db";
+import { creatorCardState, resetCreatorCardState, seedCreatorMotionOrder } from "./creator-cards-test-db";
 
 const CREATOR_TOKEN = "creator-link-token-for-checkout-regression-tests";
 const PRICE_USD = 9.99;
@@ -16,6 +17,7 @@ const OWNER_ENV = [
   "WHOP_PLAN_ID",
   "REPLICATE_API_TOKEN",
   "SESSION_SECRET",
+  "REEL_STUDIO_ADMIN_PASSWORD",
   "DEFAULT_OBJECT_STORAGE_BUCKET_ID",
   "PRIVATE_OBJECT_DIR",
 ] as const;
@@ -34,6 +36,7 @@ function configureOwner(planId = "plan_test"): void {
   process.env.WHOP_PLAN_ID = planId;
   process.env.REPLICATE_API_TOKEN = "configured-for-test";
   process.env.SESSION_SECRET = "creator-motion-test-session-secret";
+  process.env.REEL_STUDIO_ADMIN_PASSWORD = "creator-motion-test-owner-password";
   process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID = "creator-motion-test-bucket";
   process.env.PRIVATE_OBJECT_DIR = "creator-motion-private";
 }
@@ -43,6 +46,15 @@ function resetTestState(planId?: string): void {
   resetCreatorCardState({
     creatorTokenHash: createHash("sha256").update(CREATOR_TOKEN).digest("hex"),
   });
+}
+
+function ownerCookie(): string {
+  const payload = Buffer.from(JSON.stringify({ role: "owner", exp: Date.now() + 60 * 60 * 1000 })).toString("base64url");
+  const signature = createHmac(
+    "sha256",
+    `${process.env.SESSION_SECRET}:${process.env.REEL_STUDIO_ADMIN_PASSWORD}`,
+  ).update(payload).digest("base64url");
+  return `reel_studio_owner=${payload}.${signature}`;
 }
 
 function approvedPlan(overrides: Record<string, unknown> = {}) {
@@ -66,12 +78,25 @@ async function withWhop(
   run: (calls: WhopCall[]) => Promise<void>,
 ): Promise<void> {
   const calls: WhopCall[] = [];
+  let refundedAmount = 0;
   const originalProxy = ReplitConnectors.prototype.proxy;
   ReplitConnectors.prototype.proxy = async function (_connectorName, path, options) {
     calls.push({ path, method: options?.method });
-    const payload = options?.method === "POST"
-      ? { id: "checkout_test", purchase_url: "https://whop.com/checkout/test" }
-      : plan;
+    const paymentPath = path.includes("/api/v1/payments/pay_test");
+    if (paymentPath && options?.method === "POST" && path.endsWith("/refund")) refundedAmount = PRICE_USD;
+    const payload = paymentPath
+      ? {
+        id: "pay_test",
+        company: { id: "biz_test" },
+        checkout_configuration_id: "checkout_test",
+        status: refundedAmount >= PRICE_USD ? "refunded" : "paid",
+        amount: PRICE_USD,
+        currency: "usd",
+        refunded_amount: refundedAmount,
+      }
+      : options?.method === "POST"
+        ? { id: "checkout_test", purchase_url: "https://whop.com/checkout/test" }
+        : plan;
     return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -86,6 +111,7 @@ async function withWhop(
 
 before(async () => {
   app.use(express.json());
+  app.use(cookieParser());
   app.set("trust proxy", true);
   app.use((req: Request, _res, next) => {
     Object.defineProperty(req, "log", {
@@ -140,6 +166,26 @@ async function creatorCardAccess(): Promise<Response> {
       "X-Forwarded-For": `192.0.2.${requestId}`,
     },
     body: JSON.stringify({ creatorToken: CREATOR_TOKEN }),
+  });
+}
+
+async function creatorRefundRequest(): Promise<Response> {
+  requestId += 1;
+  return fetch(`${baseUrl}/creator-cards/${submissionId}/refund-request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Forwarded-For": `192.0.2.${requestId}`,
+    },
+    body: JSON.stringify({ creatorToken: CREATOR_TOKEN }),
+  });
+}
+
+async function ownerRefundDecision(decision: "refund" | "decline", cookie = ownerCookie()): Promise<Response> {
+  return fetch(`${baseUrl}/studio/creator-refunds/${submissionId}/decision`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({ decision }),
   });
 }
 
@@ -264,4 +310,77 @@ test("checkout writes only the separate creator order and leaves free contest en
   assert.equal(afterState.submission.id, before.id);
   assert.deepEqual(afterState.writes, ["creator_motion_orders"]);
   assert.equal(afterState.orders.length, 1);
+});
+
+test("refund requests require a failed retry and persist only on the verified payment order", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ generationRetryCount: 0 });
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await creatorRefundRequest();
+    assert.equal(response.status, 409);
+    assert.deepEqual(calls, []);
+  });
+
+  resetTestState();
+  seedCreatorMotionOrder();
+  const before = creatorCardState();
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await creatorRefundRequest();
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as { refundRequestStatus: string }).refundRequestStatus, "requested");
+    assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+    assert.match(calls[0].path, /\/api\/v1\/payments\/pay_test$/);
+  });
+  const afterState = creatorCardState();
+  assert.equal(afterState.orders[0].paymentId, before.orders[0].paymentId);
+  assert.equal(afterState.orders[0].refundRequestStatus, "requested");
+  assert.deepEqual(afterState.writes, ["creator_motion_orders"]);
+  assert.deepEqual(afterState.submission, before.submission);
+
+  await withWhop(approvedPlan(), async () => {
+    const response = await creatorCardAccess();
+    const payload = await response.json() as { refundRequestStatus: string; refundRequestAllowed: boolean };
+    assert.equal(response.status, 200);
+    assert.equal(payload.refundRequestStatus, "requested");
+    assert.equal(payload.refundRequestAllowed, false);
+  });
+});
+
+test("owner can issue a full Whop refund and persist the completed result", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  const before = creatorCardState().submission;
+  const anonymousList = await fetch(`${baseUrl}/studio/creator-refunds`);
+  assert.equal(anonymousList.status, 401);
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const list = await fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } });
+    assert.equal(list.status, 200);
+    const requests = await list.json() as Array<{ submissionId: string; priceUsd: number }>;
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].submissionId, submissionId);
+    assert.equal(requests[0].priceUsd, PRICE_USD);
+
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as { refundRequestStatus: string }).refundRequestStatus, "completed");
+    assert.deepEqual(calls.map((call) => call.method), ["GET", "POST", "GET"]);
+    assert.match(calls[1].path, /\/api\/v1\/payments\/pay_test\/refund$/);
+  });
+  const state = creatorCardState();
+  assert.equal(state.orders[0].refundRequestStatus, "completed");
+  assert.equal(state.submission.status, before.status);
+  assert.deepEqual(state.writes, ["creator_motion_orders"]);
+});
+
+test("owner can decline a refund request without calling Whop", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await ownerRefundDecision("decline");
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as { refundRequestStatus: string }).refundRequestStatus, "declined");
+    assert.deepEqual(calls, []);
+  });
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "declined");
 });
