@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useQueries, type Query } from "@tanstack/react-query";
-import { CircleAlert, Images, LoaderCircle, LockKeyhole, Shirt } from "lucide-react";
+import { CircleAlert, Download, Images, LoaderCircle, LockKeyhole, Shirt } from "lucide-react";
 import {
   getGetMerchMockupTaskQueryKey,
   getGetMerchMockupTaskQueryOptions,
@@ -11,7 +11,7 @@ import {
   useListMerchCatalog,
   useRetryMerchMockups,
 } from "@workspace/api-client-react";
-import { groupMerchMockupPreviews } from "../lib/merch-mockup-previews";
+import { getMerchMockupDownloadFilename, groupMerchMockupPreviews } from "../lib/merch-mockup-previews";
 
 function messageOf(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -304,10 +304,23 @@ export default function MerchMockupStudio() {
                 {previewGroups.length > 0
                   ? previewGroups.map((group) => <section className="merch-studio-preview-group" key={group.key}>
                     <h4>{group.title}</h4>
-                    <div className="merch-studio-previews">{group.previews.map((preview, index) => <figure key={`${preview.imageUrl}-${index}`}>
+                    <div className="merch-studio-previews">{group.previews.map((preview, index) => {
+                      const filename = getMerchMockupDownloadFilename(preview, batch.variants, batch.placements);
+                      const testGroupKey = group.key.replace(/[^a-zA-Z0-9_-]/g, "-");
+                      return <figure key={`${preview.imageUrl}-${index}`}>
                       <img src={preview.imageUrl} alt={`${group.title} private product mockup`} loading="lazy" />
                       <figcaption>{preview.title}</figcaption>
-                    </figure>)}</div>
+                      <a
+                        className="merch-studio-download"
+                        href={preview.imageUrl}
+                        download={filename}
+                        aria-label={`Download ${filename}`}
+                        data-testid={`link-download-mockup-${testGroupKey}-${index}`}
+                      >
+                        <Download size={13} /> Download image
+                      </a>
+                    </figure>;
+                    })}</div>
                   </section>)
                   : initialTask.status === "completed"
                     ? <p className="merch-studio-status">The task completed, but Printful returned no preview images.</p>

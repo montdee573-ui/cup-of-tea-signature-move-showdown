@@ -325,6 +325,8 @@ button { cursor: pointer; }
 .merch-studio-previews figure { overflow: hidden; margin: 0; border: 1px solid rgba(221,218,244,.13); border-radius: 4px; background: #0c0c14; }
 .merch-studio-previews img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: contain; background: #12121b; }
 .merch-studio-previews figcaption { padding: 9px; color: #aaa7ba; font: 8px/1.5 var(--font-mono); }
+.merch-studio-download { display: inline-flex; align-items: center; gap: 6px; margin: 0 9px 9px; padding: 7px 9px; border: 1px solid rgba(88,221,236,.25); border-radius: 3px; color: var(--cyan); background: rgba(30,127,145,.1); font: 8px var(--font-mono); text-decoration: none; }
+.merch-studio-download:hover,.merch-studio-download:focus-visible { border-color: rgba(88,221,236,.65); background: rgba(30,127,145,.2); }
 .merch-studio-safety { display: flex; align-items: flex-start; gap: 8px; margin: 18px 0 0; padding-top: 12px; border-top: 1px solid rgba(221,218,244,.1); color: #858397; font-size: 9px; line-height: 1.6; }
 .merch-studio-safety svg { flex: 0 0 auto; color: #85c9c3; }
 .review-decision-error { margin-bottom: 13px; }
