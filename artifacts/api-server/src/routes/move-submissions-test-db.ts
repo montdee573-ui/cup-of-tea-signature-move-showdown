@@ -1,3 +1,5 @@
+import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
+
 const moveSubmissionsTable = {};
 const studioReelsTable = {};
 let insertCalls = 0;
@@ -30,4 +32,4 @@ export const db = {
   }),
 };
 
-export { moveSubmissionsTable, studioReelsTable };
+export { moveSubmissionsTable, studioLoginAttemptsTable, studioReelsTable };

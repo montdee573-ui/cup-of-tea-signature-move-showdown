@@ -3,8 +3,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import cookieParser from "cookie-parser";
 import { Router, type IRouter, type Request } from "express";
-import { and, desc, eq } from "drizzle-orm";
-import { db, studioReelsTable } from "@workspace/db";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { db, studioLoginAttemptsTable, studioReelsTable } from "@workspace/db";
 import {
   CreateStudioReelBody,
   CreateStudioReelResponse,
@@ -55,7 +55,6 @@ const VALID_BRIEFS = {
 type ReelStatus = "starting" | "processing" | "succeeded" | "failed" | "aborted";
 type SessionRequest = Request & { cookies?: Record<string, string> };
 
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 let providerCheck: { ready: boolean; checkedAt: number } | undefined;
 let storageCheck: { ready: boolean; checkedAt: number } | undefined;
 
@@ -264,7 +263,7 @@ router.get("/studio/session", (req, res): void => {
   res.json(GetStudioSessionResponse.parse({ configured: configured(), authenticated: isOwner(req as SessionRequest) }));
 });
 
-router.post("/studio/session", (req, res): void => {
+router.post("/studio/session", async (req, res): Promise<void> => {
   const parsed = CreateStudioSessionBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Enter the studio password." });
@@ -274,26 +273,63 @@ router.post("/studio/session", (req, res): void => {
     res.status(503).json({ error: "Studio owner access is not configured." });
     return;
   }
-  const now = Date.now();
   const key = req.ip ?? "unknown";
-  const attempts = loginAttempts.get(key);
-  if (attempts && attempts.resetAt > now && attempts.count >= 5) {
+  const password = process.env.REEL_STUDIO_ADMIN_PASSWORD ?? "";
+  const expected = Buffer.from(password);
+
+  const result = await db.transaction(async (tx) => {
+    // Serialize attempts from the same address across workers before reading or
+    // changing the shared count. Hash collisions only serialize unrelated IPs.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
+    const now = Date.now();
+    const [attempts] = await tx.select().from(studioLoginAttemptsTable)
+      .where(eq(studioLoginAttemptsTable.ipAddress, key));
+    const windowExpiresAt = attempts?.windowExpiresAt.getTime() ?? 0;
+
+    if (windowExpiresAt > now && attempts.failedCount >= 5) {
+      return { blocked: true, authenticated: false, now };
+    }
+
+    const actual = Buffer.from(parsed.data.password);
+    const matches = actual.length === expected.length && timingSafeEqual(actual, expected);
+    if (!matches) {
+      const nextCount = windowExpiresAt > now ? attempts.failedCount + 1 : 1;
+      const nextExpiry = windowExpiresAt > now
+        ? attempts.windowExpiresAt
+        : new Date(now + 60_000);
+      if (attempts) {
+        await tx.update(studioLoginAttemptsTable)
+          .set({ failedCount: nextCount, windowExpiresAt: nextExpiry })
+          .where(eq(studioLoginAttemptsTable.ipAddress, key))
+          .returning();
+      } else {
+        await tx.insert(studioLoginAttemptsTable).values({
+          ipAddress: key,
+          failedCount: nextCount,
+          windowExpiresAt: nextExpiry,
+        }).returning();
+      }
+      return { blocked: false, authenticated: false, now };
+    }
+
+    if (attempts) {
+      await tx.delete(studioLoginAttemptsTable)
+        .where(eq(studioLoginAttemptsTable.ipAddress, key))
+        .returning();
+    }
+    return { blocked: false, authenticated: true, now };
+  });
+
+  if (result.blocked) {
     res.status(429).json({ error: "Too many sign-in attempts. Try again in a minute." });
     return;
   }
-  const password = process.env.REEL_STUDIO_ADMIN_PASSWORD ?? "";
-  const actual = Buffer.from(parsed.data.password);
-  const expected = Buffer.from(password);
-  const matches = actual.length === expected.length && timingSafeEqual(actual, expected);
-  if (!matches) {
-    loginAttempts.set(key, attempts && attempts.resetAt > now
-      ? { count: attempts.count + 1, resetAt: attempts.resetAt }
-      : { count: 1, resetAt: now + 60_000 });
+  if (!result.authenticated) {
     res.status(401).json({ error: "That password did not match." });
     return;
   }
-  loginAttempts.delete(key);
-  const payload = Buffer.from(JSON.stringify({ role: "owner", exp: now + COOKIE_TTL_SECONDS * 1000 })).toString("base64url");
+
+  const payload = Buffer.from(JSON.stringify({ role: "owner", exp: result.now + COOKIE_TTL_SECONDS * 1000 })).toString("base64url");
   res.cookie(COOKIE_NAME, `${payload}.${signSession(payload)}`, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

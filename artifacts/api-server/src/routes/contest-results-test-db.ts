@@ -1,10 +1,47 @@
 import { contestResultsTable } from "../../../../lib/db/src/schema/contest-results";
+import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
 import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
 
 type ContestResultRow = typeof contestResultsTable.$inferSelect;
+type StudioLoginAttemptRow = typeof studioLoginAttemptsTable.$inferSelect;
 
 let rows: ContestResultRow[] = [];
 let nextId = 1;
+const studioLoginAttempts = new Map<string, StudioLoginAttemptRow>();
+let transactionQueue = Promise.resolve();
+
+export function resetStudioLoginAttempts(): void {
+  studioLoginAttempts.clear();
+}
+
+export function setStudioLoginAttempt(ipAddress: string, failedCount: number, windowExpiresAt: Date): void {
+  studioLoginAttempts.set(ipAddress, { ipAddress, failedCount, windowExpiresAt });
+}
+
+function columnTextFilter(condition: unknown, columnName: string): string | undefined {
+  const visit = (value: unknown): string | undefined => {
+    if (!value || typeof value !== "object") return undefined;
+    const chunks = (value as { queryChunks?: unknown[] }).queryChunks;
+    if (!Array.isArray(chunks)) return undefined;
+    for (let index = 0; index < chunks.length; index += 1) {
+      const chunk = chunks[index] as {
+        name?: string;
+        queryChunks?: unknown[];
+        constructor?: { name?: string };
+      };
+      if (chunk?.name === columnName) {
+        const parameter = chunks.slice(index + 1).find((next) =>
+          (next as { constructor?: { name?: string } })?.constructor?.name === "Param") as
+            { value?: unknown } | undefined;
+        return typeof parameter?.value === "string" ? parameter.value : undefined;
+      }
+      const nested = visit(chunk);
+      if (nested) return nested;
+    }
+    return undefined;
+  };
+  return visit(condition);
+}
 
 export function resetContestResultRows(seed: Array<Partial<ContestResultRow>> = []): void {
   nextId = 1;
@@ -64,11 +101,16 @@ function providerIdFilter(condition: unknown): string | undefined {
   return visit(condition);
 }
 
-export const db = {
+const testDbOperations = {
   select: () => ({
-    from: (_table: unknown) => ({
+    from: (table: unknown) => ({
       orderBy: async () => [...rows],
       where: async (condition: unknown) => {
+        if (table === studioLoginAttemptsTable) {
+          const ipAddress = columnTextFilter(condition, "ip_address");
+          const attempt = ipAddress ? studioLoginAttempts.get(ipAddress) : undefined;
+          return attempt ? [{ ...attempt }] : [];
+        }
         const providerId = providerIdFilter(condition);
         const matches = providerId === undefined
           ? rows
@@ -80,6 +122,16 @@ export const db = {
   insert: (_table: unknown) => ({
     values: (values: Partial<ContestResultRow>) => ({
       returning: async () => {
+        if (_table === studioLoginAttemptsTable) {
+          const attempt = values as Partial<StudioLoginAttemptRow>;
+          const row = {
+            ipAddress: attempt.ipAddress ?? "",
+            failedCount: attempt.failedCount ?? 0,
+            windowExpiresAt: attempt.windowExpiresAt ?? new Date(),
+          };
+          studioLoginAttempts.set(row.ipAddress, row);
+          return [row];
+        }
         const row = {
           id: nextId++,
           eventTitle: "",
@@ -109,10 +161,17 @@ export const db = {
       },
     }),
   }),
-  update: (_table: unknown) => ({
+  update: (table: unknown) => ({
     set: (changes: Partial<ContestResultRow>) => ({
       where: (condition: unknown) => ({
         returning: async () => {
+          if (table === studioLoginAttemptsTable) {
+            const ipAddress = columnTextFilter(condition, "ip_address");
+            const attempt = ipAddress ? studioLoginAttempts.get(ipAddress) : undefined;
+            if (!attempt) return [];
+            Object.assign(attempt, changes);
+            return [attempt];
+          }
           const target = rows[0];
           if (!target) return [];
           const providerId = providerIdFilter(condition);
@@ -132,6 +191,38 @@ export const db = {
       }),
     }),
   }),
+  delete: (table: unknown) => {
+    return {
+      where: (condition: unknown) => {
+        return {
+          returning: async () => {
+            if (table === studioLoginAttemptsTable) {
+              const ipAddress = columnTextFilter(condition, "ip_address");
+              if (ipAddress) studioLoginAttempts.delete(ipAddress);
+            }
+            return [];
+          },
+        };
+      },
+    };
+  },
+  execute: async () => undefined,
 };
 
-export { contestResultsTable, studioReelsTable };
+export const db = Object.assign(testDbOperations, {
+  transaction: async <T>(callback: (transaction: any) => Promise<T>): Promise<T> => {
+    const previousTransaction = transactionQueue;
+    let releaseTransaction!: () => void;
+    transactionQueue = new Promise<void>((resolve) => {
+      releaseTransaction = resolve;
+    });
+    await previousTransaction;
+    try {
+      return await callback(testDbOperations);
+    } finally {
+      releaseTransaction();
+    }
+  },
+});
+
+export { contestResultsTable, studioLoginAttemptsTable, studioReelsTable };

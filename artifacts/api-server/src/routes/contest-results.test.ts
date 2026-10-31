@@ -6,13 +6,20 @@ import express, { type Request } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import contestResultsRouter from "./contest-results";
 import resendWebhookRouter from "./resend-webhook";
-import { getContestResultRowsForTest, resetContestResultRows } from "./contest-results-test-db";
+import studioRouter from "./studio";
+import {
+  getContestResultRowsForTest,
+  resetContestResultRows,
+  resetStudioLoginAttempts,
+  setStudioLoginAttempt,
+} from "./contest-results-test-db";
 
 const SESSION_SECRET = "contest-results-test-session-secret";
 const ADMIN_PASSWORD = "contest-results-test-owner-password";
 const app = express();
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
+let observedClientIp = "";
 
 function ownerCookie(): string {
   const payload = Buffer.from(JSON.stringify({
@@ -28,17 +35,20 @@ function ownerCookie(): string {
 before(async () => {
   process.env.SESSION_SECRET = SESSION_SECRET;
   process.env.REEL_STUDIO_ADMIN_PASSWORD = ADMIN_PASSWORD;
+  app.set("trust proxy", true);
 
   app.use("/webhooks/resend", express.raw({ type: "application/json", limit: "64kb" }));
   app.use(express.json());
   app.use(cookieParser());
   app.use((req: Request, _res, next) => {
+    observedClientIp = req.ip ?? "unknown";
     Object.defineProperty(req, "log", {
       value: { info: () => undefined, warn: () => undefined },
     });
     next();
   });
   app.use(contestResultsRouter);
+  app.use(studioRouter);
   app.use(resendWebhookRouter);
 
   server = app.listen(0);
@@ -59,6 +69,14 @@ async function request(path: string, init: RequestInit = {}, authenticated = fal
   if (authenticated) headers.set("Cookie", ownerCookie());
   if (init.body) headers.set("Content-Type", "application/json");
   return fetch(`${baseUrl}${path}`, { ...init, headers });
+}
+
+async function login(password: string): Promise<Response> {
+  return request("/studio/session", {
+    method: "POST",
+    headers: { "X-Forwarded-For": "127.0.0.1" },
+    body: JSON.stringify({ password }),
+  });
 }
 
 function createBody(winnerVotes = 10, runnerUpVotes = 5) {
@@ -101,6 +119,27 @@ test("unauthenticated requests cannot list, create, clear, or email contest resu
   assert.deepEqual([list.status, create.status, clearResult.status, emailResult.status], [401, 401, 401, 401]);
   const results = await request("/studio/contest-results", {}, true);
   assert.deepEqual((await results.json() as { results: unknown[] }).results, []);
+});
+
+test("owner login throttling persists failures, expires the window, and clears after success", async () => {
+  resetStudioLoginAttempts();
+  const simultaneousAttempts = await Promise.all(
+    Array.from({ length: 8 }, () => login("incorrect-password")),
+  );
+  assert.deepEqual(
+    simultaneousAttempts.map((response) => response.status).sort((left, right) => left - right),
+    [401, 401, 401, 401, 401, 429, 429, 429],
+  );
+
+  resetStudioLoginAttempts();
+  setStudioLoginAttempt(observedClientIp, 5, new Date(Date.now() - 1));
+  const expired = await login("incorrect-password");
+  assert.equal(expired.status, 401);
+  assert.equal((await login(ADMIN_PASSWORD)).status, 200);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    assert.equal((await login("incorrect-password")).status, 401);
+  }
+  assert.equal((await login(ADMIN_PASSWORD)).status, 429);
 });
 
 test("only the authenticated owner receives the configured email destination", async () => {

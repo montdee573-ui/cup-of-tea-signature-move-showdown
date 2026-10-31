@@ -7,3 +7,4 @@
 - [OpenAPI array uniqueness](openapi-array-uniqueness.md) — Orval-generated Zod schemas may omit `uniqueItems`; enforce critical duplicate checks in the server route.
 - [Workspace declaration freshness](workspace-declaration-freshness.md) — Refresh TypeScript project references with `pnpm run typecheck:libs` before diagnosing downstream API type errors.
 - [Whop refund uncertainty](whop-refund-uncertainty.md) — Keep ambiguous provider outcomes claimed until a verified payment read makes retrying safe.
+- [Shared-state test doubles](shared-state-test-doubles.md) — In-memory DB adapters must preserve transaction behavior and use the route's actual client key.

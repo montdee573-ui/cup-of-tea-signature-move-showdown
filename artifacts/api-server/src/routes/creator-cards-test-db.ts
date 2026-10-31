@@ -1,5 +1,6 @@
 import { creatorMotionOrdersTable } from "../../../../lib/db/src/schema/creator-motion-orders";
 import { moveSubmissionsTable } from "../../../../lib/db/src/schema/move-submissions";
+import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
 import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
 
 type SubmissionRow = typeof moveSubmissionsTable.$inferSelect;
@@ -165,4 +166,4 @@ export const db: any = {
   }),
 };
 
-export { creatorMotionOrdersTable, moveSubmissionsTable, studioReelsTable };
+export { creatorMotionOrdersTable, moveSubmissionsTable, studioLoginAttemptsTable, studioReelsTable };
