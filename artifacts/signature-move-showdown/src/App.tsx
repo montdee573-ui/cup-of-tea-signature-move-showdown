@@ -39,7 +39,7 @@ const kobeImage = '/images/kobe-drive-frame.jpg';
 
 function Brand() {
   return <Link href="/" className="brand" data-testid="link-home">
-    <span className="brand-mark"><Zap size={17} fill="currentColor" /></span>
+    <span className="brand-mark"><img src="/images/cup-of-tea-app-icon.png" alt="" aria-hidden="true" /></span>
     <span>VIRAL <i>REEL</i><small> PRO SPORTS ARCHIVE</small></span>
   </Link>;
 }
