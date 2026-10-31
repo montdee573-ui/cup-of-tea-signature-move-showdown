@@ -183,8 +183,11 @@ function Collection() {
       <div className="eyebrow"><Sparkles size={12} /> THE OPEN PRO SPORTS ARCHIVE</div>
           <h1>Great moves<br />leave <span>a mark.</span></h1>
           <p>One play at a time. Explore the footwork, timing, and little decisions behind classic and current players’ most memorable moves.</p>
-          <a href="#collection" className="button-primary" data-testid="button-browse">Browse the archive <ChevronRight size={16} /></a>
-          <div className="hero-footnote"><span className="pulse-dot" /> PUBLIC BY DESIGN <b>·</b> NO ACCOUNT, NO PAYWALL</div>
+          <div className="hero-actions">
+            <a href="#collection" className="button-primary" data-testid="button-browse">Browse the archive <ChevronRight size={16} /></a>
+            <Link href="/submit" className="button-submit" data-testid="button-submit-digital-card">Submit your move <Zap size={15} /></Link>
+          </div>
+          <div className="hero-footnote"><span className="pulse-dot" /> FREE ENTRY <b>·</b> NO LOGIN OR OWNER CODE</div>
         </div>
         {featured ? <Link href={`/cards/${featured.slug}`} className="feature-card" data-testid={`featured-card-${featured.slug}`}>
           <CardArt card={featured} large />

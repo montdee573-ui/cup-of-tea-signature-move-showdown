@@ -42,8 +42,11 @@ button { cursor: pointer; }
 .hero h1 { margin: 22px 0 16px; font: 700 clamp(52px, 7vw, 83px)/.93 var(--font-display); letter-spacing: -.075em; }
 .hero h1 span { background: linear-gradient(90deg, var(--cyan), #a9b1ff 54%, #df8be9); background-clip: text; color: transparent; }
 .hero-copy > p { max-width: 410px; color: #b0aec2; font-size: 13px; line-height: 1.8; margin: 0 0 23px; }
+.hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .button-primary { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 42px; padding: 0 15px; border: 0; border-radius: 5px; color: #0b0b14; background: linear-gradient(100deg, var(--cyan), #a4afff); font-size: 11px; font-weight: 800; transition: transform .2s, filter .2s; }
 .button-primary:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.button-submit { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 42px; padding: 0 15px; border: 1px solid rgba(88,221,236,.35); border-radius: 5px; color: var(--cyan); background: rgba(9,15,24,.4); font-size: 11px; font-weight: 800; transition: transform .2s, background .2s, border-color .2s; }
+.button-submit:hover { transform: translateY(-2px); border-color: rgba(88,221,236,.75); background: rgba(53,163,183,.13); }
 .hero-footnote { display: flex; align-items: center; gap: 9px; margin-top: 24px; color: #838196; font: 8px var(--font-mono); letter-spacing: .06em; }
 .hero-footnote b { color: var(--pink); }
 .feature-card { display: block; width: 230px; flex: 0 0 230px; transform: rotate(2deg); position: relative; z-index: 1; transition: transform .35s; }
