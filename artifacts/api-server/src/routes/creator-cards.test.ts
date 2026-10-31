@@ -100,11 +100,18 @@ function approvedPlan(overrides: Record<string, unknown> = {}) {
 
 type WhopCall = { path: string; method?: string };
 
+type WhopMockOptions = {
+  beforeRefund?: () => Promise<void>;
+  failRequest?: { method: string; pathSuffix: string; status: number };
+  refundAmount?: number;
+};
+
 async function withWhop(
   plan: Record<string, unknown>,
   run: (calls: WhopCall[]) => Promise<void>,
   beforeCheckout?: () => Promise<void>,
   paymentOverrides: Record<string, unknown> = {},
+  mockOptions: WhopMockOptions = {},
 ): Promise<void> {
   const calls: WhopCall[] = [];
   let refundedAmount = 0;
@@ -115,7 +122,11 @@ async function withWhop(
       await beforeCheckout?.();
     }
     const paymentPath = path.includes("/api/v1/payments/pay_test");
-    if (paymentPath && options?.method === "POST" && path.endsWith("/refund")) refundedAmount = PRICE_USD;
+    const isRefundRequest = paymentPath && options?.method === "POST" && path.endsWith("/refund");
+    if (isRefundRequest) {
+      await mockOptions.beforeRefund?.();
+      refundedAmount = mockOptions.refundAmount ?? PRICE_USD;
+    }
     const payment = {
         id: "pay_test",
         company: { id: "biz_test" },
@@ -133,8 +144,12 @@ async function withWhop(
       : options?.method === "POST"
         ? { id: "checkout_test", purchase_url: "https://whop.com/checkout/test" }
         : plan;
+    const failRequest = mockOptions.failRequest;
+    const failed = Boolean(failRequest
+      && failRequest.method === options?.method
+      && path.endsWith(failRequest.pathSuffix));
     return new Response(JSON.stringify(payload), {
-      status: 200,
+      status: failed ? failRequest!.status : 200,
       headers: { "Content-Type": "application/json" },
     });
   };
@@ -529,6 +544,121 @@ test("owner can issue a full Whop refund and persist the completed result", asyn
   assert.equal(state.orders[0].refundRequestStatus, "completed");
   assert.equal(state.submission.status, before.status);
   assert.deepEqual(state.writes, ["creator_motion_orders"]);
+});
+
+test("owner refund stays open when Whop payment identity or amount does not match", async () => {
+  const mismatches: Array<Record<string, unknown>> = [
+    { id: "pay_other" },
+    { company: { id: "biz_other" } },
+    { checkout_configuration_id: "checkout_other" },
+    { currency: "eur" },
+    { amount: PRICE_USD + 1 },
+  ];
+
+  for (const overrides of mismatches) {
+    resetTestState();
+    seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+    await withWhop(approvedPlan(), async (calls) => {
+      const response = await ownerRefundDecision("refund");
+      assert.equal(response.status, 409);
+      assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+    }, undefined, overrides);
+    const order = creatorCardState().orders[0];
+    assert.equal(order.refundRequestStatus, "requested");
+    assert.equal(order.refundProcessingAt, null);
+  }
+});
+
+test("a partial Whop refund is not reported as complete to the creator", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 503);
+    assert.deepEqual(calls.map((call) => call.method), ["GET", "POST", "GET"]);
+
+    const creatorResponse = await creatorCardAccess();
+    assert.equal(creatorResponse.status, 200);
+    assert.equal((await creatorResponse.json() as { refundRequestStatus: string }).refundRequestStatus, "requested");
+  }, undefined, {}, { refundAmount: 2.5 });
+  const order = creatorCardState().orders[0];
+  assert.equal(order.refundRequestStatus, "requested");
+  assert.equal(order.refundProcessingAt, null);
+});
+
+test("Whop provider failures leave the refund in processing until it can be reconciled", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 503);
+    assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+
+    const creatorResponse = await creatorCardAccess();
+    assert.equal(creatorResponse.status, 200);
+    assert.equal((await creatorResponse.json() as { refundRequestStatus: string }).refundRequestStatus, "processing");
+  }, undefined, {}, {
+    failRequest: { method: "GET", pathSuffix: "/payments/pay_test", status: 504 },
+  });
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "processing");
+
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 503);
+    assert.deepEqual(calls.map((call) => call.method), ["GET", "POST"]);
+
+    const creatorResponse = await creatorCardAccess();
+    assert.equal(creatorResponse.status, 200);
+    assert.equal((await creatorResponse.json() as { refundRequestStatus: string }).refundRequestStatus, "processing");
+  }, undefined, {}, {
+    failRequest: { method: "POST", pathSuffix: "/refund", status: 504 },
+  });
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "processing");
+
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as { refundRequestStatus: string }).refundRequestStatus, "completed");
+    assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+  }, undefined, { status: "refunded", refunded_amount: PRICE_USD });
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
+});
+
+test("overlapping owner refund decisions can issue only one Whop refund", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  let markRefundStarted!: () => void;
+  let releaseRefund!: () => void;
+  const refundStarted = new Promise<void>((resolve) => { markRefundStarted = resolve; });
+  const refundGate = new Promise<void>((resolve) => { releaseRefund = resolve; });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const firstDecision = ownerRefundDecision("refund");
+    await refundStarted;
+    const secondResponse = await ownerRefundDecision("refund");
+    assert.equal(secondResponse.status, 409);
+    assert.equal(calls.filter((call) => call.path.endsWith("/refund")).length, 1);
+
+    releaseRefund();
+    const firstResponse = await firstDecision;
+    assert.equal(firstResponse.status, 200);
+    assert.equal((await firstResponse.json() as { refundRequestStatus: string }).refundRequestStatus, "completed");
+    assert.equal(calls.filter((call) => call.path.endsWith("/refund")).length, 1);
+  }, undefined, {}, {
+    beforeRefund: async () => {
+      markRefundStarted();
+      await refundGate;
+    },
+  });
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
 });
 
 test("owner can decline a refund request without calling Whop", async () => {

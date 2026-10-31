@@ -135,10 +135,12 @@ export const db: any = {
             if (changes.status === "failed") return candidate.status === "creating";
             if (changes.status === "paid") return candidate.status === "pending";
             if (changes.refundRequestStatus === "requested") {
-              return candidate.refundRequestStatus === "none"
-                && candidate.status === "paid"
-                && candidate.generationStatus === "failed"
-                && candidate.generationRetryCount >= 1;
+              return changes.refundRequestedAt
+                ? candidate.refundRequestStatus === "none"
+                  && candidate.status === "paid"
+                  && candidate.generationStatus === "failed"
+                  && candidate.generationRetryCount >= 1
+                : candidate.refundRequestStatus === "processing";
             }
             if (changes.refundRequestStatus === "processing") return candidate.refundRequestStatus === "requested";
             if (changes.refundRequestStatus === "completed") return candidate.refundRequestStatus === "processing";

@@ -6,3 +6,4 @@
 - [Cup of Tea contest source](cup-of-tea-contest-source.md) — Base44 is the official bracket source; physical champion art should follow its final winning card.
 - [OpenAPI array uniqueness](openapi-array-uniqueness.md) — Orval-generated Zod schemas may omit `uniqueItems`; enforce critical duplicate checks in the server route.
 - [Workspace declaration freshness](workspace-declaration-freshness.md) — Refresh TypeScript project references with `pnpm run typecheck:libs` before diagnosing downstream API type errors.
+- [Whop refund uncertainty](whop-refund-uncertainty.md) — Keep ambiguous provider outcomes claimed until a verified payment read makes retrying safe.
