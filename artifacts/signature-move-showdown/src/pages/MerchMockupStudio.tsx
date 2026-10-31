@@ -134,6 +134,23 @@ export default function MerchMockupStudio() {
     return [...groups.values()];
   }, [batch, mockupTask.data?.mockups]);
 
+  const missingCombinations = useMemo(() => {
+    if (!batch || (mockupTask.data?.status !== "completed" && mockupTask.data?.status !== "failed")) return [];
+    const returnedKeys = new Set(
+      mockupTask.data.mockups.flatMap((preview) =>
+        preview.variantIds.map((variantId) => `${variantId}|${preview.placement}`)),
+    );
+    return batch.variants.flatMap((variant) =>
+      batch.placements.flatMap((placement) => {
+        if (returnedKeys.has(`${variant.id}|${placement.id}`)) return [];
+        return [{
+          key: `${variant.id}|${placement.id}`,
+          title: `${variant.name} · ${placement.title}`,
+        }];
+      }),
+    );
+  }, [batch, mockupTask.data?.mockups, mockupTask.data?.status]);
+
   return <section className="merch-studio" aria-labelledby="merch-studio-title">
     <div className="merch-studio-head">
       <div><span className="launch-label"><Shirt size={13} /> PRIVATE MERCH PREVIEW</span><h2 id="merch-studio-title">Mock up an approved design.</h2></div>
@@ -206,22 +223,33 @@ export default function MerchMockupStudio() {
         ? <p className="merch-studio-status"><LoaderCircle size={15} className="spin-icon" /> Printful is preparing {batch.variants.length * batch.placements.length} private comparisons for {batch.productTitle}…</p>
         : mockupTask.isError
           ? <p className="merch-studio-error" role="alert"><CircleAlert size={15} /> {messageOf(mockupTask.error, "The mockup status could not be checked.")}</p>
-          : mockupTask.data?.status === "failed"
-            ? <p className="merch-studio-error" role="alert"><CircleAlert size={15} /> {mockupTask.data.error || "Printful could not generate this mockup."}</p>
-            : mockupTask.data?.status === "completed" && mockupTask.data.mockups.length
+          : mockupTask.data?.status === "completed" || mockupTask.data?.status === "failed"
               ? <div className="merch-studio-comparison">
                 <h3>{batch.productTitle} comparison</h3>
-                {previewGroups.map((group) => <section className="merch-studio-preview-group" key={group.title}>
-                  <h4>{group.title}</h4>
-                  <div className="merch-studio-previews">{group.previews.map((preview, index) => <figure key={`${preview.imageUrl}-${index}`}>
-                    <img src={preview.imageUrl} alt={`${group.title} private product mockup`} loading="lazy" />
-                    <figcaption>{preview.title}</figcaption>
-                  </figure>)}</div>
-                </section>)}
+                {mockupTask.data.status === "failed" && <p className="merch-studio-error" role="alert">
+                  <CircleAlert size={15} /> {mockupTask.data.error || "Printful could not generate every requested mockup."}
+                </p>}
+                {missingCombinations.length > 0 && <div className="merch-studio-incomplete" role="status">
+                  <CircleAlert size={15} />
+                  <div>
+                    <strong>Previews returned for {batch.variants.length * batch.placements.length - missingCombinations.length} of {batch.variants.length * batch.placements.length} requested combinations.</strong>
+                    <p>No image was returned for:</p>
+                    <ul>{missingCombinations.map((combination) => <li key={combination.key}>{combination.title}</li>)}</ul>
+                  </div>
+                </div>}
+                {previewGroups.length > 0
+                  ? previewGroups.map((group) => <section className="merch-studio-preview-group" key={group.title}>
+                    <h4>{group.title}</h4>
+                    <div className="merch-studio-previews">{group.previews.map((preview, index) => <figure key={`${preview.imageUrl}-${index}`}>
+                      <img src={preview.imageUrl} alt={`${group.title} private product mockup`} loading="lazy" />
+                      <figcaption>{preview.title}</figcaption>
+                    </figure>)}</div>
+                  </section>)
+                  : mockupTask.data.status === "completed"
+                    ? <p className="merch-studio-status">The task completed, but Printful returned no preview images.</p>
+                    : null}
               </div>
-              : mockupTask.data?.status === "completed"
-                ? <p className="merch-studio-status">The task completed, but Printful returned no preview images.</p>
-                : null}
+              : null}
     </div>}
     <p className="merch-studio-safety"><LockKeyhole size={14} /> Only the signed-in owner can start or view these previews. This creates no Printful product, sync product, order, checkout, or sale.</p>
   </section>;
