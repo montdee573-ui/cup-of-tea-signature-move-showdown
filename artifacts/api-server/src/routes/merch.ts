@@ -39,6 +39,32 @@ type PrintfulTaskPreview = {
   extra?: Array<{ title?: string; url?: string }>;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
+}
+
+function isPrintfulTaskPreview(value: unknown): value is PrintfulTaskPreview {
+  if (!isRecord(value)
+    || !isOptionalString(value.placement)
+    || !isOptionalString(value.display_name)
+    || !isOptionalString(value.mockup_url)
+    || !isOptionalString(value.url)
+    || (value.variant_ids !== undefined
+      && (!Array.isArray(value.variant_ids)
+        || value.variant_ids.some((id) => !Number.isSafeInteger(id))))
+    || (value.extra !== undefined && !Array.isArray(value.extra))) {
+    return false;
+  }
+
+  return (value.extra ?? []).every((extra) => isRecord(extra)
+    && isOptionalString(extra.title)
+    && isOptionalString(extra.url));
+}
+
 function positiveId(value: string | string[] | undefined): number | null {
   const raw = Array.isArray(value) ? value[0] : value;
   const id = Number(raw);
@@ -209,7 +235,7 @@ router.post("/merch/catalog/:id/mockups", async (req, res): Promise<void> => {
       res.status(502).json({
         error: response.status === 403
           ? "Printful denied mockup generation. Confirm the connected account can use the Mockup Generator API."
-          : payload.error?.message || "Printful could not start mockup generation.",
+          : "Printful could not start mockup generation.",
       });
       return;
     }
@@ -244,14 +270,24 @@ router.get("/merch/mockups/:taskKey", async (req, res): Promise<void> => {
       { method: "GET" },
     );
     const payload = await response.json() as {
-      result?: { status?: string; error?: string; mockups?: PrintfulTaskPreview[] };
+      result?: { status?: unknown; error?: unknown; mockups?: unknown } | null;
     };
-    if (!response.ok || !payload.result?.status) {
+    const result = payload?.result;
+    const validStatus = result?.status === "pending"
+      || result?.status === "inprogress"
+      || result?.status === "completed"
+      || result?.status === "failed";
+    const validError = result?.error === undefined || result.error === null || typeof result.error === "string";
+    const validMockups = result?.mockups === undefined
+      || (Array.isArray(result.mockups) && result.mockups.every(isPrintfulTaskPreview));
+    if (!response.ok || !isRecord(result) || !validStatus || !validError || !validMockups) {
       req.log.warn({ status: response.status }, "Printful mockup task could not be retrieved");
       res.status(502).json({ error: "Printful could not read the mockup task." });
       return;
     }
-    const mockups = (payload.result.mockups ?? []).flatMap((mockup) => {
+    const status = result.status === "inprogress" ? "pending" : result.status;
+    const providerMockups = (result.mockups ?? []) as PrintfulTaskPreview[];
+    const mockups = providerMockups.flatMap((mockup) => {
       const previews: Array<{ title: string; placement: string; variantIds: number[]; imageUrl: string }> = [];
       const baseUrl = mockup.mockup_url ?? mockup.url;
       if (typeof baseUrl === "string" && safePublicHttpsUrl(baseUrl)) {
@@ -276,8 +312,8 @@ router.get("/merch/mockups/:taskKey", async (req, res): Promise<void> => {
     });
     res.json(GetMerchMockupTaskResponse.parse({
       taskKey: params.data.taskKey,
-      status: payload.result.status,
-      error: payload.result.error ?? null,
+      status,
+      error: status === "failed" ? "Printful could not generate these mockups." : null,
       mockups,
     }));
   } catch (error) {

@@ -9,6 +9,7 @@ import merchRouter from "./merch";
 const SESSION_SECRET = "test-session-secret";
 const ADMIN_PASSWORD = "test-owner-password";
 const calls: Array<{ connector: string; path: string; method: string; body?: string }> = [];
+const providerResponseOverrides = new Map<string, Response>();
 const app = express();
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
@@ -34,6 +35,9 @@ function tamperedOwnerCookie(): string {
 }
 
 function printfulResponse(path: string, method: string): Response {
+  const override = providerResponseOverrides.get(`${method} ${path}`);
+  if (override) return override.clone();
+
   if (path === "/products/42" && method === "GET") {
     return Response.json({
       result: {
@@ -134,6 +138,7 @@ before(async () => {
 
 beforeEach(() => {
   calls.length = 0;
+  providerResponseOverrides.clear();
 });
 
 after(async () => {
@@ -300,6 +305,119 @@ test("allows exactly 40 variant-placement combinations and rejects more", async 
 
   assert.equal(overForty.status, 400);
   assert.equal(calls.some(({ method, path }) => method === "POST" || path.includes("create-task")), false);
+});
+
+test("product and placement provider failures return safe API errors", async () => {
+  const privateProviderMessage = "private-artwork.png https://private.example/artwork";
+  providerResponseOverrides.set("GET /products/42", Response.json(
+    { error: { message: privateProviderMessage } },
+    { status: 500 },
+  ));
+
+  const productResponse = await request("/merch/catalog/42/details", {}, true);
+  assert.equal(productResponse.status, 502);
+  assert.deepEqual(await productResponse.json(), {
+    error: "Printful product options are temporarily unavailable.",
+  });
+
+  providerResponseOverrides.clear();
+  calls.length = 0;
+  providerResponseOverrides.set("GET /mockup-generator/printfiles/42", Response.json(
+    { error: { message: privateProviderMessage } },
+    { status: 502 },
+  ));
+
+  const placementResponse = await request("/merch/catalog/42/details", {}, true);
+  assert.equal(placementResponse.status, 502);
+  const placementBody = await placementResponse.json();
+  assert.deepEqual(placementBody, {
+    error: "Printful product options are temporarily unavailable.",
+  });
+  assert.equal(JSON.stringify(placementBody).includes(privateProviderMessage), false);
+});
+
+test("task-creation provider errors never reach the API response", async () => {
+  const privateProviderMessage = "private-artwork.png https://private.example/artwork";
+  providerResponseOverrides.set("POST /mockup-generator/create-task/42", Response.json(
+    { error: { message: privateProviderMessage } },
+    { status: 500 },
+  ));
+
+  const response = await request("/merch/catalog/42/mockups", {
+    method: "POST",
+    body: JSON.stringify({
+      variantIds: [7],
+      placements: ["front"],
+      artworkUrl: "https://images.example.test/art.png",
+    }),
+  }, true);
+
+  assert.equal(response.status, 502);
+  const body = await response.json() as Record<string, unknown>;
+  assert.deepEqual(body, { error: "Printful could not start mockup generation." });
+  assert.equal(JSON.stringify(body).includes(privateProviderMessage), false);
+});
+
+test("task-polling provider errors return a safe API error", async () => {
+  const privateProviderMessage = "private-artwork.png https://private.example/artwork";
+  providerResponseOverrides.set("GET /mockup-generator/task?task_key=task_123", Response.json(
+    { error: { message: privateProviderMessage } },
+    { status: 503 },
+  ));
+
+  const response = await request("/merch/mockups/task_123", {}, true);
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.deepEqual(body, { error: "Printful could not read the mockup task." });
+  assert.equal(JSON.stringify(body).includes(privateProviderMessage), false);
+});
+
+test("malformed and unsupported task results are rejected without provider details", async () => {
+  const unsupportedStatus = "processing-private-artwork.png";
+  providerResponseOverrides.set("GET /mockup-generator/task?task_key=task_123", Response.json({
+    result: {
+      status: unsupportedStatus,
+      error: "private-artwork.png https://private.example/artwork",
+      mockups: [],
+    },
+  }));
+
+  const unsupported = await request("/merch/mockups/task_123", {}, true);
+  assert.equal(unsupported.status, 502);
+  let body = await unsupported.json();
+  assert.deepEqual(body, { error: "Printful could not read the mockup task." });
+  assert.equal(JSON.stringify(body).includes(unsupportedStatus), false);
+
+  providerResponseOverrides.clear();
+  providerResponseOverrides.set("GET /mockup-generator/task?task_key=task_123", Response.json({
+    result: {
+      status: "completed",
+      error: "private-artwork.png https://private.example/artwork",
+      mockups: [{ placement: "front", extra: { url: "https://images.example.test/preview.png" } }],
+    },
+  }));
+
+  const malformed = await request("/merch/mockups/task_123", {}, true);
+  assert.equal(malformed.status, 502);
+  body = await malformed.json();
+  assert.deepEqual(body, { error: "Printful could not read the mockup task." });
+  assert.equal(JSON.stringify(body).includes("private-artwork.png"), false);
+});
+
+test("failed task results expose only a fixed safe error message", async () => {
+  providerResponseOverrides.set("GET /mockup-generator/task?task_key=task_123", Response.json({
+    result: {
+      status: "failed",
+      error: "private-artwork.png https://private.example/artwork",
+      mockups: [],
+    },
+  }));
+
+  const response = await request("/merch/mockups/task_123", {}, true);
+  assert.equal(response.status, 200);
+  const body = await response.json() as Record<string, unknown>;
+  assert.equal(body.error, "Printful could not generate these mockups.");
+  assert.equal(JSON.stringify(body).includes("private-artwork.png"), false);
 });
 
 test("successful generation creates only a temporary mockup task", async () => {
