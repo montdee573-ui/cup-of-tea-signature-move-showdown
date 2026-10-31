@@ -74,6 +74,7 @@ type WhopVariant = {
 };
 
 const staleCheckoutReservationMs = 5 * 60_000;
+const staleRefundProcessingMs = 120_000;
 
 function withinRateLimit(req: Request, res: Response, limit: number): boolean {
   const now = Date.now();
@@ -387,6 +388,60 @@ async function reopenRefundRequest(submissionId: string) {
   return updated ?? null;
 }
 
+type StalledRefundReconciliation =
+  | { outcome: "not_stale" | "unverified" | "unchanged" | "changed"; order: NonNullable<Awaited<ReturnType<typeof readOrder>>> }
+  | {
+      outcome: "completed";
+      order: NonNullable<Awaited<ReturnType<typeof readOrder>>>;
+      notificationStatus: RefundNotificationStatus;
+    }
+  | { outcome: "partial_review"; order: NonNullable<Awaited<ReturnType<typeof readOrder>>> };
+
+async function reconcileStalledRefund(
+  order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
+  companyId: string,
+  req: Request,
+): Promise<StalledRefundReconciliation> {
+  const processingAt = order.refundProcessingAt?.getTime() ?? 0;
+  if (
+    refundRequestStatus(order.refundRequestStatus) !== "processing"
+    || Date.now() - processingAt < staleRefundProcessingMs
+    || order.priceUsd === null
+  ) return { outcome: "not_stale", order };
+
+  const payment = await readVerifiedStoredPayment(order, companyId);
+  if (!payment) return { outcome: "unverified", order };
+  const refunded = Number(payment.refunded_amount ?? 0);
+  if (Math.round(refunded * 100) >= Math.round(order.priceUsd * 100)) {
+    const [completed] = await db.update(creatorMotionOrdersTable)
+      .set({ refundRequestStatus: "completed", refundProcessingAt: null })
+      .where(and(
+        eq(creatorMotionOrdersTable.submissionId, order.submissionId),
+        eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
+      ))
+      .returning();
+    if (!completed) return { outcome: "changed", order: (await readOrder(order.submissionId)) ?? order };
+    const notificationStatus = await notifyCreatorRefundResolution(
+      req,
+      completed,
+      "completed",
+      companyId,
+      payment,
+    );
+    return { outcome: "completed", order: completed, notificationStatus };
+  }
+  if (refunded > 0) {
+    const partial = await recordPartialRefund(order.submissionId, refunded);
+    return partial
+      ? { outcome: "partial_review", order: partial }
+      : { outcome: "changed", order: (await readOrder(order.submissionId)) ?? order };
+  }
+  const reopened = await reopenRefundRequest(order.submissionId);
+  return reopened
+    ? { outcome: "unchanged", order: reopened }
+    : { outcome: "changed", order: (await readOrder(order.submissionId)) ?? order };
+}
+
 async function refreshOrderStatus(
   order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
   companyId: string,
@@ -446,6 +501,22 @@ router.post("/creator-cards/:id/access", async (req, res): Promise<void> => {
     && offer.priceUsd !== null
     && Boolean(config && await whopPlanMatchesApprovedOffer(config.companyId, config.planId, offer.priceUsd));
   let order = await readOrder(row.id);
+  if (
+    row.status === "approved"
+    && order
+    && config
+    && refundRequestStatus(order.refundRequestStatus) === "processing"
+    && (order.refundProcessingAt?.getTime() ?? 0) <= Date.now() - staleRefundProcessingMs
+  ) {
+    try {
+      order = (await reconcileStalledRefund(order, config.companyId, req)).order;
+    } catch (error) {
+      req.log.warn(
+        { submissionId: row.id, providerStatus: (error as { status?: number }).status },
+        "Unable to reconcile creator refund during private card access",
+      );
+    }
+  }
   if (row.status === "approved" && order && config && order.status === "pending") {
     try {
       order = await refreshOrderStatus(order, config.companyId);
@@ -843,20 +914,37 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
     .where(inArray(creatorMotionOrdersTable.refundRequestStatus, ["requested", "processing", "partial_review"]));
   const requests = [];
   for (const order of orders) {
-    const status = refundRequestStatus(order.refundRequestStatus);
+    let currentOrder = order;
+    if (
+      refundRequestStatus(order.refundRequestStatus) === "processing"
+      && (order.refundProcessingAt?.getTime() ?? 0) <= Date.now() - staleRefundProcessingMs
+    ) {
+      const config = whopConfiguration();
+      if (config) {
+        try {
+          currentOrder = (await reconcileStalledRefund(order, config.companyId, req)).order;
+        } catch (error) {
+          req.log.warn(
+            { submissionId: order.submissionId, providerStatus: (error as { status?: number }).status },
+            "Unable to reconcile creator refund while loading the owner queue",
+          );
+        }
+      }
+    }
+    const status = refundRequestStatus(currentOrder.refundRequestStatus);
     if (status !== "requested" && status !== "processing" && status !== "partial_review") continue;
     const [submission] = await db.select().from(moveSubmissionsTable)
-      .where(eq(moveSubmissionsTable.id, order.submissionId));
-    if (!submission || order.priceUsd === null || !order.refundRequestedAt) continue;
+      .where(eq(moveSubmissionsTable.id, currentOrder.submissionId));
+    if (!submission || currentOrder.priceUsd === null || !currentOrder.refundRequestedAt) continue;
     requests.push({
-      submissionId: order.submissionId,
+      submissionId: currentOrder.submissionId,
       creatorName: submission.displayName,
       moveName: submission.moveName,
-      priceUsd: order.priceUsd,
-      requestedAt: order.refundRequestedAt,
+      priceUsd: currentOrder.priceUsd,
+      requestedAt: currentOrder.refundRequestedAt,
       refundRequestStatus: status,
-      refundVerifiedAmountUsd: order.refundVerifiedAmountUsd ?? null,
-      processingAt: order.refundProcessingAt,
+      refundVerifiedAmountUsd: currentOrder.refundVerifiedAmountUsd ?? null,
+      processingAt: currentOrder.refundProcessingAt,
     });
   }
   requests.sort((a, b) => b.requestedAt.getTime() - a.requestedAt.getTime());
@@ -971,45 +1059,27 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
     return;
   }
   if (status === "processing") {
-    const processingAt = order.refundProcessingAt?.getTime() ?? 0;
-    if (Date.now() - processingAt < 120_000) {
+    if ((order.refundProcessingAt?.getTime() ?? 0) > Date.now() - staleRefundProcessingMs) {
       res.status(409).json({ error: "This refund is still being processed. Refresh the queue shortly." });
       return;
     }
     try {
-      const payment = await readVerifiedStoredPayment(order, config.companyId);
-      if (!payment) {
+      const reconciliation = await reconcileStalledRefund(order, config.companyId, req);
+      if (reconciliation.outcome === "unverified") {
         res.status(409).json({ error: "Whop could not verify the original payment. The request remains open." });
         return;
       }
-      const refunded = Number(payment.refunded_amount ?? 0);
-      if (refunded >= order.priceUsd) {
-        const [completed] = await db.update(creatorMotionOrdersTable)
-          .set({ refundRequestStatus: "completed", refundProcessingAt: null })
-          .where(and(
-            eq(creatorMotionOrdersTable.submissionId, params.data.id),
-            eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
-          ))
-          .returning();
-        if (!completed) {
-          res.status(409).json({ error: "The refund state changed. Refresh the queue and try again." });
-          return;
-        }
-        const notificationStatus = await notifyCreatorRefundResolution(req, order, "completed", config.companyId, payment);
+      if (reconciliation.outcome === "completed") {
         res.json(ResolveCreatorMotionRefundRequestResponse.parse({
           refundRequestStatus: "completed",
-          refundVerifiedAmountUsd: completed.refundVerifiedAmountUsd ?? null,
-          refundRequestedAt: completed.refundRequestedAt,
-          notificationStatus,
+          refundVerifiedAmountUsd: reconciliation.order.refundVerifiedAmountUsd ?? null,
+          refundRequestedAt: reconciliation.order.refundRequestedAt,
+          notificationStatus: reconciliation.notificationStatus,
         }));
         return;
       }
-      if (refunded !== 0) {
-        const partial = await recordPartialRefund(params.data.id, refunded);
-        if (!partial) {
-          res.status(409).json({ error: "The refund state changed. Refresh the queue and try again." });
-          return;
-        }
+      if (reconciliation.outcome === "partial_review") {
+        const partial = reconciliation.order;
         res.json(ResolveCreatorMotionRefundRequestResponse.parse({
           refundRequestStatus: "partial_review",
           refundVerifiedAmountUsd: partial.refundVerifiedAmountUsd,
@@ -1018,13 +1088,11 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
         }));
         return;
       }
-      await db.update(creatorMotionOrdersTable)
-        .set({ refundRequestStatus: "requested", refundProcessingAt: null })
-        .where(and(
-          eq(creatorMotionOrdersTable.submissionId, params.data.id),
-          eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
-        ));
-      res.status(409).json({ error: "No full refund was recorded. Refresh the queue to try again." });
+      res.status(409).json({
+        error: reconciliation.outcome === "unchanged"
+          ? "No refund was recorded. The request is ready for a new decision."
+          : "The refund state changed. Refresh the queue and try again.",
+      });
       return;
     } catch (error) {
       req.log.warn({ submissionId: params.data.id, providerStatus: (error as { status?: number }).status }, "Unable to reconcile creator refund with Whop");

@@ -824,6 +824,149 @@ test("Whop provider failures leave the refund in processing until it can be reco
   assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
 });
 
+test("loading the owner refund queue completes a confirmed stale refund without retrying it", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await fetch(`${baseUrl}/studio/creator-refunds`, {
+      headers: { Cookie: ownerCookie() },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), []);
+    assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+    assert.equal(calls.some((call) => call.path.endsWith("/refund")), false);
+    assert.equal(sentEmails.length, 1);
+    assert.equal(sentEmails[0].body.text, "Your refund request for the optional creator reel has been completed.");
+  }, undefined, { status: "refunded", refunded_amount: PRICE_USD });
+
+  const [order] = creatorCardState().orders;
+  assert.equal(order.refundRequestStatus, "completed");
+  assert.equal(order.refundProcessingAt, null);
+});
+
+test("creator card access reconciles a full refund confirmed after a restart", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await creatorCardAccess();
+    assert.equal(response.status, 200);
+    const result = await response.json() as { refundRequestStatus: string };
+    assert.equal(result.refundRequestStatus, "completed");
+    assert.equal(calls.some((call) => call.path.endsWith("/refund")), false);
+  }, undefined, { status: "refunded", refunded_amount: PRICE_USD });
+
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
+});
+
+test("stale refund claims stay protected when Whop cannot verify them", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const queueResponse = await fetch(`${baseUrl}/studio/creator-refunds`, {
+      headers: { Cookie: ownerCookie() },
+    });
+    assert.equal(queueResponse.status, 200);
+    const [request] = await queueResponse.json() as Array<{ refundRequestStatus: string }>;
+    assert.equal(request.refundRequestStatus, "processing");
+
+    const retryResponse = await ownerRefundDecision("refund");
+    assert.equal(retryResponse.status, 503);
+    assert.equal(calls.some((call) => call.path.endsWith("/refund")), false);
+  }, undefined, {}, {
+    failRequest: { method: "GET", pathSuffix: "/payments/pay_test", status: 504 },
+  });
+
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "processing");
+});
+
+test("an unchanged verified payment safely reopens a stale claim without refunding", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await fetch(`${baseUrl}/studio/creator-refunds`, {
+      headers: { Cookie: ownerCookie() },
+    });
+    assert.equal(response.status, 200);
+    const [request] = await response.json() as Array<{ refundRequestStatus: string }>;
+    assert.equal(request.refundRequestStatus, "requested");
+    assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+    assert.equal(calls.some((call) => call.path.endsWith("/refund")), false);
+  });
+
+  const [order] = creatorCardState().orders;
+  assert.equal(order.refundRequestStatus, "requested");
+  assert.equal(order.refundProcessingAt, null);
+});
+
+test("a stale claim with a different Whop payment identity remains processing", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await fetch(`${baseUrl}/studio/creator-refunds`, {
+      headers: { Cookie: ownerCookie() },
+    });
+    assert.equal(response.status, 200);
+    const [request] = await response.json() as Array<{ refundRequestStatus: string }>;
+    assert.equal(request.refundRequestStatus, "processing");
+    assert.equal(calls.some((call) => call.path.endsWith("/refund")), false);
+  }, undefined, { id: "pay_other", status: "refunded", refunded_amount: PRICE_USD });
+
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "processing");
+});
+
+test("a stale partial refund is recorded for review without another refund", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await fetch(`${baseUrl}/studio/creator-refunds`, {
+      headers: { Cookie: ownerCookie() },
+    });
+    assert.equal(response.status, 200);
+    const [request] = await response.json() as Array<{
+      refundRequestStatus: string;
+      refundVerifiedAmountUsd: number | null;
+    }>;
+    assert.equal(request.refundRequestStatus, "partial_review");
+    assert.equal(request.refundVerifiedAmountUsd, 2.5);
+    assert.equal(calls.some((call) => call.path.endsWith("/refund")), false);
+  }, undefined, { refunded_amount: 2.5 });
+
+  const [order] = creatorCardState().orders;
+  assert.equal(order.refundRequestStatus, "partial_review");
+  assert.equal(order.refundVerifiedAmountUsd, 2.5);
+  assert.equal(order.refundProcessingAt, null);
+});
+
 test("overlapping owner refund decisions can issue only one Whop refund", async () => {
   resetTestState();
   seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
