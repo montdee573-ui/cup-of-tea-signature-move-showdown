@@ -4,3 +4,4 @@
 - [POD merchandising scope](pod-merchandising-scope.md) — Keep sales off and ensure merchandise never affects free entry, votes, or contest outcomes.
 - [Contest result clearance](contest-result-clearance.md) — Use both contest apps, but require owner clearance before declaring or emailing an official final.
 - [Cup of Tea contest source](cup-of-tea-contest-source.md) — Base44 is the official bracket source; physical champion art should follow its final winning card.
+- [OpenAPI array uniqueness](openapi-array-uniqueness.md) — Orval-generated Zod schemas may omit `uniqueItems`; enforce critical duplicate checks in the server route.

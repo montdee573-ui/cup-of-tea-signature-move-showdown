@@ -159,7 +159,7 @@ router.post("/merch/catalog/:id/mockups", async (req, res): Promise<void> => {
   const params = GetMerchProductDetailsParams.safeParse(req.params);
   const parsed = CreateMerchMockupBody.safeParse(req.body);
   if (!params.success || !parsed.success || !safePublicHttpsUrl(parsed.data.artworkUrl)) {
-    res.status(400).json({ error: "Choose a valid product, variant, print placement, and public HTTPS artwork URL." });
+    res.status(400).json({ error: "Choose valid product variants, print placements, and a public HTTPS artwork URL." });
     return;
   }
 
@@ -172,9 +172,17 @@ router.post("/merch/catalog/:id/mockups", async (req, res): Promise<void> => {
       res.status(404).json({ error: "That catalog product was not found." });
       return;
     }
-    if (!(productResult.variants ?? []).some((variant) => variant.id === parsed.data.variantId)
-      || !Object.hasOwn(placements, parsed.data.placement)) {
-      res.status(400).json({ error: "That variant or print placement is not available for this catalog product." });
+    const availableVariantIds = new Set(
+      (productResult.variants ?? [])
+        .map((variant) => variant.id)
+        .filter((id): id is number => Number.isSafeInteger(id)),
+    );
+    if (new Set(parsed.data.variantIds).size !== parsed.data.variantIds.length
+      || new Set(parsed.data.placements).size !== parsed.data.placements.length
+      || parsed.data.variantIds.some((variantId) => !availableVariantIds.has(variantId))
+      || parsed.data.placements.some((placement) => !Object.hasOwn(placements, placement))
+      || parsed.data.variantIds.length * parsed.data.placements.length > 40) {
+      res.status(400).json({ error: "Those variants or print placements are unavailable for this catalog product, or the comparison exceeds 40 combinations." });
       return;
     }
 
@@ -185,8 +193,11 @@ router.post("/merch/catalog/:id/mockups", async (req, res): Promise<void> => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          variant_ids: [parsed.data.variantId],
-          files: [{ placement: parsed.data.placement, image_url: parsed.data.artworkUrl }],
+          variant_ids: parsed.data.variantIds,
+          files: parsed.data.placements.map((placement) => ({
+            placement,
+            image_url: parsed.data.artworkUrl,
+          })),
           format: "png",
           width: 1200,
         }),
@@ -206,7 +217,8 @@ router.post("/merch/catalog/:id/mockups", async (req, res): Promise<void> => {
       taskKey: payload.result.task_key,
       status: payload.result.status ?? "pending",
       productId: params.data.id,
-      variantId: parsed.data.variantId,
+      variantIds: parsed.data.variantIds,
+      placements: parsed.data.placements,
     }));
   } catch (error) {
     req.log.error({ error, productId: params.data.id }, "Could not create Printful mockup");

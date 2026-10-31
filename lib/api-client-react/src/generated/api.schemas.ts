@@ -77,13 +77,19 @@ export interface MerchProductDetails {
 }
 
 export interface MerchMockupInput {
-  /** @minimum 1 */
-  variantId: number;
   /**
-     * @minLength 1
-     * @maxLength 80
+     * @minItems 1
+     * @maxItems 40
+     * @items.minimum 1
      */
-  placement: string;
+  variantIds: number[];
+  /**
+     * @minItems 1
+     * @maxItems 10
+     * @items.minLength 1
+     * @items.maxLength 80
+     */
+  placements: string[];
   /** @maxLength 2048 */
   artworkUrl: string;
 }
@@ -101,7 +107,8 @@ export interface MerchMockupTaskStart {
   taskKey: string;
   status: MerchMockupTaskStartStatus;
   productId: number;
-  variantId: number;
+  variantIds: number[];
+  placements: string[];
 }
 
 export interface MerchMockupPreview {

@@ -498,7 +498,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MerchMockupTaskStart"
         "400":
-          description: Invalid variant, placement, or artwork URL
+          description: Invalid variants, placements, or artwork URL
           content:
             application/json:
               schema:
@@ -1122,18 +1122,28 @@ components:
     MerchMockupInput:
       type: object
       properties:
-        variantId:
-          type: integer
-          minimum: 1
-        placement:
-          type: string
-          minLength: 1
-          maxLength: 80
+        variantIds:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          minItems: 1
+          maxItems: 40
+          uniqueItems: true
+        placements:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
         artworkUrl:
           type: string
           format: uri
           maxLength: 2048
-      required: [variantId, placement, artworkUrl]
+      required: [variantIds, placements, artworkUrl]
     MerchMockupTaskStart:
       type: object
       properties:
@@ -1144,9 +1154,15 @@ components:
           enum: [pending, completed, failed]
         productId:
           type: integer
-        variantId:
-          type: integer
-      required: [taskKey, status, productId, variantId]
+        variantIds:
+          type: array
+          items:
+            type: integer
+        placements:
+          type: array
+          items:
+            type: string
+      required: [taskKey, status, productId, variantIds, placements]
     MerchMockupPreview:
       type: object
       properties:

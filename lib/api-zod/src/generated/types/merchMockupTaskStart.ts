@@ -11,5 +11,6 @@ export interface MerchMockupTaskStart {
   taskKey: string;
   status: MerchMockupTaskStartStatus;
   productId: number;
-  variantId: number;
+  variantIds: number[];
+  placements: string[];
 }

@@ -508,15 +508,19 @@ export const CreateMerchMockupParams = zod.object({
 })
 
 
-export const createMerchMockupBodyPlacementMax = 80;
+export const createMerchMockupBodyVariantIdsMax = 40;
+
+export const createMerchMockupBodyPlacementsItemMax = 80;
+
+export const createMerchMockupBodyPlacementsMax = 10;
 
 export const createMerchMockupBodyArtworkUrlMax = 2048;
 
 
 
 export const CreateMerchMockupBody = zod.object({
-  "variantId": zod.number().int().min(1),
-  "placement": zod.string().min(1).max(createMerchMockupBodyPlacementMax),
+  "variantIds": zod.array(zod.number().int().min(1)).min(1).max(createMerchMockupBodyVariantIdsMax),
+  "placements": zod.array(zod.string().min(1).max(createMerchMockupBodyPlacementsItemMax)).min(1).max(createMerchMockupBodyPlacementsMax),
   "artworkUrl": zod.string().url().max(createMerchMockupBodyArtworkUrlMax)
 })
 
@@ -524,7 +528,8 @@ export const CreateMerchMockupResponse = zod.object({
   "taskKey": zod.string(),
   "status": zod.enum(['pending', 'completed', 'failed']),
   "productId": zod.number().int(),
-  "variantId": zod.number().int()
+  "variantIds": zod.array(zod.number().int()),
+  "placements": zod.array(zod.string())
 })
 
 
