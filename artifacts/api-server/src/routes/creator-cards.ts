@@ -975,14 +975,39 @@ router.get("/creator-cards/:id/motion/video", async (req, res): Promise<void> =>
     const range = req.headers.range;
     if (range) {
       const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-      if (!match) {
+      const invalidRange = () => {
+        res.setHeader("Content-Range", `bytes */${size}`);
         res.status(416).end();
+      };
+      if (!match || (!match[1] && !match[2])) {
+        invalidRange();
         return;
       }
-      const start = match[1] ? Number(match[1]) : 0;
-      const end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
-      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= size) {
-        res.status(416).end();
+      let start: number;
+      let end: number;
+      if (!match[1]) {
+        const suffixLength = BigInt(match[2]);
+        if (suffixLength === 0n) {
+          invalidRange();
+          return;
+        }
+        start = suffixLength >= BigInt(size) ? 0 : size - Number(suffixLength);
+        end = size - 1;
+      } else {
+        const requestedStart = BigInt(match[1]);
+        if (requestedStart >= BigInt(size)) {
+          invalidRange();
+          return;
+        }
+        start = Number(requestedStart);
+        end = match[2] ? Math.min(Number(BigInt(match[2])), size - 1) : size - 1;
+        if (start > end) {
+          invalidRange();
+          return;
+        }
+      }
+      if (start > end) {
+        invalidRange();
         return;
       }
       res.status(206);

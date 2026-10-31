@@ -777,6 +777,57 @@ test("private reel playback accepts a valid ticket and serves private byte range
   });
 });
 
+test("private reel playback serves suffix and open-ended byte ranges", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    generationStatus: "succeeded",
+    generationObjectPath: `creator-motion/${submissionId}.mp4`,
+  });
+  resetCreatorMotionVideo(Buffer.from("0123456789"));
+
+  await withWhop(approvedPlan(), async () => {
+    const suffix = await playCreatorMotionVideo(videoTicket(), "bytes=-3");
+    assert.equal(suffix.status, 206);
+    assert.equal(await suffix.text(), "789");
+    assert.equal(suffix.headers.get("content-range"), "bytes 7-9/10");
+    assert.equal(suffix.headers.get("content-length"), "3");
+
+    const oversizedSuffix = await playCreatorMotionVideo(videoTicket(), "bytes=-50");
+    assert.equal(oversizedSuffix.status, 206);
+    assert.equal(await oversizedSuffix.text(), "0123456789");
+    assert.equal(oversizedSuffix.headers.get("content-range"), "bytes 0-9/10");
+
+    const openEnded = await playCreatorMotionVideo(videoTicket(), "bytes=7-");
+    assert.equal(openEnded.status, 206);
+    assert.equal(await openEnded.text(), "789");
+    assert.equal(openEnded.headers.get("content-range"), "bytes 7-9/10");
+    assert.deepEqual(creatorMotionVideoState().streamRanges, [
+      { start: 7, end: 9 },
+      { start: 0, end: 9 },
+      { start: 7, end: 9 },
+    ]);
+  });
+});
+
+test("invalid private reel byte ranges return 416 without opening a stream", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    generationStatus: "succeeded",
+    generationObjectPath: `creator-motion/${submissionId}.mp4`,
+  });
+  resetCreatorMotionVideo(Buffer.from("0123456789"));
+
+  await withWhop(approvedPlan(), async () => {
+    for (const range of ["bytes=-0", "bytes=-", "bytes=10-", "bytes=5-2", "bytes=1-2,4-5", "items=1-2"]) {
+      const response = await playCreatorMotionVideo(videoTicket(), range);
+      assert.equal(response.status, 416, `range ${range}`);
+      assert.equal(response.headers.get("content-range"), "bytes */10", `range ${range}`);
+      assert.equal(await response.text(), "", `range ${range}`);
+    }
+    assert.deepEqual(creatorMotionVideoState().streamRanges, []);
+  });
+});
+
 test("refunded purchases cannot receive or use a creator-reel playback ticket", async () => {
   resetTestState();
   seedCreatorMotionOrder({
