@@ -51,6 +51,21 @@ function isOptionalString(value: unknown): boolean {
   return value === undefined || typeof value === "string";
 }
 
+function isPrintfulProductDetails(
+  value: unknown,
+  productId: number,
+): value is { product: { id: number; title?: string }; variants?: PrintfulVariant[] } {
+  if (!isRecord(value)
+    || !isRecord(value.product)
+    || value.product.id !== productId
+    || !isOptionalString(value.product.title)
+    || (value.variants !== undefined
+      && (!Array.isArray(value.variants) || !value.variants.every(isRecord)))) {
+    return false;
+  }
+  return true;
+}
+
 function isPrintfulTaskPreview(value: unknown): value is PrintfulTaskPreview {
   if (!isRecord(value)
     || !isOptionalString(value.placement)
@@ -92,13 +107,15 @@ function safePublicHttpsUrl(value: string): boolean {
 }
 
 async function readPrintfulProduct(productId: number): Promise<{
-  product?: { id?: number; title?: string };
+  product: { id: number; title?: string };
   variants?: PrintfulVariant[];
 } | null> {
   const response = await connectors.proxy("printful", `/products/${productId}`, { method: "GET" });
-  const payload = await response.json() as { result?: { product?: { id?: number; title?: string }; variants?: PrintfulVariant[] } };
+  const payload: unknown = await response.json();
   if (response.status === 404) return null;
-  if (!response.ok || payload.result?.product?.id !== productId) {
+  if (!response.ok
+    || !isRecord(payload)
+    || !isPrintfulProductDetails(payload.result, productId)) {
     throw new Error("Printful product details are unavailable.");
   }
   return payload.result;
@@ -106,11 +123,15 @@ async function readPrintfulProduct(productId: number): Promise<{
 
 async function readPrintfulPlacements(productId: number): Promise<Record<string, string>> {
   const response = await connectors.proxy("printful", `/mockup-generator/printfiles/${productId}`, { method: "GET" });
-  const payload = await response.json() as { result?: { available_placements?: Record<string, string> } };
-  if (!response.ok || !payload.result?.available_placements) {
+  const payload: unknown = await response.json();
+  if (!response.ok
+    || !isRecord(payload)
+    || !isRecord(payload.result)
+    || !isRecord(payload.result.available_placements)
+    || !Object.values(payload.result.available_placements).every((placement) => typeof placement === "string")) {
     throw new Error("Printful print placements are unavailable.");
   }
-  return payload.result.available_placements;
+  return payload.result.available_placements as Record<string, string>;
 }
 
 router.get("/merch/catalog", async (req, res): Promise<void> => {

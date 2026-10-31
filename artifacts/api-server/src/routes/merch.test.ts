@@ -398,6 +398,47 @@ test("product and placement provider failures return safe API errors", async () 
   assert.equal(JSON.stringify(placementBody).includes(privateProviderMessage), false);
 });
 
+test("malformed successful product details return a fixed safe API error", async () => {
+  const privateArtworkMetadata = "private-artwork.png https://private.example/artwork";
+  providerResponseOverrides.set("GET /products/42", Response.json({
+    result: {
+      product: { id: 42, title: "Test product" },
+      variants: { artwork: privateArtworkMetadata },
+    },
+  }));
+
+  const response = await request("/merch/catalog/42/details", {}, true);
+
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.deepEqual(body, {
+    error: "Printful product options are temporarily unavailable.",
+  });
+  assert.equal(JSON.stringify(body).includes(privateArtworkMetadata), false);
+  assert.equal(JSON.stringify(body).includes("artwork"), false);
+});
+
+test("malformed successful placement details return a fixed safe API error", async () => {
+  const privateArtworkMetadata = "private-artwork.png https://private.example/artwork";
+  providerResponseOverrides.set("GET /mockup-generator/printfiles/42", Response.json({
+    result: {
+      available_placements: {
+        front: { title: privateArtworkMetadata, artworkUrl: "https://private.example/artwork" },
+      },
+    },
+  }));
+
+  const response = await request("/merch/catalog/42/details", {}, true);
+
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.deepEqual(body, {
+    error: "Printful product options are temporarily unavailable.",
+  });
+  assert.equal(JSON.stringify(body).includes(privateArtworkMetadata), false);
+  assert.equal(JSON.stringify(body).includes("artwork"), false);
+});
+
 test("task-creation provider errors never reach the API response", async () => {
   const privateProviderMessage = "private-artwork.png https://private.example/artwork";
   providerResponseOverrides.set("POST /mockup-generator/create-task/42", Response.json(
