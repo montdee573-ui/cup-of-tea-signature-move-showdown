@@ -5,7 +5,13 @@ import cookieParser from "cookie-parser";
 import express, { type Request } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import creatorCardsRouter from "./creator-cards";
-import { creatorCardState, resetCreatorCardState, seedCreatorMotionOrder } from "./creator-cards-test-db";
+import {
+  creatorCardState,
+  resetCreatorCardState,
+  seedCreatorMotionOrder,
+} from "./creator-cards-test-db";
+import { creatorMotionVideoUrl } from "../lib/creator-motion-generation";
+import { creatorMotionVideoState, resetCreatorMotionVideo } from "./creator-cards-test-storage";
 
 const CREATOR_TOKEN = "creator-link-token-for-checkout-regression-tests";
 const PRICE_USD = 9.99;
@@ -55,6 +61,27 @@ function ownerCookie(): string {
     `${process.env.SESSION_SECRET}:${process.env.REEL_STUDIO_ADMIN_PASSWORD}`,
   ).update(payload).digest("base64url");
   return `reel_studio_owner=${payload}.${signature}`;
+}
+
+function videoTicket(expires?: number, signature?: string): string {
+  const generated = creatorMotionVideoUrl(submissionId);
+  assert(generated);
+  const ticket = new URL(generated, "https://example.test");
+  const expiry = expires ?? Number(ticket.searchParams.get("expires"));
+  const signed = signature ?? createHmac("sha256", process.env.SESSION_SECRET!)
+    .update(`${submissionId}:${expiry}`)
+    .digest("base64url");
+  return `/creator-cards/${submissionId}/motion/video?expires=${expiry}&signature=${signed}`;
+}
+
+async function playCreatorMotionVideo(url = videoTicket(), range?: string): Promise<Response> {
+  requestId += 1;
+  return fetch(`${baseUrl}${url}`, {
+    headers: {
+      "X-Forwarded-For": `192.0.2.${requestId}`,
+      ...(range ? { Range: range } : {}),
+    },
+  });
 }
 
 function approvedPlan(overrides: Record<string, unknown> = {}) {
@@ -383,4 +410,79 @@ test("owner can decline a refund request without calling Whop", async () => {
     assert.deepEqual(calls, []);
   });
   assert.equal(creatorCardState().orders[0].refundRequestStatus, "declined");
+});
+
+test("private reel playback accepts a valid ticket and serves private byte ranges", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    generationStatus: "succeeded",
+    generationObjectPath: `creator-motion/${submissionId}.mp4`,
+  });
+  resetCreatorMotionVideo(Buffer.from("0123456789"));
+
+  const response = await playCreatorMotionVideo(videoTicket(), "bytes=2-5");
+  assert.equal(response.status, 206);
+  assert.equal(await response.text(), "2345");
+  assert.equal(response.headers.get("accept-ranges"), "bytes");
+  assert.equal(response.headers.get("content-range"), "bytes 2-5/10");
+  assert.equal(response.headers.get("content-length"), "4");
+  assert.equal(response.headers.get("content-type"), "video/mp4");
+  assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.deepEqual(creatorMotionVideoState().streamRanges, [{ start: 2, end: 5 }]);
+});
+
+test("expired and malformed reel tickets never access stored videos", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    generationStatus: "succeeded",
+    generationObjectPath: `creator-motion/${submissionId}.mp4`,
+  });
+  resetCreatorMotionVideo(Buffer.from("private-video"));
+  const expired = videoTicket(1);
+  const malformed = `/creator-cards/${submissionId}/motion/video?expires=not-a-time&signature=bad`;
+  const tampered = videoTicket(undefined, "A".repeat(43));
+
+  for (const url of [expired, malformed, tampered]) {
+    const response = await playCreatorMotionVideo(url);
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+    assert.equal(creatorMotionVideoState().metadataReads, 0);
+    assert.deepEqual(creatorMotionVideoState().streamRanges, []);
+  }
+});
+
+test("unpaid, failed, or missing reel records are never streamed", async () => {
+  const unavailableOrders = [
+    { status: "pending", generationStatus: "succeeded", generationObjectPath: `creator-motion/${submissionId}.mp4` },
+    { status: "failed", generationStatus: "succeeded", generationObjectPath: `creator-motion/${submissionId}.mp4` },
+    { status: "paid", generationStatus: "failed", generationObjectPath: `creator-motion/${submissionId}.mp4` },
+    { status: "paid", generationStatus: "succeeded", generationObjectPath: null },
+  ] as const;
+
+  for (const order of unavailableOrders) {
+    resetTestState();
+    seedCreatorMotionOrder(order);
+    resetCreatorMotionVideo(Buffer.from("private-video"));
+    const response = await playCreatorMotionVideo();
+    assert.equal(response.status, 404);
+    assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+    assert.equal(creatorMotionVideoState().metadataReads, 0);
+    assert.deepEqual(creatorMotionVideoState().streamRanges, []);
+  }
+});
+
+test("a missing stored reel returns unavailable without opening a video stream", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    generationStatus: "succeeded",
+    generationObjectPath: `creator-motion/${submissionId}.mp4`,
+  });
+  resetCreatorMotionVideo(Buffer.from("private-video"), true);
+
+  const response = await playCreatorMotionVideo();
+  assert.equal(response.status, 404);
+  assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+  assert.equal(creatorMotionVideoState().metadataReads, 1);
+  assert.deepEqual(creatorMotionVideoState().streamRanges, []);
 });

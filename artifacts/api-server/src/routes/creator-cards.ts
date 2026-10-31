@@ -822,6 +822,7 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
 });
 
 router.get("/creator-cards/:id/motion/video", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
   const params = GetCreatorCardAccessParams.safeParse(req.params);
   const expires = typeof req.query.expires === "string" ? req.query.expires : "";
   const signature = typeof req.query.signature === "string" ? req.query.signature : "";
@@ -845,7 +846,6 @@ router.get("/creator-cards/:id/motion/video", async (req, res): Promise<void> =>
     }
     res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Content-Type", "video/mp4");
-    res.setHeader("Cache-Control", "private, no-store, max-age=0");
     res.setHeader("X-Content-Type-Options", "nosniff");
     const range = req.headers.range;
     if (range) {
@@ -869,6 +869,10 @@ router.get("/creator-cards/:id/motion/video", async (req, res): Promise<void> =>
     res.setHeader("Content-Length", String(size));
     file.createReadStream().pipe(res);
   } catch (error) {
+    if ((error as { code?: number }).code === 404) {
+      res.status(404).json({ error: "The generated creator reel is not available." });
+      return;
+    }
     req.log.error({ err: error, submissionId: params.data.id }, "Unable to stream private creator reel");
     res.status(500).json({ error: "Unable to stream the generated creator reel." });
   }
