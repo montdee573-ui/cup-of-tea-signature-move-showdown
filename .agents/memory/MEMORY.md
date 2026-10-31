@@ -7,5 +7,7 @@
 - [OpenAPI array uniqueness](openapi-array-uniqueness.md) — Orval-generated Zod schemas may omit `uniqueItems`; enforce critical duplicate checks in the server route.
 - [Workspace declaration freshness](workspace-declaration-freshness.md) — Refresh TypeScript project references with `pnpm run typecheck:libs` before diagnosing downstream API type errors.
 - [Whop refund uncertainty](whop-refund-uncertainty.md) — Keep ambiguous provider outcomes claimed until a verified payment read makes retrying safe.
+- [Creator-reel sales scope](creator-reel-sales-scope.md) — User approved $2 one-time Whop checkout for the optional reel, not merchandise or paid ads.
+- [Whop API contracts](whop-api-contracts.md) — Missing legacy ownership or billing fields do not prove a wrong account or recurring plan.
 - [Shared-state test doubles](shared-state-test-doubles.md) — In-memory DB adapters must preserve transaction behavior and use the route's actual client key.
 - [API app integration test bundles](api-app-integration-test-bundles.md) — Full-app tests bundle every mounted router, so the database test double must export each router’s schema bindings.

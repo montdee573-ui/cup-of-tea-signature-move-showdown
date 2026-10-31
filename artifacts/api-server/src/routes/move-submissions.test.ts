@@ -78,6 +78,20 @@ function metadataHeader(metadata: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(metadata)).toString("base64url");
 }
 
+test("anonymous callers cannot view the private queue or approve or reject a card", async () => {
+  const queue = await fetch(`${baseUrl}/studio/move-submissions/review`);
+  assert.equal(queue.status, 401);
+  for (const status of ["approved", "rejected"]) {
+    const response = await fetch(`${baseUrl}/studio/move-submissions/${submissionId}/review`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    assert.equal(response.status, 401);
+  }
+  assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
+});
+
 test("selected catalog item travels from submission metadata through review and approved card", () => {
   const metadata = parseSubmissionMetadataHeader(metadataHeader({
     ...metadataBase,

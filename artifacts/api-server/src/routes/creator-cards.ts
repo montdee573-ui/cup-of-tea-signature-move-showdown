@@ -26,6 +26,7 @@ import {
   RetryCreatorMotionGenerationResponse,
 } from "@workspace/api-zod";
 import { getWhopClient } from "../lib/whop-client";
+import { paymentMatchesBasePrice } from "../lib/whop-payment-amounts";
 import { isStudioOwner } from "./studio";
 import {
   creatorMotionOffer,
@@ -43,7 +44,9 @@ let approvedPlanCache: { key: string; ready: boolean; checkedAt: number } | unde
 type WhopPayment = {
   id?: string;
   status?: string;
-  amount?: number | string;
+  subtotal?: number | string | null;
+  total?: number | string | null;
+  tax_amount?: number | string | null;
   currency?: string;
   checkout_configuration_id?: string | null;
   refunded_amount?: number | string | null;
@@ -64,10 +67,10 @@ type WhopCheckoutConfiguration = {
 
 type WhopVariant = {
   id?: string;
-  account?: { id?: string } | null;
+  company?: { id?: string } | null;
   initial_price?: number | string;
   currency?: string;
-  billing_type?: string;
+  plan_type?: string;
   billing_period?: number | null;
   collect_tax?: boolean;
   adaptive_pricing_enabled?: boolean;
@@ -135,15 +138,15 @@ async function whopPlanMatchesApprovedOffer(
   }
   try {
     const plan = await whopJson<WhopVariant>(
-      `/api/v1/variants/${encodeURIComponent(planId)}`,
+      `/api/v1/plans/${encodeURIComponent(planId)}`,
       { method: "GET" },
     );
     const ready = plan.id === planId
-      && plan.account?.id === companyId
-      && plan.billing_type === "one_time"
+      && plan.company?.id === companyId
+      && plan.plan_type === "one_time"
       && plan.billing_period === null
       && plan.currency?.toLowerCase() === "usd"
-      && plan.collect_tax === false
+      && typeof plan.collect_tax === "boolean"
       && plan.adaptive_pricing_enabled === false
       && Number.isFinite(Number(plan.initial_price))
       && Math.round(Number(plan.initial_price) * 100) === Math.round(priceUsd * 100);
@@ -201,7 +204,7 @@ async function findVerifiedPayment(
 ): Promise<WhopPayment | null> {
   if (!order.checkoutConfigurationId) return null;
   const query = new URLSearchParams({
-    account_id: companyId,
+    company_id: companyId,
     first: "20",
   });
   query.append("checkout_configuration_ids[]", order.checkoutConfigurationId);
@@ -212,11 +215,11 @@ async function findVerifiedPayment(
   );
   const payment = payload.data?.find((item) =>
     item.checkout_configuration_id === order.checkoutConfigurationId
+    && item.company?.id === companyId
     && item.status === "paid"
     && item.currency?.toLowerCase() === "usd"
     && order.priceUsd !== null
-    && Number.isFinite(Number(item.amount))
-    && Math.round(Number(item.amount) * 100) === Math.round(order.priceUsd * 100)
+    && paymentMatchesBasePrice(item, order.priceUsd)
     && Number(item.refunded_amount ?? 0) === 0
     && typeof item.id === "string",
   );
@@ -229,7 +232,7 @@ async function findExistingCheckoutConfiguration(
   planId: string,
 ): Promise<string | null> {
   const query = new URLSearchParams({
-    account_id: companyId,
+    company_id: companyId,
     plan_id: planId,
     created_after: order.createdAt.toISOString(),
     direction: "desc",
@@ -280,11 +283,10 @@ async function readVerifiedStoredPayment(
     || payment.checkout_configuration_id !== order.checkoutConfigurationId
     || (payment.status !== "paid" && !(refundedAmount > 0))
     || payment.currency?.toLowerCase() !== "usd"
-    || !Number.isFinite(Number(payment.amount))
-    || Math.round(Number(payment.amount) * 100) !== Math.round(order.priceUsd * 100)
+    || !paymentMatchesBasePrice(payment, order.priceUsd)
     || !Number.isFinite(refundedAmount)
     || refundedAmount < 0
-    || Math.round(refundedAmount * 100) > Math.round(order.priceUsd * 100)
+    || Math.round(refundedAmount * 100) > Math.round(Number(payment.total) * 100)
   ) return null;
   return payment;
 }
@@ -412,7 +414,7 @@ async function reconcileStalledRefund(
   const payment = await readVerifiedStoredPayment(order, companyId);
   if (!payment) return { outcome: "unverified", order };
   const refunded = Number(payment.refunded_amount ?? 0);
-  if (Math.round(refunded * 100) >= Math.round(order.priceUsd * 100)) {
+  if (Math.round(refunded * 100) >= Math.round(Number(payment.total) * 100)) {
     const [completed] = await db.update(creatorMotionOrdersTable)
       .set({ refundRequestStatus: "completed", refundProcessingAt: null })
       .where(and(
@@ -976,12 +978,18 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
       return;
     }
     const verifiedAmount = order.refundVerifiedAmountUsd;
+    const partialConfig = whopConfiguration();
+    const partialPayment = partialConfig
+      ? await readVerifiedStoredPayment(order, partialConfig.companyId).catch(() => null)
+      : null;
     if (
       verifiedAmount === null
       || !Number.isFinite(verifiedAmount)
       || verifiedAmount <= 0
       || order.priceUsd === null
-      || Math.round(verifiedAmount * 100) >= Math.round(order.priceUsd * 100)
+      || !partialPayment
+      || Math.round(verifiedAmount * 100) !== Math.round(Number(partialPayment.refunded_amount) * 100)
+      || Math.round(verifiedAmount * 100) >= Math.round(Number(partialPayment.total) * 100)
     ) {
       res.status(409).json({ error: "The verified partial refund amount is unavailable. Refresh the queue before resolving it." });
       return;
@@ -1121,7 +1129,7 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
       return;
     }
     const alreadyRefunded = Number(payment.refunded_amount ?? 0);
-    if (alreadyRefunded < order.priceUsd) {
+    if (alreadyRefunded < Number(payment.total)) {
       if (alreadyRefunded !== 0) {
         const partial = await recordPartialRefund(params.data.id, alreadyRefunded);
         if (!partial) {
@@ -1151,10 +1159,13 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
       || finalPayment.company?.id !== config.companyId
       || finalPayment.checkout_configuration_id !== order.checkoutConfigurationId
       || finalPayment.currency?.toLowerCase() !== "usd"
-      || Math.round(Number(finalPayment.amount) * 100) !== Math.round(order.priceUsd * 100)
+      || !paymentMatchesBasePrice(finalPayment, order.priceUsd)
+      || Number(finalPayment.total) !== Number(payment.total)
       || !Number.isFinite(finalRefundedAmount)
+      || finalRefundedAmount < 0
+      || finalRefundedAmount > Number(finalPayment.total)
     ) throw new Error("Whop did not confirm the full refund.");
-    if (Math.round(finalRefundedAmount * 100) < Math.round(order.priceUsd * 100)) {
+    if (Math.round(finalRefundedAmount * 100) < Math.round(Number(finalPayment.total) * 100)) {
       if (finalRefundedAmount > 0) {
         const partial = await recordPartialRefund(params.data.id, finalRefundedAmount);
         if (!partial) throw new Error("The refund result could not be recorded for manual review.");

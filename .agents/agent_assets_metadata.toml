@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "XPkUnXl89SRq6cUfj8lQx"
+uri = "file://Signature-Move-Showdown-Oct-31-16-17-56.mp4"
+type = "video"
+title = "The Champion’s Brew Loop — YouTube Short"
+description = "20-second vertical MP4, 720 × 1280, with audio. Download and review before upload."
+logical_id = "a7d4c179-d062-460f-b97f-963fa9d9a938"
+content_hash = "sha256:2dbdb5722df35c1f45d0921284ca340c236970503f8bd0fa77e56f728cc03a03"
+size = 9169706
+mtime_ms = 1793481538831
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:aef9b04a-e5e5-4b78-95e3-af7f8d2b98ef/a7d4c179-d062-460f-b97f-963fa9d9a938/0f053010-ae0b-4f03-9da9-a3eec3070f96"
+storage_version_token = "1793482117238284"
+content_type = "video/mp4"

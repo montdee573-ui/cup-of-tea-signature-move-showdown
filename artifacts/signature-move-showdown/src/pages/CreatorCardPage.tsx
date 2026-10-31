@@ -117,9 +117,9 @@ export default function CreatorCardPage() {
             {data.submissionStatus === "approved" && data.motionStatus !== "paid" && <>
               {data.offerAvailable && data.priceUsd !== null ? <section className="creator-offer" data-testid="creator-reel-offer">
                 <div><span className="launch-label"><Film size={13} /> OPTIONAL CREATOR EXTRA</span><h2>A four-second generated reel.</h2><p>A private AI-generated sports reel inspired by your submitted sport and move name. It is personal content only and is not used in the contest. Check the final total on secure checkout before paying.</p></div>
-                <div className="creator-offer-meta"><span>ONE-TIME PRICE</span><strong>${data.priceUsd.toFixed(2)}</strong><small>No subscription</small></div>
+                <div className="creator-offer-meta"><span>ONE-TIME BASE PRICE</span><strong>${data.priceUsd.toFixed(2)}</strong><small>Plus applicable tax · No subscription</small></div>
                 <label className="creator-price-approval"><input type="checkbox" checked={priceApproved} onChange={(event) => setPriceApproved(event.target.checked)} />
-                  I approve a one-time charge of ${data.priceUsd.toFixed(2)} USD.
+                  I approve a one-time base price of ${data.priceUsd.toFixed(2)} USD plus applicable tax. I will review the final total at Whop checkout before paying.
                 </label>
                 <button type="button" className="creator-checkout-button" onClick={startCheckout} disabled={!priceApproved || checkout.isPending || access.isPending}>
                   {checkout.isPending ? "Preparing secure checkout…" : data.motionStatus === "checkout_pending" ? "Continue to checkout" : "Review secure checkout"} <ArrowRight size={15} />

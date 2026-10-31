@@ -11,10 +11,24 @@ import {
   seedCreatorMotionOrder,
 } from "./creator-cards-test-db";
 import { creatorMotionVideoUrl } from "../lib/creator-motion-generation";
+import { paymentMatchesBasePrice } from "../lib/whop-payment-amounts";
 import { creatorMotionVideoState, resetCreatorMotionVideo } from "./creator-cards-test-storage";
 
 const CREATOR_TOKEN = "creator-link-token-for-checkout-regression-tests";
 const PRICE_USD = 9.99;
+
+test("payment amounts require exact base plus verified tax, not arbitrary overpayments", () => {
+  assert.equal(paymentMatchesBasePrice({ subtotal: 2, tax_amount: 0.16, total: 2.16 }, 2), true);
+  assert.equal(paymentMatchesBasePrice({ subtotal: "2.00", tax_amount: null, total: 2 }, 2), true);
+  for (const payment of [
+    { subtotal: 2, tax_amount: 0.16, total: 3 },
+    { subtotal: 1, tax_amount: 1.16, total: 2.16 },
+    { subtotal: 2, tax_amount: -0.16, total: 1.84 },
+    { subtotal: 2, total: 2 },
+    { subtotal: null, tax_amount: 0, total: 2 },
+    { subtotal: 2, tax_amount: 0.001, total: 2.001 },
+  ]) assert.equal(paymentMatchesBasePrice(payment, 2), false);
+});
 const OWNER_ENV = [
   "CREATOR_MOTION_SALES_APPROVED",
   "CREATOR_MOTION_PAYMENT_PROVIDER",
@@ -91,8 +105,8 @@ async function playCreatorMotionVideo(url = videoTicket(), range?: string): Prom
 function approvedPlan(overrides: Record<string, unknown> = {}) {
   return {
     id: process.env.WHOP_PLAN_ID,
-    account: { id: process.env.WHOP_COMPANY_ID },
-    billing_type: "one_time",
+    company: { id: process.env.WHOP_COMPANY_ID },
+    plan_type: "one_time",
     billing_period: null,
     currency: "usd",
     initial_price: PRICE_USD,
@@ -172,7 +186,9 @@ async function withWhop(
         company: { id: "biz_test" },
         checkout_configuration_id: "checkout_test",
         status: paymentOverrides.status ?? (refundedAmount >= PRICE_USD ? "refunded" : "paid"),
-        amount: PRICE_USD,
+        subtotal: PRICE_USD,
+        total: PRICE_USD,
+        tax_amount: 0,
         currency: "usd",
         refunded_amount: paymentOverrides.refunded_amount ?? refundedAmount,
         user: { email: "creator@example.test" },
@@ -342,14 +358,55 @@ test("checkout stays unavailable until every owner setting is present and approv
   }
 });
 
-test("mismatched, recurring, taxed, and adaptive Whop plans never create checkout", async () => {
+test("pending and rejected cards cannot see an offer, create checkout, or start generation", async () => {
+  for (const status of ["pending", "rejected"]) {
+    resetTestState();
+    resetCreatorCardState({
+      status,
+      creatorTokenHash: createHash("sha256").update(CREATOR_TOKEN).digest("hex"),
+    });
+    await withReplicate(async (generationCalls) => {
+      await withWhop(approvedPlan(), async (calls) => {
+        const accessResponse = await creatorCardAccess();
+        assert.equal(accessResponse.status, 200);
+        const access = await accessResponse.json() as {
+          submissionStatus: string; offerAvailable: boolean; priceUsd: number | null;
+        };
+        assert.equal(access.submissionStatus, status);
+        assert.equal(access.offerAvailable, false);
+        assert.equal(access.priceUsd, null);
+        const purchaseResponse = await checkout();
+        assert.equal(purchaseResponse.status, 409);
+        assert.equal(calls.length, 0, "unapproved cards must not contact Whop");
+      });
+      assert.equal(generationCalls.length, 0);
+      assert.equal(creatorCardState().orders.length, 0);
+    });
+  }
+});
+
+test("approved card access does not depend on enabling or buying the optional reel", async () => {
+  resetTestState();
+  process.env.CREATOR_MOTION_SALES_APPROVED = "false";
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await creatorCardAccess();
+    assert.equal(response.status, 200);
+    const access = await response.json() as { submissionStatus: string; offerAvailable: boolean };
+    assert.equal(access.submissionStatus, "approved");
+    assert.equal(access.offerAvailable, false);
+    assert.equal(calls.length, 0);
+    assert.equal(creatorCardState().orders.length, 0);
+  });
+});
+
+test("mismatched, recurring, unverified-tax, and adaptive Whop plans never create checkout", async () => {
   const invalidPlans: Array<[string, Record<string, unknown>]> = [
     ["different price", { initial_price: 10 }],
     ["different plan", { id: "plan_not_approved" }],
-    ["different owner account", { account: { id: "biz_not_approved" } }],
+    ["different owner account", { company: { id: "biz_not_approved" } }],
     ["different currency", { currency: "eur" }],
-    ["recurring", { billing_type: "monthly", billing_period: 1 }],
-    ["tax collection", { collect_tax: true }],
+    ["recurring", { plan_type: "renewal", billing_period: 1 }],
+    ["unknown tax collection", { collect_tax: undefined }],
     ["adaptive pricing", { adaptive_pricing_enabled: true }],
   ];
 
@@ -361,7 +418,7 @@ test("mismatched, recurring, taxed, and adaptive Whop plans never create checkou
       assert.equal(response.status, 503, `${label} plan should be refused`);
       assert.match((await response.json() as { error: string }).error, /could not be verified/);
       assert.deepEqual(calls.map((call) => call.method), ["GET"]);
-      assert.match(calls[0].path, /\/api\/v1\/variants\//);
+      assert.match(calls[0].path, /\/api\/v1\/plans\//);
     });
     assert.deepEqual(creatorCardState().orders, [], `${label} plan must not create an order`);
   }
@@ -414,6 +471,37 @@ test("checkout rechecks the live Whop plan after a valid display check was cache
     assert.deepEqual(calls.map((call) => call.method), ["GET"]);
   });
   assert.deepEqual(creatorCardState().orders, []);
+});
+
+test("tax-enabled one-time plan creates checkout without changing the approved base price", async () => {
+  resetTestState("plan_taxenabled");
+  await withWhop(approvedPlan({ collect_tax: true }), async () => {
+    const response = await checkout();
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as { priceUsd: number }).priceUsd, PRICE_USD);
+  });
+  assert.equal(creatorCardState().orders[0].priceUsd, PRICE_USD);
+});
+
+test("refunding only the base price of a taxed payment remains a partial refund", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  await withWhop(approvedPlan({ collect_tax: true }), async (calls) => {
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as { refundRequestStatus: string }).refundRequestStatus, "partial_review");
+    assert.equal(calls.some(call => call.path.endsWith("/refund")), false);
+  }, undefined, { tax_amount: 0.8, total: PRICE_USD + 0.8, refunded_amount: PRICE_USD });
+});
+
+test("a full taxed refund is verified against the total rather than the base price", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  await withWhop(approvedPlan({ collect_tax: true }), async () => {
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as { refundRequestStatus: string }).refundRequestStatus, "completed");
+  }, undefined, { tax_amount: 0.8, total: PRICE_USD + 0.8 }, { refundAmount: PRICE_USD + 0.8 });
 });
 
 test("checkout writes only the separate creator order and leaves free contest entry unchanged", async () => {
@@ -545,7 +633,7 @@ test("stale checkout reservations reconcile Whop before recovering the saved ord
 
 test("invalid Whop payments never mark a checkout paid or start reel generation", async () => {
   const invalidPayments: Array<[string, Record<string, unknown>]> = [
-    ["wrong amount", { amount: PRICE_USD + 1 }],
+    ["wrong amount", { subtotal: PRICE_USD + 1 }],
     ["wrong currency", { currency: "eur" }],
     ["wrong checkout configuration", { checkout_configuration_id: "checkout_other" }],
     ["fully refunded", { status: "refunded", refunded_amount: PRICE_USD }],
@@ -602,6 +690,20 @@ test("a matching, non-refunded USD payment marks the order paid and starts gener
     assert.equal(order.generationPredictionId, "prediction_test");
     assert.equal(generationCalls.length, 1);
     assert.match(generationCalls[0], /^POST https:\/\/api\.replicate\.com\/v1\/models\//);
+  });
+});
+
+test("verified tax-inclusive payment grants access at the approved base price", async () => {
+  resetTestState("plan_paidtax");
+  await withReplicate(async (generationCalls) => {
+    await withWhop(approvedPlan({ collect_tax: true }), async () => {
+      assert.equal((await checkout()).status, 200);
+      const response = await creatorCardAccess();
+      assert.equal(response.status, 200);
+      assert.equal((await response.json() as { motionStatus: string }).motionStatus, "paid");
+    }, undefined, { tax_amount: 0.8, total: PRICE_USD + 0.8 });
+    assert.equal(creatorCardState().orders[0].priceUsd, PRICE_USD);
+    assert.equal(generationCalls.length, 1);
   });
 });
 
@@ -680,7 +782,7 @@ test("owner refund stays open when Whop payment identity or amount does not matc
     { company: { id: "biz_other" } },
     { checkout_configuration_id: "checkout_other" },
     { currency: "eur" },
-    { amount: PRICE_USD + 1 },
+    { subtotal: PRICE_USD + 1 },
   ];
 
   for (const overrides of mismatches) {

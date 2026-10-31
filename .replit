@@ -28,3 +28,6 @@ packages = ["ffmpeg"]
 [userenv.shared]
 WHOP_COMPANY_ID = "biz_TK41Ds0UVoOkMh"
 WHOP_PLAN_ID = "plan_tXNIuA0OMgKJe"
+CREATOR_MOTION_PAYMENT_PROVIDER = "whop"
+CREATOR_MOTION_PRICE_USD = "2"
+CREATOR_MOTION_SALES_APPROVED = "true"

@@ -15,4 +15,9 @@ export interface SceneDetails {
   filePath: string;
 }
 
-export const SCENE_DETAILS: Record<string, SceneDetails> = {};
+export const SCENE_DETAILS: Record<string, SceneDetails> = {
+  twoMoves: { title: 'Two moves', filePath: 'src/components/video/video_scenes/Scene1.tsx' },
+  community: { title: 'Community matchup', filePath: 'src/components/video/video_scenes/Scene2.tsx' },
+  freeVote: { title: 'Free entry and voting', filePath: 'src/components/video/video_scenes/Scene3.tsx' },
+  showUp: { title: 'Show up and vote', filePath: 'src/components/video/video_scenes/Scene4.tsx' },
+};
