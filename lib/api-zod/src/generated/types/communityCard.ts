@@ -16,6 +16,8 @@ export interface CommunityCard {
   moveName: string;
   /** @nullable */
   team: string | null;
+  /** @nullable */
+  merchProductId: number | null;
   design: CommunityCardDesign;
   createdAt: Date;
   videoUrl: string;

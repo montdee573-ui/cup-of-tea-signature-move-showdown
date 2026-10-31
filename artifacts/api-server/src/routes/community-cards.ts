@@ -19,6 +19,7 @@ function encodeCommunityCard(row: typeof moveSubmissionsTable.$inferSelect) {
     category: row.category,
     moveName: row.moveName,
     team: row.team,
+    merchProductId: row.merchProductId,
     design: row.design as "holo" | "court",
     createdAt: row.createdAt,
     videoUrl: `/api/community-cards/${row.id}/video`,

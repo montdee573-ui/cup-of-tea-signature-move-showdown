@@ -1,11 +1,22 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { ArrowLeft, ArrowUpRight, Check, CircleAlert, Copy, Share2 } from "lucide-react";
-import { getGetCommunityCardQueryKey, useGetCommunityCard } from "@workspace/api-client-react";
+import {
+  getGetCommunityCardQueryKey,
+  getListMerchCatalogQueryKey,
+  useGetCommunityCard,
+  useListMerchCatalog,
+} from "@workspace/api-client-react";
 
 export default function CommunityCardPage() {
   const { id = "" } = useParams<{ id: string }>();
   const card = useGetCommunityCard(id, { query: { queryKey: getGetCommunityCardQueryKey(id), enabled: Boolean(id), refetchOnMount: "always" } });
+  const merchCatalog = useListMerchCatalog({
+    query: {
+      queryKey: getListMerchCatalogQueryKey(),
+      enabled: Boolean(card.data?.merchProductId),
+    },
+  });
   const [shareState, setShareState] = useState<"idle" | "copied" | "shared" | "error">("idle");
 
   const share = async () => {
@@ -29,6 +40,9 @@ export default function CommunityCardPage() {
   </main>;
 
   const entry = card.data;
+  const merchProduct = entry.merchProductId
+    ? merchCatalog.data?.find((item) => item.id === entry.merchProductId)
+    : undefined;
   return <main className="community-detail">
     <Link className="back-link" href="/"><ArrowLeft size={15} /> All move cards</Link>
     <div className="community-detail-layout">
@@ -44,6 +58,7 @@ export default function CommunityCardPage() {
         <p className="community-handle">{entry.handle} · {entry.category}{entry.team ? ` · ${entry.team}` : ""}</p>
         <h2>{entry.moveName}</h2>
         <p className="community-policy">This participant entry was approved for the public archive. Entry, voting, eligibility, and results are free and are never affected by merchandise.</p>
+        {entry.merchProductId !== null && <p className="community-merch-match">PLANNED MERCH MATCH · {merchProduct?.title ?? `Catalog item #${entry.merchProductId}`} <span>Planning only · no product or checkout</span></p>}
         <video className="community-video" controls playsInline preload="metadata" src={entry.videoUrl} aria-label={`Approved move video: ${entry.moveName}`} />
         <div className="community-share-row">
           <button className="button-primary" type="button" onClick={() => void share()} data-testid="button-share-community-card">

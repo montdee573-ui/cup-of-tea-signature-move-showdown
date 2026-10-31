@@ -751,6 +751,8 @@ button { cursor: pointer; }
 .community-handle { margin: 0; color: var(--muted); font: 10px var(--font-mono); }
 .community-detail-copy h2 { margin: 30px 0 8px; font: 600 23px var(--font-display); }
 .community-policy { max-width: 520px; color: #aaa8bd; font-size: 12px; line-height: 1.8; }
+.community-merch-match { display: grid; gap: 5px; max-width: 520px; margin: 15px 0; padding: 12px 14px; border: 1px solid rgba(127,231,241,.2); border-radius: 5px; color: var(--cyan); font: 8px/1.5 var(--font-mono); letter-spacing: .06em; }
+.community-merch-match span { color: #aaa8bd; font: 10px/1.5 var(--font-sans); letter-spacing: 0; }
 .community-video { display: block; width: 100%; max-height: 350px; margin: 21px 0; border: 1px solid var(--line); border-radius: 6px; background: #080910; }
 .community-share-row { display: flex; align-items: center; gap: 17px; flex-wrap: wrap; }
 .community-contest-link { display: inline-flex; align-items: center; gap: 5px; color: var(--cyan); font: 9px var(--font-mono); }

@@ -34,6 +34,7 @@ type SubmissionMetadata = {
   handle: string;
   team?: string;
   design: "holo" | "court";
+  merchProductId?: number | null;
   consent: true;
   videoFileName?: string;
 };
@@ -51,6 +52,8 @@ function isSubmissionMetadata(value: unknown): value is SubmissionMetadata {
     && textInRange(input.handle, 1, 30)
     && (input.team === undefined || textInRange(input.team, 0, 60))
     && (input.design === "holo" || input.design === "court")
+    && (input.merchProductId === undefined || input.merchProductId === null
+      || (Number.isSafeInteger(input.merchProductId) && Number(input.merchProductId) >= 1))
     && input.consent === true
     && (input.videoFileName === undefined || textInRange(input.videoFileName, 1, 150));
 }
@@ -137,6 +140,7 @@ function encodeForReview(row: typeof moveSubmissionsTable.$inferSelect) {
     displayName: row.displayName,
     handle: row.handle,
     team: row.team,
+    merchProductId: row.merchProductId,
     design: row.design as "holo" | "court",
     videoFileName: row.videoFileName,
     videoContentType: row.videoContentType,
@@ -191,6 +195,7 @@ router.post("/move-submissions", submissionRateLimit, parseVideoBody, async (req
       handle: metadata.handle.trim(),
       team: metadata.team?.trim() || null,
       design: metadata.design,
+      merchProductId: metadata.merchProductId ?? null,
       videoObjectPath: objectPath,
       videoFileName: filename,
       videoContentType: contentType,

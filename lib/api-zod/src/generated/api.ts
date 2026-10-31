@@ -201,6 +201,7 @@ export const ListCommunityCardsResponseItem = zod.object({
   "category": zod.string(),
   "moveName": zod.string(),
   "team": zod.string().nullable(),
+  "merchProductId": zod.number().int().nullable(),
   "design": zod.enum(['holo', 'court']),
   "createdAt": zod.coerce.date(),
   "videoUrl": zod.string()
@@ -223,6 +224,7 @@ export const GetCommunityCardResponse = zod.object({
   "category": zod.string(),
   "moveName": zod.string(),
   "team": zod.string().nullable(),
+  "merchProductId": zod.number().int().nullable(),
   "design": zod.enum(['holo', 'court']),
   "createdAt": zod.coerce.date(),
   "videoUrl": zod.string()
@@ -581,6 +583,7 @@ export const ListMoveSubmissionsForReviewResponseItem = zod.object({
   "moveName": zod.string(),
   "displayName": zod.string(),
   "handle": zod.string(),
+  "merchProductId": zod.number().int().nullable(),
   "team": zod.string().nullable(),
   "design": zod.enum(['holo', 'court']),
   "videoFileName": zod.string(),
@@ -613,6 +616,7 @@ export const ReviewMoveSubmissionResponse = zod.object({
   "moveName": zod.string(),
   "displayName": zod.string(),
   "handle": zod.string(),
+  "merchProductId": zod.number().int().nullable(),
   "team": zod.string().nullable(),
   "design": zod.enum(['holo', 'court']),
   "videoFileName": zod.string(),

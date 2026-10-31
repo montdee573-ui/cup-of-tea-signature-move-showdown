@@ -9,6 +9,7 @@ export const moveSubmissionsTable = pgTable("move_submissions", {
   handle: text("handle").notNull(),
   team: text("team"),
   design: text("design").notNull(),
+  merchProductId: integer("merch_product_id"),
   videoObjectPath: text("video_object_path").notNull(),
   videoFileName: text("video_file_name").notNull(),
   videoContentType: text("video_content_type").notNull(),

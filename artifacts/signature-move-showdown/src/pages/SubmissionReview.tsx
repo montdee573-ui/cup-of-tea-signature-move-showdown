@@ -49,6 +49,7 @@ function SubmissionCard({
         <div><dt>SUBMITTED</dt><dd>{new Date(submission.createdAt).toLocaleString()}</dd></div>
         <div><dt>CONSENT RECORDED</dt><dd>{new Date(submission.consentAt).toLocaleString()}</dd></div>
         <div><dt>CARD FINISH</dt><dd>{submission.design === "holo" ? "Holographic" : "Night court"}</dd></div>
+        {submission.merchProductId !== null && <div><dt>PLANNED MERCH ITEM</dt><dd>Printful catalog item #{submission.merchProductId}</dd></div>}
       </dl>
     </div>
     <div className="review-media">

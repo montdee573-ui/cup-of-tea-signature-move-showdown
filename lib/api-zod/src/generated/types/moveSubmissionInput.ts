@@ -35,5 +35,10 @@ export interface MoveSubmissionInput {
   /** @maxLength 150 */
   videoFileName?: string;
   design: MoveSubmissionInputDesign;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  merchProductId?: number | null;
   consent: true;
 }

@@ -184,6 +184,8 @@ export interface CommunityCard {
   moveName: string;
   /** @nullable */
   team: string | null;
+  /** @nullable */
+  merchProductId: number | null;
   design: CommunityCardDesign;
   createdAt: string;
   videoUrl: string;
@@ -429,6 +431,11 @@ export interface MoveSubmissionInput {
   /** @maxLength 150 */
   videoFileName?: string;
   design: MoveSubmissionInputDesign;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  merchProductId?: number | null;
   consent: true;
 }
 
@@ -481,6 +488,8 @@ export interface MoveSubmission {
   moveName: string;
   displayName: string;
   handle: string;
+  /** @nullable */
+  merchProductId: number | null;
   /** @nullable */
   team: string | null;
   design: MoveSubmissionDesign;

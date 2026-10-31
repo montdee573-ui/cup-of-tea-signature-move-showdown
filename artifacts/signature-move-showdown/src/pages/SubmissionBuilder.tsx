@@ -145,6 +145,7 @@ export default function SubmissionBuilder() {
       handle: draft.handle.trim(),
       ...(draft.team.trim() ? { team: draft.team.trim() } : {}),
       design: draft.design,
+      merchProductId: draft.merchProductId ? Number(draft.merchProductId) : null,
       consent: true as const,
       videoFileName: videoFile.name,
     };
@@ -244,7 +245,7 @@ export default function SubmissionBuilder() {
         </div></section>
 
         <section className="builder-step"><span className="builder-step-num">04</span><div className="builder-step-content"><h2>Plan a merch match</h2>
-          <p className="merch-helper">Browse the live Printful catalog and save a product idea with this private card draft.</p>
+          <p className="merch-helper">Browse the live Printful catalog and save an optional product idea with your card.</p>
           {merchCatalog.isLoading ? <p className="merch-status">Loading Printful catalog…</p> :
             merchCatalog.isError ? <p className="merch-status" role="status">Printful catalog is temporarily unavailable. Your card draft still works.</p> :
               <><label>Search merchandise<input value={merchSearch} onChange={(event) => setMerchSearch(event.target.value)} placeholder="Search shirts, hats, jerseys…" /></label>
@@ -254,7 +255,7 @@ export default function SubmissionBuilder() {
                 </select></label>
                 {selectedMerch && <p className="merch-status">Selected: <strong>{selectedMerch.title}</strong>. This is a planning link only.</p>}
               </>}
-          <p className="merch-safety">This public form only saves a planning link in your local draft. Owners can prepare private mockups in the Review desk.</p>
+          <p className="merch-safety">This remains a planning link only. After approval, the shared card keeps this selection. Owners can prepare private mockups in the Review desk.</p>
         </div></section>
 
         <section className="submission-consent">
@@ -265,7 +266,7 @@ export default function SubmissionBuilder() {
         {uploadError && <div className="upload-error" role="alert"><CircleAlert size={17} /><p>{uploadError}</p></div>}
         {progress !== null && <div className="upload-progress" role="status"><div className="upload-progress-head"><span>{progress === 100 ? "Upload complete" : "Uploading privately"}</span><strong>{progress}%</strong></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></div>}
         <div className="submission-actions"><button className="submission-save" type="button" onClick={saveDraft}>{saved ? <><Check size={16} /> Saved on this device</> : "Save local draft"}</button><button className="submit-primary" type="submit" disabled={!valid || progress !== null && progress < 100}>Send for review <Upload size={15} /></button></div>
-        <p className="local-draft-note">Local draft saves card details and a merchandise planning link in this browser only. It does not upload or submit your video.</p>
+        <p className="local-draft-note">Local draft saves card details and a merchandise planning link in this browser only. Submitting stores the selected catalog item with the card; it does not create a product or enable checkout.</p>
       </form>
 
       <aside className={`card-preview ${draft.design}`} aria-label="Move card preview">

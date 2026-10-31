@@ -16,6 +16,8 @@ export interface MoveSubmission {
   displayName: string;
   handle: string;
   /** @nullable */
+  merchProductId: number | null;
+  /** @nullable */
   team: string | null;
   design: MoveSubmissionDesign;
   videoFileName: string;
