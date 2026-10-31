@@ -9,6 +9,7 @@ import {
   useGetMerchProductDetails,
   useListMerchCatalog,
 } from "@workspace/api-client-react";
+import { groupMerchMockupPreviews } from "../lib/merch-mockup-previews";
 
 function messageOf(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -116,22 +117,7 @@ export default function MerchMockupStudio() {
 
   const previewGroups = useMemo(() => {
     if (!batch || !mockupTask.data?.mockups.length) return [];
-    const groups = new Map<string, {
-      title: string;
-      previews: typeof mockupTask.data.mockups;
-    }>();
-    for (const preview of mockupTask.data.mockups) {
-      const variantLabels = preview.variantIds.map((id) =>
-        batch.variants.find((variant) => variant.id === id)?.name ?? `Variant #${id}`);
-      const placementLabel = batch.placements.find((item) => item.id === preview.placement)?.title
-        ?? preview.placement;
-      const title = `${variantLabels.join(", ") || "Selected variants"} · ${placementLabel}`;
-      const key = `${preview.variantIds.join(",")}|${preview.placement}`;
-      const group = groups.get(key) ?? { title, previews: [] };
-      group.previews.push(preview);
-      groups.set(key, group);
-    }
-    return [...groups.values()];
+    return groupMerchMockupPreviews(mockupTask.data.mockups, batch.variants, batch.placements);
   }, [batch, mockupTask.data?.mockups]);
 
   const missingCombinations = useMemo(() => {
@@ -238,7 +224,7 @@ export default function MerchMockupStudio() {
                   </div>
                 </div>}
                 {previewGroups.length > 0
-                  ? previewGroups.map((group) => <section className="merch-studio-preview-group" key={group.title}>
+                  ? previewGroups.map((group) => <section className="merch-studio-preview-group" key={group.key}>
                     <h4>{group.title}</h4>
                     <div className="merch-studio-previews">{group.previews.map((preview, index) => <figure key={`${preview.imageUrl}-${index}`}>
                       <img src={preview.imageUrl} alt={`${group.title} private product mockup`} loading="lazy" />

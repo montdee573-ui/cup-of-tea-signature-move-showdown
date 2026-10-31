@@ -8,7 +8,7 @@ import merchRouter from "./merch";
 
 const SESSION_SECRET = "test-session-secret";
 const ADMIN_PASSWORD = "test-owner-password";
-const calls: Array<{ connector: string; path: string; method: string }> = [];
+const calls: Array<{ connector: string; path: string; method: string; body?: string }> = [];
 const app = express();
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
@@ -30,7 +30,12 @@ function printfulResponse(path: string, method: string): Response {
     return Response.json({
       result: {
         product: { id: 42, title: "Test product" },
-        variants: [{ id: 7, name: "Black / M", color: "Black", size: "M" }],
+        variants: Array.from({ length: 41 }, (_, index) => ({
+          id: index + 7,
+          name: index === 0 ? "Black / M" : index === 1 ? "White / L" : `Variant ${index + 1}`,
+          color: index === 0 ? "Black" : "White",
+          size: index === 0 ? "M" : "L",
+        })),
       },
     });
   }
@@ -47,18 +52,36 @@ function printfulResponse(path: string, method: string): Response {
         error: null,
         mockups: [
           {
-            display_name: "Front preview",
+            display_name: "Front view",
             placement: "front",
             variant_ids: [7],
             mockup_url: "https://images.example.test/front.png",
             extra: [
-              { title: "Back preview", url: "https://images.example.test/back.png" },
+              { title: "Front detail", url: "https://images.example.test/front-detail.png" },
               { title: "Local host", url: "https://localhost/private.png" },
               { title: "Plain HTTP", url: "http://images.example.test/unsafe.png" },
               { title: "IP address", url: "https://192.168.1.1/private.png" },
               { title: "Credentials", url: "https://user:secret@images.example.test/private.png" },
             ],
             source_file: "private-artwork.png",
+          },
+          {
+            display_name: "Back view",
+            placement: "back",
+            variant_ids: [7],
+            mockup_url: "https://images.example.test/back.png",
+          },
+          {
+            display_name: "Front view",
+            placement: "front",
+            variant_ids: [8],
+            mockup_url: "https://images.example.test/white-front.png",
+          },
+          {
+            display_name: "Back view",
+            placement: "back",
+            variant_ids: [8],
+            mockup_url: "https://images.example.test/white-back.png",
           },
         ],
       },
@@ -72,7 +95,12 @@ before(async () => {
   process.env.REEL_STUDIO_ADMIN_PASSWORD = ADMIN_PASSWORD;
   ReplitConnectors.prototype.proxy = async function proxy(connector, path, options = {}) {
     const method = options.method ?? "GET";
-    calls.push({ connector, path, method });
+    calls.push({
+      connector,
+      path,
+      method,
+      ...(typeof options.body === "string" ? { body: options.body } : {}),
+    });
     return printfulResponse(path, method);
   };
 
@@ -158,9 +186,10 @@ test("artwork URLs must be public HTTPS URLs without local hosts or credentials"
   assert.deepEqual(calls, []);
 });
 
-test("unavailable and duplicate variants or placements never create a task", async () => {
+test("invalid and duplicate variants or placements never create a task", async () => {
   const invalidBodies = [
     { variantIds: [999], placements: ["front"], artworkUrl: "https://images.example.test/art.png" },
+    { variantIds: [7, 999], placements: ["front"], artworkUrl: "https://images.example.test/art.png" },
     { variantIds: [7, 7], placements: ["front"], artworkUrl: "https://images.example.test/art.png" },
     { variantIds: [7], placements: ["unknown"], artworkUrl: "https://images.example.test/art.png" },
     { variantIds: [7], placements: ["front", "front"], artworkUrl: "https://images.example.test/art.png" },
@@ -174,6 +203,44 @@ test("unavailable and duplicate variants or placements never create a task", asy
     assert.equal(response.status, 400);
   }
   assert.equal(calls.filter(({ path, method }) => method === "POST" || path.includes("create-task")).length, 0);
+});
+
+test("allows exactly 40 variant-placement combinations and rejects more", async () => {
+  const exactlyFortyVariantIds = Array.from({ length: 20 }, (_, index) => index + 7);
+  const allowed = await request("/merch/catalog/42/mockups", {
+    method: "POST",
+    body: JSON.stringify({
+      variantIds: exactlyFortyVariantIds,
+      placements: ["front", "back"],
+      artworkUrl: "https://images.example.test/art.png",
+    }),
+  }, true);
+
+  assert.equal(allowed.status, 200);
+  const creationCall = calls.find(({ method, path }) => method === "POST" && path.includes("create-task"));
+  assert(creationCall?.body);
+  assert.deepEqual(JSON.parse(creationCall.body), {
+    variant_ids: exactlyFortyVariantIds,
+    files: [
+      { placement: "front", image_url: "https://images.example.test/art.png" },
+      { placement: "back", image_url: "https://images.example.test/art.png" },
+    ],
+    format: "png",
+    width: 1200,
+  });
+
+  calls.length = 0;
+  const overForty = await request("/merch/catalog/42/mockups", {
+    method: "POST",
+    body: JSON.stringify({
+      variantIds: Array.from({ length: 21 }, (_, index) => index + 7),
+      placements: ["front", "back"],
+      artworkUrl: "https://images.example.test/art.png",
+    }),
+  }, true);
+
+  assert.equal(overForty.status, 400);
+  assert.equal(calls.some(({ method, path }) => method === "POST" || path.includes("create-task")), false);
 });
 
 test("successful generation creates only a temporary mockup task", async () => {
@@ -199,13 +266,13 @@ test("successful generation creates only a temporary mockup task", async () => {
     ["GET", "/mockup-generator/printfiles/42"],
     ["POST", "/mockup-generator/create-task/42"],
   ]);
-  assert.equal(
-    calls.some(({ path, method }) => method === "POST" && (/^\/products(?:\/|$)/.test(path) || /^\/orders(?:\/|$)/.test(path))),
-    false,
-  );
+  assert.equal(calls.some(({ path }) => /^\/(?:orders|checkout|sales)(?:\/|$)/.test(path)), false);
+  assert.equal(calls.some(({ path, method }) => method === "POST" && /^\/products(?:\/|$)/.test(path)), false);
+  assert.equal(calls.filter(({ method }) => method === "POST").length, 1);
+  assert.equal(calls.find(({ method }) => method === "POST")?.path, "/mockup-generator/create-task/42");
 });
 
-test("task results include only safe HTTPS previews and no raw Printful fields", async () => {
+test("task results preserve variant-placement combinations and only return safe preview fields", async () => {
   const response = await request("/merch/mockups/task_123", {}, true);
   assert.equal(response.status, 200);
   const body = await response.json() as Record<string, unknown>;
@@ -213,20 +280,42 @@ test("task results include only safe HTTPS previews and no raw Printful fields",
   assert.deepEqual(Object.keys(body).sort(), ["error", "mockups", "status", "taskKey"]);
   assert.deepEqual(body.mockups, [
     {
-      title: "Front preview",
+      title: "Front view",
       placement: "front",
       variantIds: [7],
       imageUrl: "https://images.example.test/front.png",
     },
     {
-      title: "Back preview",
+      title: "Front detail",
       placement: "front",
+      variantIds: [7],
+      imageUrl: "https://images.example.test/front-detail.png",
+    },
+    {
+      title: "Back view",
+      placement: "back",
       variantIds: [7],
       imageUrl: "https://images.example.test/back.png",
     },
+    {
+      title: "Front view",
+      placement: "front",
+      variantIds: [8],
+      imageUrl: "https://images.example.test/white-front.png",
+    },
+    {
+      title: "Back view",
+      placement: "back",
+      variantIds: [8],
+      imageUrl: "https://images.example.test/white-back.png",
+    },
   ]);
+  const returnedGroups = (body.mockups as Array<{ placement: string; variantIds: number[] }>)
+    .map(({ variantIds, placement }) => `${variantIds.join(",")}|${placement}`);
+  assert.deepEqual([...new Set(returnedGroups)], ["7|front", "7|back", "8|front", "8|back"]);
   assert.equal(JSON.stringify(body).includes("private-artwork.png"), false);
   assert.deepEqual(calls.map(({ path, method }) => [method, path]), [
     ["GET", "/mockup-generator/task?task_key=task_123"],
   ]);
+  assert.equal(calls.some(({ path }) => /^\/(?:products|orders|checkout|sales)(?:\/|$)/.test(path)), false);
 });
