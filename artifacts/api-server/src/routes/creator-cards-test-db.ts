@@ -131,6 +131,8 @@ export const db: any = {
           if (table !== creatorMotionOrdersTable) return [];
           const order = orders.find((candidate) => {
             if (changes.status === "creating") return candidate.status === "failed";
+            if (changes.status === "pending") return candidate.status === "creating";
+            if (changes.status === "failed") return candidate.status === "creating";
             if (changes.refundRequestStatus === "requested") {
               return candidate.refundRequestStatus === "none"
                 && candidate.status === "paid"

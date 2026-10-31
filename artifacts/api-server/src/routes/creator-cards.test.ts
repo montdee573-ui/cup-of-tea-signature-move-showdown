@@ -103,12 +103,16 @@ type WhopCall = { path: string; method?: string };
 async function withWhop(
   plan: Record<string, unknown>,
   run: (calls: WhopCall[]) => Promise<void>,
+  beforeCheckout?: () => Promise<void>,
 ): Promise<void> {
   const calls: WhopCall[] = [];
   let refundedAmount = 0;
   const originalProxy = ReplitConnectors.prototype.proxy;
   ReplitConnectors.prototype.proxy = async function (_connectorName, path, options) {
     calls.push({ path, method: options?.method });
+    if (path.includes("/api/v1/checkout_configurations") && options?.method === "POST") {
+      await beforeCheckout?.();
+    }
     const paymentPath = path.includes("/api/v1/payments/pay_test");
     if (paymentPath && options?.method === "POST" && path.endsWith("/refund")) refundedAmount = PRICE_USD;
     const payload = paymentPath
@@ -337,6 +341,43 @@ test("checkout writes only the separate creator order and leaves free contest en
   assert.equal(afterState.submission.id, before.id);
   assert.deepEqual(afterState.writes, ["creator_motion_orders"]);
   assert.equal(afterState.orders.length, 1);
+});
+
+test("overlapping checkouts create one Whop session and keep the winning order", async () => {
+  resetTestState();
+  let markCheckoutStarted!: () => void;
+  let releaseCheckout!: () => void;
+  const checkoutStarted = new Promise<void>((resolve) => {
+    markCheckoutStarted = resolve;
+  });
+  const holdCheckout = new Promise<void>((resolve) => {
+    releaseCheckout = resolve;
+  });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const firstRequest = checkout();
+    await checkoutStarted;
+
+    const secondResponse = await checkout();
+    assert.equal(secondResponse.status, 409);
+    assert.match((await secondResponse.json() as { error: string }).error, /being prepared/);
+    releaseCheckout();
+
+    const firstResponse = await firstRequest;
+    assert.equal(firstResponse.status, 200);
+    assert.equal((await firstResponse.json() as { motionStatus: string }).motionStatus, "checkout_pending");
+    assert.equal(calls.filter((call) => call.path.includes("/api/v1/checkout_configurations") && call.method === "POST").length, 1);
+  }, async () => {
+    markCheckoutStarted();
+    await holdCheckout;
+  });
+
+  const [order] = creatorCardState().orders;
+  assert.equal(creatorCardState().orders.length, 1);
+  assert.equal(order.status, "pending");
+  assert.equal(order.priceUsd, PRICE_USD);
+  assert.equal(order.checkoutConfigurationId, "checkout_test");
+  assert.equal(order.checkoutUrl, "https://whop.com/checkout/test");
 });
 
 test("refund requests require a failed retry and persist only on the verified payment order", async () => {

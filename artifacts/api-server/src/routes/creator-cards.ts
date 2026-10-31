@@ -444,7 +444,10 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
   if (!redirectUrl) {
     await db.update(creatorMotionOrdersTable)
       .set({ status: "failed" })
-      .where(eq(creatorMotionOrdersTable.submissionId, row.id));
+      .where(and(
+        eq(creatorMotionOrdersTable.submissionId, row.id),
+        eq(creatorMotionOrdersTable.status, "creating"),
+      ));
     res.status(400).json({ error: "The checkout return address could not be verified." });
     return;
   }
@@ -473,7 +476,10 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
         status: "pending",
         priceUsd: offer.priceUsd,
       })
-      .where(eq(creatorMotionOrdersTable.submissionId, row.id))
+      .where(and(
+        eq(creatorMotionOrdersTable.submissionId, row.id),
+        eq(creatorMotionOrdersTable.status, "creating"),
+      ))
       .returning();
     if (!updated) throw new Error("The checkout mapping could not be saved.");
     res.setHeader("Cache-Control", "private, no-store, max-age=0");
@@ -487,7 +493,10 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
     req.log.error({ submissionId: row.id, providerStatus: status }, "Unable to create hosted motion-card checkout");
     await db.update(creatorMotionOrdersTable)
       .set({ status: "failed" })
-      .where(eq(creatorMotionOrdersTable.submissionId, row.id));
+      .where(and(
+        eq(creatorMotionOrdersTable.submissionId, row.id),
+        eq(creatorMotionOrdersTable.status, "creating"),
+      ));
     res.status(503).json({ error: "Optional motion-card checkout could not be started. Please try again." });
   }
 });
