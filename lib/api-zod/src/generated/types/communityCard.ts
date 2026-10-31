@@ -18,6 +18,8 @@ export interface CommunityCard {
   team: string | null;
   /** @nullable */
   merchProductId: number | null;
+  /** @nullable */
+  merchProductName: string | null;
   design: CommunityCardDesign;
   createdAt: Date;
   videoUrl: string;

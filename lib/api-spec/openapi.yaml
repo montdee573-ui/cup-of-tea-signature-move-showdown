@@ -1278,6 +1278,8 @@ components:
           type: ["string", "null"]
         merchProductId:
           type: ["integer", "null"]
+        merchProductName:
+          type: ["string", "null"]
         design:
           type: string
           enum: [holo, court]
@@ -1286,7 +1288,7 @@ components:
           format: date-time
         videoUrl:
           type: string
-      required: [id, displayName, handle, sport, category, moveName, team, merchProductId, design, createdAt, videoUrl]
+      required: [id, displayName, handle, sport, category, moveName, team, merchProductId, merchProductName, design, createdAt, videoUrl]
     ShowdownCard:
       type: object
       properties:
@@ -1711,6 +1713,8 @@ components:
         merchProductId:
           type: ["integer", "null"]
           minimum: 1
+        merchProductName:
+          type: ["string", "null"]
         consent:
           type: boolean
           enum: [true]
@@ -1837,6 +1841,8 @@ components:
           type: string
         merchProductId:
           type: ["integer", "null"]
+        merchProductName:
+          type: ["string", "null"]
         team:
           type: ["string", "null"]
         design:
@@ -1871,6 +1877,7 @@ components:
         - handle
         - team
         - merchProductId
+        - merchProductName
         - design
         - videoFileName
         - videoContentType

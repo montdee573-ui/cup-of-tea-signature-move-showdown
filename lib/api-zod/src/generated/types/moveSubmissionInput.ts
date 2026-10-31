@@ -40,5 +40,7 @@ export interface MoveSubmissionInput {
      * @nullable
      */
   merchProductId?: number | null;
+  /** @nullable */
+  merchProductName?: string | null;
   consent: true;
 }

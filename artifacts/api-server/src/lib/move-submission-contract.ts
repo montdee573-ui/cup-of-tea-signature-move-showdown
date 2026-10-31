@@ -10,6 +10,7 @@ export type SubmissionMetadata = {
   team?: string;
   design: "holo" | "court";
   merchProductId?: number | null;
+  merchProductName?: string | null;
   consent: true;
   videoFileName?: string;
 };
@@ -31,6 +32,8 @@ function isSubmissionMetadata(value: unknown): value is SubmissionMetadata {
     && (input.design === "holo" || input.design === "court")
     && (input.merchProductId === undefined || input.merchProductId === null
       || (Number.isSafeInteger(input.merchProductId) && Number(input.merchProductId) >= 1))
+    && (input.merchProductName === undefined || input.merchProductName === null
+      || (typeof input.merchProductName === "string" && input.merchProductName.trim().length > 0))
     && input.consent === true
     && (input.videoFileName === undefined || textInRange(input.videoFileName, 1, 150));
 }
@@ -61,6 +64,7 @@ export function submissionFieldsFromMetadata(metadata: SubmissionMetadata) {
     team: metadata.team?.trim() || null,
     design: metadata.design,
     merchProductId: metadata.merchProductId ?? null,
+    merchProductName: metadata.merchProductId == null ? null : metadata.merchProductName?.trim() || null,
   };
 }
 
@@ -74,6 +78,7 @@ export function encodeMoveSubmissionForReview(row: MoveSubmissionRow) {
     handle: row.handle,
     team: row.team,
     merchProductId: row.merchProductId,
+    merchProductName: row.merchProductName,
     design: row.design as "holo" | "court",
     videoFileName: row.videoFileName,
     videoContentType: row.videoContentType,
@@ -96,6 +101,7 @@ export function encodeCommunityCard(row: MoveSubmissionRow) {
     moveName: row.moveName,
     team: row.team,
     merchProductId: row.merchProductId,
+    merchProductName: row.merchProductName,
     design: row.design as "holo" | "court",
     createdAt: row.createdAt,
     videoUrl: `/api/community-cards/${row.id}/video`,

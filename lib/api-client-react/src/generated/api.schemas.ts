@@ -193,6 +193,8 @@ export interface CommunityCard {
   team: string | null;
   /** @nullable */
   merchProductId: number | null;
+  /** @nullable */
+  merchProductName: string | null;
   design: CommunityCardDesign;
   createdAt: string;
   videoUrl: string;
@@ -526,6 +528,8 @@ export interface MoveSubmissionInput {
      * @nullable
      */
   merchProductId?: number | null;
+  /** @nullable */
+  merchProductName?: string | null;
   consent: true;
 }
 
@@ -683,6 +687,8 @@ export interface MoveSubmission {
   handle: string;
   /** @nullable */
   merchProductId: number | null;
+  /** @nullable */
+  merchProductName: string | null;
   /** @nullable */
   team: string | null;
   design: MoveSubmissionDesign;

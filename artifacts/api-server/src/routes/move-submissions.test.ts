@@ -30,11 +30,13 @@ test("selected catalog item travels from submission metadata through review and 
   const metadata = parseSubmissionMetadataHeader(metadataHeader({
     ...metadataBase,
     merchProductId: 42,
+    merchProductName: "Classic unisex tee",
   }));
   assert(metadata);
 
   const storedFields = submissionFieldsFromMetadata(metadata);
   assert.equal(storedFields.merchProductId, 42);
+  assert.equal(storedFields.merchProductName, "Classic unisex tee");
 
   const row = {
     ...storedFields,
@@ -53,12 +55,14 @@ test("selected catalog item travels from submission metadata through review and 
     encodeMoveSubmissionForReview(row),
   ])[0];
   assert.equal(review.merchProductId, 42);
+  assert.equal(review.merchProductName, "Classic unisex tee");
 
   const approvedCard = GetCommunityCardResponse.parse(encodeCommunityCard({
     ...row,
     status: "approved",
   }));
   assert.equal(approvedCard.merchProductId, 42);
+  assert.equal(approvedCard.merchProductName, "Classic unisex tee");
 });
 
 test("submission without a merchandise match stays valid and returns null", () => {
@@ -67,6 +71,7 @@ test("submission without a merchandise match stays valid and returns null", () =
 
   const storedFields = submissionFieldsFromMetadata(metadata);
   assert.equal(storedFields.merchProductId, null);
+  assert.equal(storedFields.merchProductName, null);
 
   const row = {
     ...storedFields,
@@ -91,4 +96,17 @@ test("submission without a merchandise match stays valid and returns null", () =
     status: "approved",
   }));
   assert.equal(approvedCard.merchProductId, null);
+  assert.equal(approvedCard.merchProductName, null);
+});
+
+test("older submission metadata with a catalog ID but no name remains valid", () => {
+  const metadata = parseSubmissionMetadataHeader(metadataHeader({
+    ...metadataBase,
+    merchProductId: 42,
+  }));
+  assert(metadata);
+
+  const storedFields = submissionFieldsFromMetadata(metadata);
+  assert.equal(storedFields.merchProductId, 42);
+  assert.equal(storedFields.merchProductName, null);
 });

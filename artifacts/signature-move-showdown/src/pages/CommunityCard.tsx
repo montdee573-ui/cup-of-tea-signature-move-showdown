@@ -58,7 +58,7 @@ export default function CommunityCardPage() {
         <p className="community-handle">{entry.handle} · {entry.category}{entry.team ? ` · ${entry.team}` : ""}</p>
         <h2>{entry.moveName}</h2>
         <p className="community-policy">This participant entry was approved for the public archive. Entry, voting, eligibility, and results are free and are never affected by merchandise.</p>
-        {entry.merchProductId !== null && <p className="community-merch-match">PLANNED MERCH MATCH · {merchProduct?.title ?? `Catalog item #${entry.merchProductId}`} <span>Planning only · no product or checkout</span></p>}
+        {entry.merchProductId !== null && <p className="community-merch-match">PLANNED MERCH MATCH · {merchProduct?.title ?? entry.merchProductName ?? `Catalog item #${entry.merchProductId}`} <span>Planning only · no product or checkout</span></p>}
         <video className="community-video" controls playsInline preload="metadata" src={entry.videoUrl} aria-label={`Approved move video: ${entry.moveName}`} />
         <div className="community-share-row">
           <button className="button-primary" type="button" onClick={() => void share()} data-testid="button-share-community-card">

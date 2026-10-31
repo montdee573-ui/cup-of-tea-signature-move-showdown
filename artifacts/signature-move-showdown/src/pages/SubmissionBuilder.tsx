@@ -19,6 +19,7 @@ type Draft = {
   team: string;
   design: "holo" | "court";
   merchProductId: string;
+  merchProductName: string;
 };
 
 const STORAGE_KEY = "signature-move-submission-draft";
@@ -35,6 +36,7 @@ const emptyDraft: Draft = {
   team: "",
   design: "holo",
   merchProductId: "",
+  merchProductName: "",
 };
 
 function readSavedDraft(): Draft {
@@ -149,6 +151,9 @@ export default function SubmissionBuilder() {
       ...(draft.team.trim() ? { team: draft.team.trim() } : {}),
       design: draft.design,
       merchProductId: draft.merchProductId ? Number(draft.merchProductId) : null,
+      merchProductName: draft.merchProductId
+        ? selectedMerch?.title ?? (draft.merchProductName || null)
+        : null,
       consent: true as const,
       videoFileName: videoFile.name,
     };
@@ -258,11 +263,21 @@ export default function SubmissionBuilder() {
           {merchCatalog.isLoading ? <p className="merch-status">Loading Printful catalog…</p> :
             merchCatalog.isError ? <p className="merch-status" role="status">Printful catalog is temporarily unavailable. Your card draft still works.</p> :
               <><label>Search merchandise<input value={merchSearch} onChange={(event) => setMerchSearch(event.target.value)} placeholder="Search shirts, hats, jerseys…" /></label>
-                <label>Planned product<select value={draft.merchProductId} onChange={(event) => update("merchProductId", event.target.value)}>
+                <label>Planned product<select value={draft.merchProductId} onChange={(event) => {
+                  const productId = event.target.value;
+                  const product = merchCatalog.data?.find((item) => String(item.id) === productId);
+                  setDraft((current) => ({
+                    ...current,
+                    merchProductId: productId,
+                    merchProductName: product?.title ?? "",
+                  }));
+                  setSaved(false);
+                }}>
                   <option value="">No merchandise association</option>
+                  {draft.merchProductId && !selectedMerch && <option value={draft.merchProductId}>{draft.merchProductName || `Catalog item #${draft.merchProductId}`}</option>}
                   {visibleMerch.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.variantCount} variants</option>)}
                 </select></label>
-                {selectedMerch && <p className="merch-status">Selected: <strong>{selectedMerch.title}</strong>. This is a planning link only.</p>}
+                {(selectedMerch || draft.merchProductName) && <p className="merch-status">Selected: <strong>{selectedMerch?.title ?? draft.merchProductName}</strong>. This is a planning link only.</p>}
               </>}
           <p className="merch-safety">This remains a planning link only. After approval, the shared card keeps this selection. Owners can prepare private mockups in the Review desk.</p>
         </div></section>
