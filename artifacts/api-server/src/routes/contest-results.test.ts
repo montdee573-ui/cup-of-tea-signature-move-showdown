@@ -109,6 +109,30 @@ test("a tied or trailing vote count cannot be cleared", async () => {
   }
 });
 
+test("invalid clearance requests leave the result in draft", async () => {
+  const invalidRequests: Array<{ path: string; body: Record<string, unknown> }> = [
+    { path: "/studio/contest-results/not-an-id/clear", body: { confirm: true, clearanceNote: "Reviewed." } },
+    { path: "/studio/contest-results/1.5/clear", body: { confirm: true, clearanceNote: "Reviewed." } },
+    { path: "/studio/contest-results/1/clear", body: { clearanceNote: "Reviewed." } },
+    { path: "/studio/contest-results/1/clear", body: { confirm: true, clearanceNote: "" } },
+    { path: "/studio/contest-results/1/clear", body: { confirm: true, clearanceNote: " \t\n " } },
+  ];
+
+  for (const { path, body } of invalidRequests) {
+    resetContestResultRows([{ winnerVotes: 10, runnerUpVotes: 5 }]);
+    const response = await request(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }, true);
+
+    assert.equal(response.status, 400);
+    const results = await request("/studio/contest-results", {}, true);
+    const [result] = await results.json() as Array<{ status: string; clearanceNote: string | null }>;
+    assert.equal(result.status, "draft");
+    assert.equal(result.clearanceNote, null);
+  }
+});
+
 test("an owner can clear a winning result once and records the note and timestamp", async () => {
   resetContestResultRows([{ winnerVotes: 10, runnerUpVotes: 5 }]);
 

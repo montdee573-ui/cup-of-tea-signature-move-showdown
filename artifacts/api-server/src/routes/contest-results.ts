@@ -79,6 +79,10 @@ router.post("/studio/contest-results/:id/clear", async (req, res): Promise<void>
     res.status(400).json({ error: "Confirm the result and add a clearance note." });
     return;
   }
+  if (!parsed.data.clearanceNote.trim()) {
+    res.status(400).json({ error: "Confirm the result and add a clearance note." });
+    return;
+  }
 
   const [draft] = await db.select().from(contestResultsTable)
     .where(eq(contestResultsTable.id, params.data.id));
