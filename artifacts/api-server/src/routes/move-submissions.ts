@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import express, { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { db, moveSubmissionsTable } from "@workspace/db";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 import {
   CreateMoveSubmissionResponse,
   ListMoveSubmissionsForReviewResponse,
@@ -23,12 +24,31 @@ import {
 } from "../lib/move-submission-contract";
 
 const router: IRouter = Router();
+const connectors = new ReplitConnectors();
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 const MAX_ACTIVE_UPLOADS = 4;
 const UPLOADS_PER_IP_PER_HOUR = 5;
 const acceptedContentTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const rateWindows = new Map<string, { count: number; resetAt: number }>();
 let activeUploads = 0;
+
+async function verifyMerchProduct(productId: number): Promise<"available" | "missing" | "unavailable"> {
+  try {
+    const response = await connectors.proxy("printful", `/products/${productId}`, { method: "GET" });
+    if (response.status === 404) return "missing";
+    if (!response.ok) return "unavailable";
+
+    const payload: unknown = await response.json();
+    if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return "unavailable";
+    const result = (payload as Record<string, unknown>).result;
+    if (typeof result !== "object" || result === null || Array.isArray(result)) return "unavailable";
+    const product = (result as Record<string, unknown>).product;
+    if (typeof product !== "object" || product === null || Array.isArray(product)) return "unavailable";
+    return (product as Record<string, unknown>).id === productId ? "available" : "unavailable";
+  } catch {
+    return "unavailable";
+  }
+}
 
 function submissionRateLimit(req: Request, res: Response, next: NextFunction): void {
   const now = Date.now();
@@ -109,6 +129,19 @@ router.post("/move-submissions", submissionRateLimit, parseVideoBody, async (req
   if (video.length > MAX_VIDEO_BYTES) {
     res.status(413).json({ error: "This video is larger than the 100 MB limit." });
     return;
+  }
+
+  if (metadata.merchProductId != null) {
+    const merchStatus = await verifyMerchProduct(metadata.merchProductId);
+    if (merchStatus === "missing") {
+      res.status(400).json({ error: "That planned merchandise item is no longer in the catalog." });
+      return;
+    }
+    if (merchStatus === "unavailable") {
+      req.log.warn({ merchProductId: metadata.merchProductId }, "Unable to verify planned merchandise item");
+      res.status(503).json({ error: "The merchandise catalog is temporarily unavailable. Please try again." });
+      return;
+    }
   }
 
   const id = randomUUID();

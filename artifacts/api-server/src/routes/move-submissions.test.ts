@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import express, { type Request } from "express";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 import {
   GetCommunityCardResponse,
   ListCommunityCardsResponse,
@@ -30,6 +31,9 @@ const app = express();
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
 let requestNumber = 0;
+let catalogMode: "available" | "missing" | "unavailable" = "available";
+let catalogCalls = 0;
+const originalProxy = ReplitConnectors.prototype.proxy;
 
 before(async () => {
   app.set("trust proxy", true);
@@ -48,16 +52,26 @@ before(async () => {
 });
 
 beforeEach(() => {
-  requestNumber = 0;
   resetMoveSubmissionPersistenceState();
   resetMoveSubmissionStorageState();
+  catalogMode = "available";
+  catalogCalls = 0;
 });
 
 after(async () => {
+  ReplitConnectors.prototype.proxy = originalProxy;
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
 });
+
+ReplitConnectors.prototype.proxy = async (_connector, path) => {
+  catalogCalls += 1;
+  if (catalogMode === "missing") return Response.json({}, { status: 404 });
+  if (catalogMode === "unavailable") return Response.json({}, { status: 503 });
+  const productId = Number(path.split("/").at(-1));
+  return Response.json({ result: { product: { id: productId, title: "Classic unisex tee" } } });
+};
 
 function metadataHeader(metadata: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(metadata)).toString("base64url");
@@ -218,6 +232,87 @@ test("invalid merchandise IDs return the existing validation error before persis
     });
   }
 
+  assert.equal(moveSubmissionStorageState().saveCalls, 0);
+  assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
+});
+
+test("submission accepts a merchandise ID confirmed by the live catalog", async () => {
+  requestNumber += 1;
+  const response = await fetch(`${baseUrl}/move-submissions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "video/mp4",
+      "X-Submission-Metadata": metadataHeader({ ...metadataBase, merchProductId: 42 }),
+      "X-Forwarded-For": `192.0.2.${requestNumber}`,
+    },
+    body: Buffer.from("test video"),
+  });
+
+  assert.equal(response.status, 201);
+  assert.equal(catalogCalls, 1);
+  assert.equal(moveSubmissionStorageState().saveCalls, 1);
+  assert.equal(moveSubmissionPersistenceState().insertCalls, 1);
+});
+
+test("submission rejects a merchandise ID missing from the live catalog", async () => {
+  catalogMode = "missing";
+  requestNumber += 1;
+  const response = await fetch(`${baseUrl}/move-submissions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "video/mp4",
+      "X-Submission-Metadata": metadataHeader({ ...metadataBase, merchProductId: 42 }),
+      "X-Forwarded-For": `192.0.2.${requestNumber}`,
+    },
+    body: Buffer.from("test video"),
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    error: "That planned merchandise item is no longer in the catalog.",
+  });
+  assert.equal(catalogCalls, 1);
+  assert.equal(moveSubmissionStorageState().saveCalls, 0);
+  assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
+});
+
+test("catalog outages do not block submissions without a merchandise selection", async () => {
+  catalogMode = "unavailable";
+  requestNumber += 1;
+  const response = await fetch(`${baseUrl}/move-submissions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "video/mp4",
+      "X-Submission-Metadata": metadataHeader(metadataBase),
+      "X-Forwarded-For": `192.0.2.${requestNumber}`,
+    },
+    body: Buffer.from("test video"),
+  });
+
+  assert.equal(response.status, 201);
+  assert.equal(catalogCalls, 0);
+  assert.equal(moveSubmissionStorageState().saveCalls, 1);
+  assert.equal(moveSubmissionPersistenceState().insertCalls, 1);
+});
+
+test("catalog outages are reported for submissions with an unverified merchandise selection", async () => {
+  catalogMode = "unavailable";
+  requestNumber += 1;
+  const response = await fetch(`${baseUrl}/move-submissions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "video/mp4",
+      "X-Submission-Metadata": metadataHeader({ ...metadataBase, merchProductId: 42 }),
+      "X-Forwarded-For": `192.0.2.${requestNumber}`,
+    },
+    body: Buffer.from("test video"),
+  });
+
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), {
+    error: "The merchandise catalog is temporarily unavailable. Please try again.",
+  });
+  assert.equal(catalogCalls, 1);
   assert.equal(moveSubmissionStorageState().saveCalls, 0);
   assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
 });

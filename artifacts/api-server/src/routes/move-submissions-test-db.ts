@@ -19,7 +19,7 @@ export const db = {
         insertCalls += 1;
         return [{
           ...values,
-          id: "test-submission-id",
+          id: String(values.id),
           createdAt: new Date("2026-10-01T12:00:00.000Z"),
         }];
       },
