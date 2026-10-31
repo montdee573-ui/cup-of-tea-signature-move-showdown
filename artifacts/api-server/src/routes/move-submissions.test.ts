@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   GetCommunityCardResponse,
+  ListCommunityCardsResponse,
   ListMoveSubmissionsForReviewResponse,
 } from "@workspace/api-zod";
 import {
@@ -63,6 +64,12 @@ test("selected catalog item travels from submission metadata through review and 
   }));
   assert.equal(approvedCard.merchProductId, 42);
   assert.equal(approvedCard.merchProductName, "Classic unisex tee");
+
+  const communityCards = ListCommunityCardsResponse.parse([
+    encodeCommunityCard({ ...row, status: "approved" }),
+  ]);
+  assert.equal(communityCards[0].merchProductId, storedFields.merchProductId);
+  assert.equal(communityCards[0].merchProductName, storedFields.merchProductName);
 });
 
 test("submission without a merchandise match stays valid and returns null", () => {
@@ -97,6 +104,12 @@ test("submission without a merchandise match stays valid and returns null", () =
   }));
   assert.equal(approvedCard.merchProductId, null);
   assert.equal(approvedCard.merchProductName, null);
+
+  const communityCards = ListCommunityCardsResponse.parse([
+    encodeCommunityCard({ ...row, status: "approved" }),
+  ]);
+  assert.equal(communityCards[0].merchProductId, null);
+  assert.equal(communityCards[0].merchProductName, null);
 });
 
 test("older submission metadata with a catalog ID but no name remains valid", () => {
