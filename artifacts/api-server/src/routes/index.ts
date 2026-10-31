@@ -8,6 +8,7 @@ import moveSubmissionsRouter from "./move-submissions";
 import communityCardsRouter from "./community-cards";
 import showdownsRouter from "./showdowns";
 import contestResultsRouter from "./contest-results";
+import creatorCardsRouter from "./creator-cards";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(moveSubmissionsRouter);
 router.use(communityCardsRouter);
 router.use(showdownsRouter);
 router.use(contestResultsRouter);
+router.use(creatorCardsRouter);
 
 export default router;

@@ -133,6 +133,15 @@ export default function Showdown() {
       <h1>Moves meet<br /><em>the community.</em></h1>
       <p>Build a same-sport matchup or a cross-sport exhibition from approved cards. Every entry and vote is free.</p>
       <div className="showdown-promise"><ShieldCheck size={17} /><span>Merchandise purchases never affect eligibility, voting, rankings, or winners.</span></div>
+      <aside className="showdown-prize-status" aria-label="Champion card prize status" data-testid="showdown-prize-status">
+        <span className="launch-label"><Trophy size={13} /> PHYSICAL CHAMPION CARD · PAUSED</span>
+        <p>Physical prize setup is paused; no card is being awarded in this run. If resumed, the proposed prize is one printed card for the overall champion, with no purchase required. Base44's current rules do not define a cross-era final or physical prize, and Printful does not offer a single-card order. Replit pairwise matchups remain separate exhibitions.</p>
+        <small>The internal prize-terms draft is inactive and for owner and counsel review only. No artwork, mockup, order, or promotion is approved.</small>
+        <div className="showdown-prize-links">
+          <a href="https://tea-clash-cards.base44.app" target="_blank" rel="noopener noreferrer">Official Cup of Tea bracket <ArrowRight size={13} /></a>
+          <a href="https://tea-clash-cards.base44.app/rules" target="_blank" rel="noopener noreferrer">Current contest rules <ArrowRight size={13} /></a>
+        </div>
+      </aside>
     </header>
 
     <section className="showdown-create" aria-labelledby="showdown-create-title">

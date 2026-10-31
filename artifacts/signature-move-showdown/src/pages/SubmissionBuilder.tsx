@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, Check, CircleAlert, FileVideo, Film, LockKeyhole,
+  ArrowLeft, Check, CircleAlert, FileVideo, Film, LockKeyhole, Copy,
   ShieldCheck, Upload, WandSparkles, X,
 } from "lucide-react";
 import { Link } from "wouter";
@@ -78,6 +78,7 @@ export default function SubmissionBuilder() {
   const [progress, setProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [receipt, setReceipt] = useState<MoveSubmissionReceipt | null>(null);
+  const [creatorLinkCopied, setCreatorLinkCopied] = useState(false);
   const [selectError, setSelectError] = useState("");
   const merchCatalog = useListMerchCatalog();
   const sport = sportsCatalog.find((item) => item.name === draft.sport) ?? sportsCatalog[0];
@@ -97,6 +98,8 @@ export default function SubmissionBuilder() {
     ? draft.customSport.trim() || "Other Sport"
     : draft.sport;
   const videoUrl = useMemo(() => videoFile ? URL.createObjectURL(videoFile) : null, [videoFile]);
+  const creatorPath = receipt ? `/creator-cards/${encodeURIComponent(receipt.id)}#token=${encodeURIComponent(receipt.creatorAccessToken)}` : "";
+  const creatorLink = typeof window === "undefined" ? creatorPath : `${window.location.origin}${creatorPath}`;
 
   useEffect(() => () => { if (videoUrl) URL.revokeObjectURL(videoUrl); }, [videoUrl]);
 
@@ -164,7 +167,7 @@ export default function SubmissionBuilder() {
     request.onload = () => {
       let response: Partial<MoveSubmissionReceipt> & { error?: string } = {};
       try { response = JSON.parse(request.responseText); } catch { /* handled below */ }
-      if (request.status >= 200 && request.status < 300 && response.id && response.status === "pending" && response.createdAt) {
+      if (request.status >= 200 && request.status < 300 && response.id && response.status === "pending" && response.createdAt && response.creatorAccessToken) {
         setProgress(100);
         setReceipt(response as MoveSubmissionReceipt);
         localStorage.removeItem(STORAGE_KEY);
@@ -201,6 +204,12 @@ export default function SubmissionBuilder() {
           <div><span>STATUS</span><strong className="pending-text">PENDING REVIEW</strong></div>
           <div><span>RECEIVED</span><strong>{new Date(receipt.createdAt).toLocaleString()}</strong></div>
         </div>
+        <section className="creator-link-panel" aria-labelledby="creator-link-title">
+          <div className="creator-link-heading"><LockKeyhole size={17} /><div><span className="launch-label">PRIVATE CREATOR ACCESS</span><h2 id="creator-link-title">Keep your card close.</h2></div></div>
+          <p>This private link lets you check moderation and, after approval, optionally unlock a four-second motion card. Anyone who has the link can access it—there is no login—so keep it private.</p>
+          <div className="creator-link-actions"><a className="creator-link-button" href={creatorPath}>Open your private card <ArrowLeft size={14} /></a><button type="button" className="creator-copy-button" onClick={async () => { try { await navigator.clipboard.writeText(creatorLink); setCreatorLinkCopied(true); } catch { setCreatorLinkCopied(false); } }}>{creatorLinkCopied ? <Check size={14} /> : <Copy size={14} />}{creatorLinkCopied ? "Copied" : "Copy private link"}</button></div>
+          <input className="creator-link-value" aria-label="Private creator link" readOnly value={creatorLink} onFocus={(event) => event.currentTarget.select()} />
+        </section>
         <div className="receipt-note"><LockKeyhole size={16} /><span>This is a receipt, not a publication notice. Your video is not visible in the archive while it is under review.</span></div>
         <button className="submit-primary" type="button" onClick={resetForNext}>Submit another move <Upload size={15} /></button>
       </section>

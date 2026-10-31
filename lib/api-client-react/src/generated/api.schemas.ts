@@ -533,6 +533,78 @@ export interface MoveSubmissionReceipt {
   id: string;
   status: MoveSubmissionReceiptStatus;
   createdAt: string;
+  /**
+     * Private bearer token shown only in the submission receipt.
+     * @minLength 43
+     * @maxLength 128
+     */
+  creatorAccessToken: string;
+}
+
+export interface CreatorCardAccessInput {
+  /**
+     * @minLength 43
+     * @maxLength 128
+     */
+  creatorToken: string;
+}
+
+export type CreatorCardAccessResponseSubmissionStatus = typeof CreatorCardAccessResponseSubmissionStatus[keyof typeof CreatorCardAccessResponseSubmissionStatus];
+
+
+export const CreatorCardAccessResponseSubmissionStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type CreatorCardAccessResponseMotionStatus = typeof CreatorCardAccessResponseMotionStatus[keyof typeof CreatorCardAccessResponseMotionStatus];
+
+
+export const CreatorCardAccessResponseMotionStatus = {
+  unavailable: 'unavailable',
+  not_purchased: 'not_purchased',
+  checkout_pending: 'checkout_pending',
+  paid: 'paid',
+} as const;
+
+export type CreatorCardDesign = typeof CreatorCardDesign[keyof typeof CreatorCardDesign];
+
+
+export const CreatorCardDesign = {
+  holo: 'holo',
+  court: 'court',
+} as const;
+
+export interface CreatorCard {
+  id: string;
+  displayName: string;
+  handle: string;
+  sport: string;
+  moveName: string;
+  /** @nullable */
+  team: string | null;
+  design: CreatorCardDesign;
+}
+
+export interface CreatorCardAccessResponse {
+  submissionStatus: CreatorCardAccessResponseSubmissionStatus;
+  motionStatus: CreatorCardAccessResponseMotionStatus;
+  card: CreatorCard | null;
+}
+
+export type CreatorMotionCheckoutResponseMotionStatus = typeof CreatorMotionCheckoutResponseMotionStatus[keyof typeof CreatorMotionCheckoutResponseMotionStatus];
+
+
+export const CreatorMotionCheckoutResponseMotionStatus = {
+  checkout_pending: 'checkout_pending',
+  paid: 'paid',
+} as const;
+
+export interface CreatorMotionCheckoutResponse {
+  motionStatus: CreatorMotionCheckoutResponseMotionStatus;
+  /** @nullable */
+  checkoutUrl: string | null;
 }
 
 export type MoveSubmissionReviewInputStatus = typeof MoveSubmissionReviewInputStatus[keyof typeof MoveSubmissionReviewInputStatus];

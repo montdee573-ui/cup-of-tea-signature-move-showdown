@@ -16,6 +16,7 @@ export const moveSubmissionsTable = pgTable("move_submissions", {
   videoSizeBytes: integer("video_size_bytes").notNull(),
   consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
   status: text("status").notNull().default("pending"),
+  creatorTokenHash: text("creator_token_hash"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
 });

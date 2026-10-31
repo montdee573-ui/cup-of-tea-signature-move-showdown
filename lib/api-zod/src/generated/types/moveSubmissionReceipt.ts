@@ -11,4 +11,10 @@ export interface MoveSubmissionReceipt {
   id: string;
   status: MoveSubmissionReceiptStatus;
   createdAt: Date;
+  /**
+     * Private bearer token shown only in the submission receipt.
+     * @minLength 43
+     * @maxLength 128
+     */
+  creatorAccessToken: string;
 }

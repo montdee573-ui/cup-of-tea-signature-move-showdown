@@ -3,3 +3,4 @@
 - [Anonymous submissions](anonymous-submissions.md) — Participants must be able to submit without an account; keep public archive browsing open.
 - [POD merchandising scope](pod-merchandising-scope.md) — Keep sales off and ensure merchandise never affects free entry, votes, or contest outcomes.
 - [Contest result clearance](contest-result-clearance.md) — Use both contest apps, but require owner clearance before declaring or emailing an official final.
+- [Cup of Tea contest source](cup-of-tea-contest-source.md) — Base44 is the official bracket source; physical champion art should follow its final winning card.

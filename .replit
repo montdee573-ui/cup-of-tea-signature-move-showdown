@@ -26,3 +26,5 @@ packages = ["ffmpeg"]
 [userenv]
 
 [userenv.shared]
+WHOP_COMPANY_ID = "biz_TK41Ds0UVoOkMh"
+WHOP_PLAN_ID = "plan_tXNIuA0OMgKJe"

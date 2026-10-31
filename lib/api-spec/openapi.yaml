@@ -733,6 +733,110 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /creator-cards/{id}/access:
+    post:
+      operationId: getCreatorCardAccess
+      tags: [submissions]
+      summary: Load a private creator card and verify its motion-card purchase
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorCardAccessInput"
+      responses:
+        "200":
+          description: Private creator card status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorCardAccessResponse"
+        "403":
+          description: Creator link is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many private access checks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Payment status could not be verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /creator-cards/{id}/checkout:
+    post:
+      operationId: createCreatorMotionCardCheckout
+      tags: [submissions]
+      summary: Create a hosted checkout for an optional motion card
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorCardAccessInput"
+      responses:
+        "200":
+          description: Existing verified purchase or hosted checkout link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorMotionCheckoutResponse"
+        "403":
+          description: Creator link is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Submission is not approved for a motion-card purchase
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Motion-card checkout is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many checkout requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /studio/move-submissions/review:
     get:
       operationId: listMoveSubmissionsForReview
@@ -1541,7 +1645,64 @@ components:
         createdAt:
           type: string
           format: date-time
-      required: [id, status, createdAt]
+        creatorAccessToken:
+          type: string
+          minLength: 43
+          maxLength: 128
+          description: Private bearer token shown only in the submission receipt.
+      required: [id, status, createdAt, creatorAccessToken]
+    CreatorCardAccessInput:
+      type: object
+      properties:
+        creatorToken:
+          type: string
+          minLength: 43
+          maxLength: 128
+      required: [creatorToken]
+    CreatorCardAccessResponse:
+      type: object
+      properties:
+        submissionStatus:
+          type: string
+          enum: [pending, approved, rejected]
+        motionStatus:
+          type: string
+          enum: [unavailable, not_purchased, checkout_pending, paid]
+        card:
+          oneOf:
+            - $ref: "#/components/schemas/CreatorCard"
+            - type: "null"
+      required: [submissionStatus, motionStatus, card]
+    CreatorCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        handle:
+          type: string
+        sport:
+          type: string
+        moveName:
+          type: string
+        team:
+          type: ["string", "null"]
+        design:
+          type: string
+          enum: [holo, court]
+      required: [id, displayName, handle, sport, moveName, team, design]
+    CreatorMotionCheckoutResponse:
+      type: object
+      properties:
+        motionStatus:
+          type: string
+          enum: [checkout_pending, paid]
+        checkoutUrl:
+          type: ["string", "null"]
+          format: uri
+      required: [motionStatus, checkoutUrl]
     MoveSubmissionReviewInput:
       type: object
       properties:

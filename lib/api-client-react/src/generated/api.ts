@@ -28,6 +28,9 @@ import type {
   Contestant,
   ContestantInput,
   CreateStudioReelInput,
+  CreatorCardAccessInput,
+  CreatorCardAccessResponse,
+  CreatorMotionCheckoutResponse,
   ErrorResponse,
   HealthStatus,
   ListShowdownsParams,
@@ -2341,6 +2344,184 @@ export const useCreateMoveSubmission = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateMoveSubmissionMutationOptions(options));
+    }
+
+export const getGetCreatorCardAccessUrl = (id: string,) => {
+
+
+
+
+  return `/api/creator-cards/${id}/access`
+}
+
+/**
+ * @summary Load a private creator card and verify its motion-card purchase
+ */
+export const getCreatorCardAccess = async (id: string,
+    creatorCardAccessInput: CreatorCardAccessInput, options?: Parameters<typeof customFetch>[1]): Promise<CreatorCardAccessResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreatorCardAccessResponse>(getGetCreatorCardAccessUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(creatorCardAccessInput)
+  }
+);}
+
+
+
+
+
+export const getGetCreatorCardAccessMutationKey = () => ['getCreatorCardAccess'] as const;
+
+export const getGetCreatorCardAccessMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getCreatorCardAccess>>, TError,GetCreatorCardAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getCreatorCardAccess>>, TError,GetCreatorCardAccessMutationVariables, TContext> => {
+
+const mutationKey = getGetCreatorCardAccessMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getCreatorCardAccess>>, GetCreatorCardAccessMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  getCreatorCardAccess(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetCreatorCardAccessMutationResult = NonNullable<Awaited<ReturnType<typeof getCreatorCardAccess>>>
+    export type GetCreatorCardAccessMutationBody = BodyType<CreatorCardAccessInput>
+    export type GetCreatorCardAccessMutationError = ErrorType<ErrorResponse>
+    export type GetCreatorCardAccessMutationVariables = {id: string;data: BodyType<CreatorCardAccessInput>}
+
+    /**
+ * @summary Load a private creator card and verify its motion-card purchase
+ */
+export const useGetCreatorCardAccess = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getCreatorCardAccess>>, TError,GetCreatorCardAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getCreatorCardAccess>>,
+        TError,
+        GetCreatorCardAccessMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGetCreatorCardAccessMutationOptions(options));
+    }
+
+export const getCreateCreatorMotionCardCheckoutUrl = (id: string,) => {
+
+
+
+
+  return `/api/creator-cards/${id}/checkout`
+}
+
+/**
+ * @summary Create a hosted checkout for an optional motion card
+ */
+export const createCreatorMotionCardCheckout = async (id: string,
+    creatorCardAccessInput: CreatorCardAccessInput, options?: Parameters<typeof customFetch>[1]): Promise<CreatorMotionCheckoutResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreatorMotionCheckoutResponse>(getCreateCreatorMotionCardCheckoutUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(creatorCardAccessInput)
+  }
+);}
+
+
+
+
+
+export const getCreateCreatorMotionCardCheckoutMutationKey = () => ['createCreatorMotionCardCheckout'] as const;
+
+export const getCreateCreatorMotionCardCheckoutMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCreatorMotionCardCheckout>>, TError,CreateCreatorMotionCardCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCreatorMotionCardCheckout>>, TError,CreateCreatorMotionCardCheckoutMutationVariables, TContext> => {
+
+const mutationKey = getCreateCreatorMotionCardCheckoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCreatorMotionCardCheckout>>, CreateCreatorMotionCardCheckoutMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createCreatorMotionCardCheckout(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCreatorMotionCardCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createCreatorMotionCardCheckout>>>
+    export type CreateCreatorMotionCardCheckoutMutationBody = BodyType<CreatorCardAccessInput>
+    export type CreateCreatorMotionCardCheckoutMutationError = ErrorType<ErrorResponse>
+    export type CreateCreatorMotionCardCheckoutMutationVariables = {id: string;data: BodyType<CreatorCardAccessInput>}
+
+    /**
+ * @summary Create a hosted checkout for an optional motion card
+ */
+export const useCreateCreatorMotionCardCheckout = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCreatorMotionCardCheckout>>, TError,CreateCreatorMotionCardCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCreatorMotionCardCheckout>>,
+        TError,
+        CreateCreatorMotionCardCheckoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateCreatorMotionCardCheckoutMutationOptions(options));
     }
 
 export const getListMoveSubmissionsForReviewUrl = () => {

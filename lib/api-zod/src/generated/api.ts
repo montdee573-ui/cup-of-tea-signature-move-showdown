@@ -685,10 +685,69 @@ export const CreateMoveSubmissionHeader = zod.object({
   "X-Submission-Metadata": zod.string().max(createMoveSubmissionHeaderXSubmissionMetadataMax).describe('Base64url-encoded UTF-8 JSON matching MoveSubmissionInput')
 })
 
+export const createMoveSubmissionResponseCreatorAccessTokenMin = 43;
+export const createMoveSubmissionResponseCreatorAccessTokenMax = 128;
+
+
+
 export const CreateMoveSubmissionResponse = zod.object({
   "id": zod.string().uuid(),
   "status": zod.enum(['pending']),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "creatorAccessToken": zod.string().min(createMoveSubmissionResponseCreatorAccessTokenMin).max(createMoveSubmissionResponseCreatorAccessTokenMax).describe('Private bearer token shown only in the submission receipt.')
+})
+
+
+/**
+ * @summary Load a private creator card and verify its motion-card purchase
+ */
+export const GetCreatorCardAccessParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const getCreatorCardAccessBodyCreatorTokenMin = 43;
+export const getCreatorCardAccessBodyCreatorTokenMax = 128;
+
+
+
+export const GetCreatorCardAccessBody = zod.object({
+  "creatorToken": zod.string().min(getCreatorCardAccessBodyCreatorTokenMin).max(getCreatorCardAccessBodyCreatorTokenMax)
+})
+
+export const GetCreatorCardAccessResponse = zod.object({
+  "submissionStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "motionStatus": zod.enum(['unavailable', 'not_purchased', 'checkout_pending', 'paid']),
+  "card": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "sport": zod.string(),
+  "moveName": zod.string(),
+  "team": zod.string().nullable(),
+  "design": zod.enum(['holo', 'court'])
+}),zod.null()])
+})
+
+
+/**
+ * @summary Create a hosted checkout for an optional motion card
+ */
+export const CreateCreatorMotionCardCheckoutParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const createCreatorMotionCardCheckoutBodyCreatorTokenMin = 43;
+export const createCreatorMotionCardCheckoutBodyCreatorTokenMax = 128;
+
+
+
+export const CreateCreatorMotionCardCheckoutBody = zod.object({
+  "creatorToken": zod.string().min(createCreatorMotionCardCheckoutBodyCreatorTokenMin).max(createCreatorMotionCardCheckoutBodyCreatorTokenMax)
+})
+
+export const CreateCreatorMotionCardCheckoutResponse = zod.object({
+  "motionStatus": zod.enum(['checkout_pending', 'paid']),
+  "checkoutUrl": zod.string().url().nullable()
 })
 
 

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import express, { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { db, moveSubmissionsTable } from "@workspace/db";
@@ -177,6 +177,8 @@ router.post("/move-submissions", submissionRateLimit, parseVideoBody, async (req
   }
 
   const id = randomUUID();
+  const creatorAccessToken = randomBytes(32).toString("base64url");
+  const creatorTokenHash = createHash("sha256").update(creatorAccessToken).digest("hex");
   const filename = (metadata.videoFileName ?? "move-video")
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .replace(/[\\/]/g, "_")
@@ -202,6 +204,7 @@ router.post("/move-submissions", submissionRateLimit, parseVideoBody, async (req
       videoSizeBytes: video.length,
       consentAt: new Date(),
       status: "pending",
+      creatorTokenHash,
     }).returning();
 
     req.log.info({ submissionId: id, videoSizeBytes: video.length }, "Move video submitted for moderation");
@@ -209,6 +212,7 @@ router.post("/move-submissions", submissionRateLimit, parseVideoBody, async (req
       id: row.id,
       status: "pending",
       createdAt: row.createdAt,
+      creatorAccessToken,
     }));
   } catch (error) {
     if (objectSaved) {

@@ -33,6 +33,8 @@ import CommunityCardPage from './pages/CommunityCard';
 import Showdown from './pages/Showdown';
 import ContestResults from './pages/ContestResults';
 
+import CreatorCardPage from './pages/CreatorCardPage';
+
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
 function Brand() {
@@ -274,7 +276,7 @@ const promoBriefs = [
   { number: '01', id: 'performance', title: 'Signature-move performance', message: 'One move. Pure expression.', caption: 'A signature move is a language of its own. Show the footwork, timing, and split-second choice behind an unforgettable play.', cta: 'Celebrate movement without depicting an identifiable athlete.', mood: 'cyan', direction: 'Generic, non-identifiable athlete only. No recognizable real person, likeness, or uniform.' },
   { number: '02', id: 'premium-card', title: 'Premium trading card', message: 'Your move, made collectible.', caption: 'From a moment on the court to a card worth keeping. Bring a signature move into focus with a premium collectible concept.', cta: 'Invite the community to submit a move and earn a place in the archive.', mood: 'violet', direction: 'Showcase the card concept; do not imply a purchase is required to participate.' },
   { number: '03', id: 'card-showdown', title: 'Card-versus-card showdown', message: 'Two cards. One community.', caption: 'Every card carries a different kind of brilliance. Compare the moves and get ready to back the one that moves you.', cta: 'Invite people to explore the archive and join the showdown.', mood: 'pink', direction: 'Frame the contest around the moves and community—not spending.' },
-  { number: '04', id: 'enter-vote', title: 'Free entry & voting', message: 'Show up. Vote. That’s the whole ticket.', caption: 'Bring your move to the Cup of Tea Signature Move Showdown. When voting opens, cast your vote and celebrate the community.', cta: 'Entry is free. Voting is free.', mood: 'cyan', direction: 'Purchases never affect eligibility, votes, or winners. No checkout or live payment.' },
+  { number: '04', id: 'enter-vote', title: 'Free entry & voting', message: 'Show up. Vote. That’s the whole ticket.', caption: 'Bring your move to the Cup of Tea Signature Move Showdown. When voting opens, cast your vote and celebrate the community.', cta: 'Entry is free. Voting is free.', mood: 'cyan', direction: 'The optional creator motion card is separate; purchases never affect eligibility, votes, or official results.' },
   { number: '05', id: 'merch-tease', title: 'Planned merchandise collection', message: 'The movement may travel further.', caption: 'We’re imagining ways to carry signature moves beyond the screen. A future collection is in the works—this is only a first look.', cta: 'Follow the campaign for future updates.', mood: 'violet', direction: 'Concept tease only. Planned for Phase 2; not for sale.', tease: true },
 ];
 
@@ -447,7 +449,7 @@ function Launch() {
 
       <section className="launch-truth" aria-label="Important campaign information" data-testid="status-campaign-terms">
         <div className="truth-icon"><ShieldCheck size={20} /></div>
-          <div className="truth-copy"><span className="launch-label">THE PROMISE</span><strong>Entry is free. Voting is free.</strong><p>Purchases never affect eligibility, votes, or winners. There is no checkout or live payment.</p></div>
+          <div className="truth-copy"><span className="launch-label">THE PROMISE</span><strong>Entry is free. Voting is free.</strong><p>The optional $2 creator motion card is separate from the free contest and never affects eligibility, votes, standings, or official results.</p></div>
         <div className="phase-planned"><span>PHASE 2</span><strong>PLANNED</strong><small>Merchandise is not live.</small></div>
       </section>
 
@@ -496,6 +498,7 @@ export default function App() {
     <Route path="/showdown" component={Showdown} />
     <Route path="/launch" component={Launch} />
     <Route path="/submit" component={SubmissionBuilder} />
+    <Route path="/creator-cards/:id" component={CreatorCardPage} />
     <Route path="/review" component={SubmissionReview} />
     <Route path="/studio/results" component={ContestResults} />
     <Route component={NotFound} />
