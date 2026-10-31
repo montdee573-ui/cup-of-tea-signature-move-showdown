@@ -65,6 +65,7 @@ export function seedCreatorMotionOrder(overrides: Partial<MotionOrderRow> = {}):
     generationStartedAt: null,
     generationRetryCount: 1,
     refundRequestStatus: "none",
+    refundVerifiedAmountUsd: null,
     refundRequestedAt: null,
     refundProcessingAt: null,
     createdAt: new Date("2026-10-01T12:00:00.000Z"),
@@ -112,6 +113,7 @@ export const db: any = {
             generationStartedAt: null,
             generationRetryCount: 0,
             refundRequestStatus: "none",
+            refundVerifiedAmountUsd: null,
             refundRequestedAt: null,
             refundProcessingAt: null,
             createdAt: new Date(),
@@ -146,6 +148,8 @@ export const db: any = {
             if (changes.refundRequestStatus === "processing") return candidate.refundRequestStatus === "requested";
             if (changes.refundRequestStatus === "completed") return candidate.refundRequestStatus === "processing";
             if (changes.refundRequestStatus === "declined") return candidate.refundRequestStatus === "requested";
+            if (changes.refundRequestStatus === "partial_review") return candidate.refundRequestStatus === "processing";
+            if (changes.refundRequestStatus === "partial_resolved") return candidate.refundRequestStatus === "partial_review";
             if (changes.generationStatus === "starting") {
               return candidate.status === "paid"
                 && candidate.generationStatus === "not_started";

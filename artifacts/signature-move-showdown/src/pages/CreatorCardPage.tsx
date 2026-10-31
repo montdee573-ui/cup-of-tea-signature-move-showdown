@@ -146,10 +146,6 @@ export default function CreatorCardPage() {
                   {refundRequest.isPending ? "Sending refund request…" : "Request a full refund"}
                 </button>}
                 {refundRequest.isError && <p role="alert">{refundRequest.error instanceof Error ? refundRequest.error.message : "The refund request could not be saved. Please try again."}</p>}
-                {data.refundRequestStatus !== "none" && <div className="creator-refund-state" role="status" data-testid="creator-refund-status">
-                  <strong>{data.refundRequestStatus === "requested" ? "Refund request sent" : data.refundRequestStatus === "processing" ? "Refund is being processed" : data.refundRequestStatus === "completed" ? "Refund issued through Whop" : "Refund request declined"}</strong>
-                  <span>{data.refundRequestStatus === "requested" ? "The owner will review your request. Refresh this page to check for an update." : data.refundRequestStatus === "processing" ? "The owner is processing the refund through Whop. Refresh this page for the latest status." : data.refundRequestStatus === "completed" ? "The refund was issued through Whop. Your payment provider may take additional time to post it." : "The owner declined this request. Contact the owner if you need more help."}</span>
-                </div>}
               </div>}
               {data.generationStatus === "succeeded" && data.motionVideoUrl && <>
                 <video className="creator-motion-video" controls playsInline preload="metadata" src={data.motionVideoUrl} aria-label={`Generated four-second reel inspired by ${card?.moveName ?? "your submitted move"}`} data-testid="video-creator-motion" />
@@ -157,6 +153,31 @@ export default function CreatorCardPage() {
               </>}
               <p className="creator-generated-note"><ShieldCheck size={15} /> The reel is private creator content, generated from your submitted sport and move name. It never affects eligibility, votes, rankings, or official results.</p>
             </section>}
+
+            {data.refundRequestStatus !== "none" && <div className="creator-refund-state" role="status" data-testid="creator-refund-status">
+              <strong>{data.refundRequestStatus === "requested"
+                ? "Refund request sent"
+                : data.refundRequestStatus === "processing"
+                  ? "Refund is being processed"
+                  : data.refundRequestStatus === "partial_review"
+                    ? "Partial refund needs review"
+                    : data.refundRequestStatus === "partial_resolved"
+                      ? "Partial refund reviewed"
+                      : data.refundRequestStatus === "completed"
+                        ? "Full refund issued through Whop"
+                        : "Refund request declined"}</strong>
+              <span>{data.refundRequestStatus === "requested"
+                ? "The owner will review your request. Refresh this page to check for an update."
+                : data.refundRequestStatus === "processing"
+                  ? "The owner is processing the refund through Whop. Refresh this page for the latest status."
+                  : data.refundRequestStatus === "partial_review"
+                    ? `Whop confirmed a partial refund of $${(data.refundVerifiedAmountUsd ?? 0).toFixed(2)} USD. This is not a full refund; the owner is reviewing it.`
+                    : data.refundRequestStatus === "partial_resolved"
+                      ? `The owner reviewed and recorded the partial refund of $${(data.refundVerifiedAmountUsd ?? 0).toFixed(2)} USD. It was not a full refund.`
+                      : data.refundRequestStatus === "completed"
+                        ? "The full refund was confirmed through Whop. Your payment provider may take additional time to post it."
+                        : "The owner declined this request. Contact the owner if you need more help."}</span>
+            </div>}
 
             <section className="creator-boundary"><CircleDot size={16} /><p><strong>Contest boundary:</strong> this optional card is separate from public cards, free entry, votes, current pairwise matchups, standings, and official Base44 results. It creates no bracket and changes no prize or contest rule.</p></section>
           </div>}

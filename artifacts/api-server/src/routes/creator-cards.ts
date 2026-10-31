@@ -272,14 +272,18 @@ async function readVerifiedStoredPayment(
     `/api/v1/payments/${encodeURIComponent(order.paymentId)}`,
     { method: "GET" },
   );
+  const refundedAmount = Number(payment.refunded_amount ?? 0);
   if (
     payment.id !== order.paymentId
     || payment.company?.id !== companyId
     || payment.checkout_configuration_id !== order.checkoutConfigurationId
-    || (payment.status !== "paid" && Number(payment.refunded_amount ?? 0) < order.priceUsd)
+    || (payment.status !== "paid" && !(refundedAmount > 0))
     || payment.currency?.toLowerCase() !== "usd"
     || !Number.isFinite(Number(payment.amount))
     || Math.round(Number(payment.amount) * 100) !== Math.round(order.priceUsd * 100)
+    || !Number.isFinite(refundedAmount)
+    || refundedAmount < 0
+    || Math.round(refundedAmount * 100) > Math.round(order.priceUsd * 100)
   ) return null;
   return payment;
 }
@@ -302,7 +306,7 @@ type RefundNotificationStatus = "sent" | "failed" | "not_sent";
 async function notifyCreatorRefundResolution(
   req: Request,
   order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
-  status: "completed" | "declined",
+  status: "completed" | "declined" | "partial_resolved",
   companyId: string,
   verifiedPayment?: WhopPayment,
 ): Promise<RefundNotificationStatus> {
@@ -329,7 +333,9 @@ async function notifyCreatorRefundResolution(
         subject: "Update on your creator reel refund request",
         text: status === "completed"
           ? "Your refund request for the optional creator reel has been completed."
-          : "Your refund request for the optional creator reel has been declined.",
+          : status === "partial_resolved"
+            ? `The owner reviewed your refund request. Whop confirmed a partial refund of $${(order.refundVerifiedAmountUsd ?? 0).toFixed(2)} USD; this is not a full refund.`
+            : "Your refund request for the optional creator reel has been declined.",
       },
     });
     if (!response.ok) {
@@ -348,10 +354,26 @@ async function notifyCreatorRefundResolution(
 
 function refundRequestStatus(
   value: string | undefined,
-): "none" | "requested" | "processing" | "completed" | "declined" {
-  return value === "requested" || value === "processing" || value === "completed" || value === "declined"
+): "none" | "requested" | "processing" | "partial_review" | "partial_resolved" | "completed" | "declined" {
+  return value === "requested" || value === "processing" || value === "partial_review"
+    || value === "partial_resolved" || value === "completed" || value === "declined"
     ? value
     : "none";
+}
+
+async function recordPartialRefund(submissionId: string, refundedAmountUsd: number) {
+  const [updated] = await db.update(creatorMotionOrdersTable)
+    .set({
+      refundRequestStatus: "partial_review",
+      refundVerifiedAmountUsd: refundedAmountUsd,
+      refundProcessingAt: null,
+    })
+    .where(and(
+      eq(creatorMotionOrdersTable.submissionId, submissionId),
+      eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
+    ))
+    .returning();
+  return updated ?? null;
 }
 
 async function reopenRefundRequest(submissionId: string) {
@@ -435,7 +457,12 @@ router.post("/creator-cards/:id/access", async (req, res): Promise<void> => {
     }
   }
   let paymentCurrentlyPaid = false;
-  if (row.status === "approved" && order?.status === "paid") {
+  if (
+    row.status === "approved"
+    && order?.status === "paid"
+    && refundRequestStatus(order.refundRequestStatus) !== "partial_review"
+    && refundRequestStatus(order.refundRequestStatus) !== "partial_resolved"
+  ) {
     if (!config) {
       res.status(503).json({ error: "Payment status could not be verified. Please try again." });
       return;
@@ -472,6 +499,7 @@ router.post("/creator-cards/:id/access", async (req, res): Promise<void> => {
     generationError: order?.generationError ?? null,
     motionVideoUrl: paymentCurrentlyPaid && order?.generationStatus === "succeeded" ? creatorMotionVideoUrl(row.id) : null,
     refundRequestStatus: refundRequestStatus(order?.refundRequestStatus),
+    refundVerifiedAmountUsd: order?.refundVerifiedAmountUsd ?? null,
     refundRequestedAt: order?.refundRequestedAt ?? null,
     refundRequestAllowed: Boolean(
       order?.status === "paid"
@@ -729,6 +757,7 @@ router.post("/creator-cards/:id/motion/retry", async (req, res): Promise<void> =
     generationError: currentOrder?.generationError ?? "The reel could not be started.",
     motionVideoUrl: currentOrder?.generationStatus === "succeeded" ? creatorMotionVideoUrl(row.id) : null,
     refundRequestStatus: refundRequestStatus(currentOrder?.refundRequestStatus),
+    refundVerifiedAmountUsd: currentOrder?.refundVerifiedAmountUsd ?? null,
     refundRequestedAt: currentOrder?.refundRequestedAt ?? null,
     refundRequestAllowed: false,
     card: privateCard(row),
@@ -759,6 +788,7 @@ router.post("/creator-cards/:id/refund-request", async (req, res): Promise<void>
     res.setHeader("Cache-Control", "private, no-store, max-age=0");
     res.json(RequestCreatorMotionRefundResponse.parse({
       refundRequestStatus: currentStatus,
+        refundVerifiedAmountUsd: order.refundVerifiedAmountUsd ?? null,
       refundRequestedAt: order.refundRequestedAt,
     }));
     return;
@@ -798,6 +828,7 @@ router.post("/creator-cards/:id/refund-request", async (req, res): Promise<void>
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   res.json(RequestCreatorMotionRefundResponse.parse({
     refundRequestStatus: "requested",
+    refundVerifiedAmountUsd: updated.refundVerifiedAmountUsd ?? null,
     refundRequestedAt: updated.refundRequestedAt,
   }));
 });
@@ -809,11 +840,11 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
     return;
   }
   const orders = await db.select().from(creatorMotionOrdersTable)
-    .where(inArray(creatorMotionOrdersTable.refundRequestStatus, ["requested", "processing"]));
+    .where(inArray(creatorMotionOrdersTable.refundRequestStatus, ["requested", "processing", "partial_review"]));
   const requests = [];
   for (const order of orders) {
     const status = refundRequestStatus(order.refundRequestStatus);
-    if (status !== "requested" && status !== "processing") continue;
+    if (status !== "requested" && status !== "processing" && status !== "partial_review") continue;
     const [submission] = await db.select().from(moveSubmissionsTable)
       .where(eq(moveSubmissionsTable.id, order.submissionId));
     if (!submission || order.priceUsd === null || !order.refundRequestedAt) continue;
@@ -824,6 +855,7 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
       priceUsd: order.priceUsd,
       requestedAt: order.refundRequestedAt,
       refundRequestStatus: status,
+      refundVerifiedAmountUsd: order.refundVerifiedAmountUsd ?? null,
       processingAt: order.refundProcessingAt,
     });
   }
@@ -850,6 +882,53 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
     return;
   }
   const status = refundRequestStatus(order.refundRequestStatus);
+  if (body.data.decision === "resolve_partial") {
+    if (status !== "partial_review") {
+      res.status(409).json({ error: "There is no confirmed partial refund waiting for review." });
+      return;
+    }
+    const verifiedAmount = order.refundVerifiedAmountUsd;
+    if (
+      verifiedAmount === null
+      || !Number.isFinite(verifiedAmount)
+      || verifiedAmount <= 0
+      || order.priceUsd === null
+      || Math.round(verifiedAmount * 100) >= Math.round(order.priceUsd * 100)
+    ) {
+      res.status(409).json({ error: "The verified partial refund amount is unavailable. Refresh the queue before resolving it." });
+      return;
+    }
+    const [resolved] = await db.update(creatorMotionOrdersTable)
+      .set({ refundRequestStatus: "partial_resolved", refundProcessingAt: null })
+      .where(and(
+        eq(creatorMotionOrdersTable.submissionId, params.data.id),
+        eq(creatorMotionOrdersTable.refundRequestStatus, "partial_review"),
+      ))
+      .returning();
+    if (!resolved) {
+      res.status(409).json({ error: "The refund state changed. Refresh the queue and try again." });
+      return;
+    }
+    const config = whopConfiguration();
+    const notificationStatus = config
+      ? await notifyCreatorRefundResolution(req, resolved, "partial_resolved", config.companyId)
+      : "not_sent";
+    res.json(ResolveCreatorMotionRefundRequestResponse.parse({
+      refundRequestStatus: "partial_resolved",
+      refundVerifiedAmountUsd: resolved.refundVerifiedAmountUsd,
+      refundRequestedAt: resolved.refundRequestedAt,
+      notificationStatus,
+    }));
+    return;
+  }
+  if (status === "partial_review" || status === "partial_resolved") {
+    res.status(409).json({
+      error: status === "partial_review"
+        ? "This payment has a confirmed partial refund. Record its review instead of issuing another refund."
+        : "This partial refund has already been reviewed.",
+    });
+    return;
+  }
   if (body.data.decision === "decline") {
     if (status !== "requested") {
       res.status(409).json({ error: "This refund request is already being handled or resolved." });
@@ -872,6 +951,7 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
       : "not_sent";
     res.json(ResolveCreatorMotionRefundRequestResponse.parse({
       refundRequestStatus: "declined",
+      refundVerifiedAmountUsd: declined.refundVerifiedAmountUsd ?? null,
       refundRequestedAt: declined.refundRequestedAt,
       notificationStatus,
     }));
@@ -918,14 +998,24 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
         const notificationStatus = await notifyCreatorRefundResolution(req, order, "completed", config.companyId, payment);
         res.json(ResolveCreatorMotionRefundRequestResponse.parse({
           refundRequestStatus: "completed",
+          refundVerifiedAmountUsd: completed.refundVerifiedAmountUsd ?? null,
           refundRequestedAt: completed.refundRequestedAt,
           notificationStatus,
         }));
         return;
       }
       if (refunded !== 0) {
-        await reopenRefundRequest(params.data.id);
-        res.status(409).json({ error: "This payment has a partial refund and needs manual review in Whop." });
+        const partial = await recordPartialRefund(params.data.id, refunded);
+        if (!partial) {
+          res.status(409).json({ error: "The refund state changed. Refresh the queue and try again." });
+          return;
+        }
+        res.json(ResolveCreatorMotionRefundRequestResponse.parse({
+          refundRequestStatus: "partial_review",
+          refundVerifiedAmountUsd: partial.refundVerifiedAmountUsd,
+          refundRequestedAt: partial.refundRequestedAt,
+          notificationStatus: "not_sent",
+        }));
         return;
       }
       await db.update(creatorMotionOrdersTable)
@@ -965,8 +1055,17 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
     const alreadyRefunded = Number(payment.refunded_amount ?? 0);
     if (alreadyRefunded < order.priceUsd) {
       if (alreadyRefunded !== 0) {
-        await reopenRefundRequest(params.data.id);
-        res.status(409).json({ error: "This payment has a partial refund and needs manual review in Whop." });
+        const partial = await recordPartialRefund(params.data.id, alreadyRefunded);
+        if (!partial) {
+          res.status(409).json({ error: "The refund state changed. Refresh the queue and try again." });
+          return;
+        }
+        res.json(ResolveCreatorMotionRefundRequestResponse.parse({
+          refundRequestStatus: "partial_review",
+          refundVerifiedAmountUsd: partial.refundVerifiedAmountUsd,
+          refundRequestedAt: partial.refundRequestedAt,
+          notificationStatus: "not_sent",
+        }));
         return;
       }
       await whopJson<WhopPayment>(
@@ -988,7 +1087,17 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
       || !Number.isFinite(finalRefundedAmount)
     ) throw new Error("Whop did not confirm the full refund.");
     if (Math.round(finalRefundedAmount * 100) < Math.round(order.priceUsd * 100)) {
-      if (finalRefundedAmount > 0) await reopenRefundRequest(params.data.id);
+      if (finalRefundedAmount > 0) {
+        const partial = await recordPartialRefund(params.data.id, finalRefundedAmount);
+        if (!partial) throw new Error("The refund result could not be recorded for manual review.");
+        res.json(ResolveCreatorMotionRefundRequestResponse.parse({
+          refundRequestStatus: "partial_review",
+          refundVerifiedAmountUsd: partial.refundVerifiedAmountUsd,
+          refundRequestedAt: partial.refundRequestedAt,
+          notificationStatus: "not_sent",
+        }));
+        return;
+      }
       throw new Error("Whop did not confirm the full refund.");
     }
     const [completed] = await db.update(creatorMotionOrdersTable)
@@ -1002,6 +1111,7 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
     const notificationStatus = await notifyCreatorRefundResolution(req, order, "completed", config.companyId, finalPayment);
     res.json(ResolveCreatorMotionRefundRequestResponse.parse({
       refundRequestStatus: "completed",
+      refundVerifiedAmountUsd: completed.refundVerifiedAmountUsd ?? null,
       refundRequestedAt: completed.refundRequestedAt,
       notificationStatus,
     }));

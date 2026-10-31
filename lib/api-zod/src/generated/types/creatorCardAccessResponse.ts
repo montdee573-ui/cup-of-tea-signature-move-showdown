@@ -24,6 +24,8 @@ export interface CreatorCardAccessResponse {
   motionVideoUrl: string | null;
   refundRequestStatus: CreatorCardAccessResponseRefundRequestStatus;
   /** @nullable */
+  refundVerifiedAmountUsd: number | null;
+  /** @nullable */
   refundRequestedAt: Date | null;
   refundRequestAllowed: boolean;
   card: CreatorCard | null;

@@ -771,6 +771,8 @@ export const CreatorCardAccessResponseRefundRequestStatus = {
   none: 'none',
   requested: 'requested',
   processing: 'processing',
+  partial_review: 'partial_review',
+  partial_resolved: 'partial_resolved',
   completed: 'completed',
   declined: 'declined',
 } as const;
@@ -806,6 +808,8 @@ export interface CreatorCardAccessResponse {
   /** @nullable */
   motionVideoUrl: string | null;
   refundRequestStatus: CreatorCardAccessResponseRefundRequestStatus;
+  /** @nullable */
+  refundVerifiedAmountUsd: number | null;
   /** @nullable */
   refundRequestedAt: string | null;
   refundRequestAllowed: boolean;
@@ -844,6 +848,8 @@ export type CreatorMotionRefundRequestResponseRefundRequestStatus = typeof Creat
 export const CreatorMotionRefundRequestResponseRefundRequestStatus = {
   requested: 'requested',
   processing: 'processing',
+  partial_review: 'partial_review',
+  partial_resolved: 'partial_resolved',
   completed: 'completed',
   declined: 'declined',
 } as const;
@@ -863,6 +869,8 @@ export const CreatorMotionRefundRequestResponseNotificationStatus = {
 export interface CreatorMotionRefundRequestResponse {
   refundRequestStatus: CreatorMotionRefundRequestResponseRefundRequestStatus;
   /** @nullable */
+  refundVerifiedAmountUsd: number | null;
+  /** @nullable */
   refundRequestedAt: string | null;
   /** Owner decision notification result; omitted for creator-submitted requests. */
   notificationStatus?: CreatorMotionRefundRequestResponseNotificationStatus;
@@ -874,6 +882,7 @@ export type CreatorMotionRefundRequestRefundRequestStatus = typeof CreatorMotion
 export const CreatorMotionRefundRequestRefundRequestStatus = {
   requested: 'requested',
   processing: 'processing',
+  partial_review: 'partial_review',
 } as const;
 
 export interface CreatorMotionRefundRequest {
@@ -884,6 +893,8 @@ export interface CreatorMotionRefundRequest {
   requestedAt: string;
   refundRequestStatus: CreatorMotionRefundRequestRefundRequestStatus;
   /** @nullable */
+  refundVerifiedAmountUsd: number | null;
+  /** @nullable */
   processingAt: string | null;
 }
 
@@ -893,6 +904,7 @@ export type CreatorMotionRefundDecisionInputDecision = typeof CreatorMotionRefun
 export const CreatorMotionRefundDecisionInputDecision = {
   refund: 'refund',
   decline: 'decline',
+  resolve_partial: 'resolve_partial',
 } as const;
 
 export interface CreatorMotionRefundDecisionInput {

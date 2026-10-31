@@ -114,20 +114,29 @@ export default function SubmissionReview() {
       onSuccess: () => void queryClient.invalidateQueries({ queryKey: getListMoveSubmissionsForReviewQueryKey() }),
     });
   };
-  const resolveRefundRequest = (request: CreatorMotionRefundRequest, decision: "refund" | "decline") => {
-    const confirmation = decision === "refund" && request.refundRequestStatus === "processing"
-      ? `Check the current Whop refund status for ${request.creatorName}?`
-      : decision === "refund"
-        ? `Issue a full refund of $${request.priceUsd.toFixed(2)} through Whop for ${request.creatorName}?`
-      : `Decline the refund request from ${request.creatorName}?`;
+  const resolveRefundRequest = (
+    request: CreatorMotionRefundRequest,
+    decision: "refund" | "decline" | "resolve_partial",
+  ) => {
+    const confirmation = decision === "resolve_partial"
+      ? `Record review of the confirmed $${(request.refundVerifiedAmountUsd ?? 0).toFixed(2)} partial refund for ${request.creatorName}? This will not issue another refund.`
+      : decision === "refund" && request.refundRequestStatus === "processing"
+        ? `Check the current Whop refund status for ${request.creatorName}?`
+        : decision === "refund"
+          ? `Issue a full refund of $${request.priceUsd.toFixed(2)} through Whop for ${request.creatorName}?`
+          : `Decline the refund request from ${request.creatorName}?`;
     if (!window.confirm(confirmation)) return;
     resolveRefund.mutate({ id: request.submissionId, data: { decision } }, {
       onSuccess: (result) => {
-        setRefundDecisionNotice(result.notificationStatus === "sent"
-          ? `Request ${result.refundRequestStatus}. Creator notification sent.`
-          : result.notificationStatus === "failed"
-            ? `Request ${result.refundRequestStatus}. The decision was saved, but the creator notification could not be sent.`
-            : `Request ${result.refundRequestStatus}. The decision was saved, but no creator notification was sent.`);
+        setRefundDecisionNotice(result.refundRequestStatus === "partial_review"
+          ? `Whop confirmed $${(result.refundVerifiedAmountUsd ?? 0).toFixed(2)} refunded. No additional refund was issued; owner review is required.`
+          : result.refundRequestStatus === "partial_resolved"
+            ? `Partial refund review recorded for $${(result.refundVerifiedAmountUsd ?? 0).toFixed(2)}. ${result.notificationStatus === "sent" ? "Creator notification sent." : result.notificationStatus === "failed" ? "The creator notification could not be sent." : "No creator notification was sent."}`
+            : result.notificationStatus === "sent"
+              ? `Request ${result.refundRequestStatus}. Creator notification sent.`
+              : result.notificationStatus === "failed"
+                ? `Request ${result.refundRequestStatus}. The decision was saved, but the creator notification could not be sent.`
+                : `Request ${result.refundRequestStatus}. The decision was saved, but no creator notification was sent.`);
         void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() });
       },
     });
@@ -194,12 +203,17 @@ export default function SubmissionReview() {
                     <p>{request.creatorName} · ${request.priceUsd.toFixed(2)} USD</p>
                     <small>Requested {new Date(request.requestedAt).toLocaleString()}</small>
                     {request.refundRequestStatus === "processing" && <small>Whop status: refund processing</small>}
+                    {request.refundRequestStatus === "partial_review" && <small>Whop confirmed ${request.refundVerifiedAmountUsd?.toFixed(2) ?? "0.00"} refunded. This is not a full refund.</small>}
                   </div>
                   <div className="refund-review-actions">
                     {request.refundRequestStatus === "requested" && <button type="button" className="refund-decline" onClick={() => resolveRefundRequest(request, "decline")} disabled={busy}>Decline</button>}
-                    <button type="button" className="refund-approve" onClick={() => resolveRefundRequest(request, "refund")} disabled={busy}>
-                      {busy ? "Processing…" : request.refundRequestStatus === "processing" ? "Check Whop status" : "Issue full refund through Whop"}
-                    </button>
+                    {request.refundRequestStatus === "partial_review"
+                      ? <button type="button" className="refund-approve" onClick={() => resolveRefundRequest(request, "resolve_partial")} disabled={busy} data-testid={`button-resolve-partial-${request.submissionId}`}>
+                        {busy ? "Recording…" : "Record partial refund review"}
+                      </button>
+                      : <button type="button" className="refund-approve" onClick={() => resolveRefundRequest(request, "refund")} disabled={busy}>
+                        {busy ? "Processing…" : request.refundRequestStatus === "processing" ? "Check Whop status" : "Issue full refund through Whop"}
+                      </button>}
                   </div>
                 </article>;
               })}</div>}

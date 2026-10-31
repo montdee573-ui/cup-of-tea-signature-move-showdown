@@ -1119,7 +1119,8 @@ export const GetCreatorCardAccessResponse = zod.object({
   "generationStatus": zod.enum(['not_started', 'starting', 'processing', 'succeeded', 'failed']),
   "generationError": zod.string().nullable(),
   "motionVideoUrl": zod.string().nullable(),
-  "refundRequestStatus": zod.enum(['none', 'requested', 'processing', 'completed', 'declined']),
+  "refundRequestStatus": zod.enum(['none', 'requested', 'processing', 'partial_review', 'partial_resolved', 'completed', 'declined']),
+  "refundVerifiedAmountUsd": zod.number().nullable(),
   "refundRequestedAt": zod.coerce.date().nullable(),
   "refundRequestAllowed": zod.boolean(),
   "card": zod.union([zod.object({
@@ -1185,7 +1186,8 @@ export const RetryCreatorMotionGenerationResponse = zod.object({
   "generationStatus": zod.enum(['not_started', 'starting', 'processing', 'succeeded', 'failed']),
   "generationError": zod.string().nullable(),
   "motionVideoUrl": zod.string().nullable(),
-  "refundRequestStatus": zod.enum(['none', 'requested', 'processing', 'completed', 'declined']),
+  "refundRequestStatus": zod.enum(['none', 'requested', 'processing', 'partial_review', 'partial_resolved', 'completed', 'declined']),
+  "refundVerifiedAmountUsd": zod.number().nullable(),
   "refundRequestedAt": zod.coerce.date().nullable(),
   "refundRequestAllowed": zod.boolean(),
   "card": zod.union([zod.object({
@@ -1217,7 +1219,8 @@ export const RequestCreatorMotionRefundBody = zod.object({
 })
 
 export const RequestCreatorMotionRefundResponse = zod.object({
-  "refundRequestStatus": zod.enum(['requested', 'processing', 'completed', 'declined']),
+  "refundRequestStatus": zod.enum(['requested', 'processing', 'partial_review', 'partial_resolved', 'completed', 'declined']),
+  "refundVerifiedAmountUsd": zod.number().nullable(),
   "refundRequestedAt": zod.coerce.date().nullable(),
   "notificationStatus": zod.enum(['sent', 'failed', 'not_sent']).optional().describe('Owner decision notification result; omitted for creator-submitted requests.')
 })
@@ -1232,7 +1235,8 @@ export const ListCreatorMotionRefundRequestsResponseItem = zod.object({
   "moveName": zod.string(),
   "priceUsd": zod.number(),
   "requestedAt": zod.coerce.date(),
-  "refundRequestStatus": zod.enum(['requested', 'processing']),
+  "refundRequestStatus": zod.enum(['requested', 'processing', 'partial_review']),
+  "refundVerifiedAmountUsd": zod.number().nullable(),
   "processingAt": zod.coerce.date().nullable()
 })
 export const ListCreatorMotionRefundRequestsResponse = zod.array(ListCreatorMotionRefundRequestsResponseItem)
@@ -1246,11 +1250,12 @@ export const ResolveCreatorMotionRefundRequestParams = zod.object({
 })
 
 export const ResolveCreatorMotionRefundRequestBody = zod.object({
-  "decision": zod.enum(['refund', 'decline'])
+  "decision": zod.enum(['refund', 'decline', 'resolve_partial'])
 })
 
 export const ResolveCreatorMotionRefundRequestResponse = zod.object({
-  "refundRequestStatus": zod.enum(['requested', 'processing', 'completed', 'declined']),
+  "refundRequestStatus": zod.enum(['requested', 'processing', 'partial_review', 'partial_resolved', 'completed', 'declined']),
+  "refundVerifiedAmountUsd": zod.number().nullable(),
   "refundRequestedAt": zod.coerce.date().nullable(),
   "notificationStatus": zod.enum(['sent', 'failed', 'not_sent']).optional().describe('Owner decision notification result; omitted for creator-submitted requests.')
 })

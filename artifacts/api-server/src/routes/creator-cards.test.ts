@@ -298,7 +298,10 @@ async function creatorRefundRequest(): Promise<Response> {
   });
 }
 
-async function ownerRefundDecision(decision: "refund" | "decline", cookie = ownerCookie()): Promise<Response> {
+async function ownerRefundDecision(
+  decision: "refund" | "decline" | "resolve_partial",
+  cookie = ownerCookie(),
+): Promise<Response> {
   return fetch(`${baseUrl}/studio/creator-refunds/${submissionId}/decision`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: cookie },
@@ -694,21 +697,85 @@ test("owner refund stays open when Whop payment identity or amount does not matc
   }
 });
 
-test("a partial Whop refund is not reported as complete to the creator", async () => {
+test("a partial Whop refund is queued with its verified amount and can be safely acknowledged", async () => {
   resetTestState();
   seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
   await withWhop(approvedPlan(), async (calls) => {
     const response = await ownerRefundDecision("refund");
-    assert.equal(response.status, 503);
+    assert.equal(response.status, 200);
+    const detected = await response.json() as {
+      refundRequestStatus: string;
+      refundVerifiedAmountUsd: number | null;
+    };
+    assert.equal(detected.refundRequestStatus, "partial_review");
+    assert.equal(detected.refundVerifiedAmountUsd, 2.5);
     assert.deepEqual(calls.map((call) => call.method), ["GET", "POST", "GET"]);
+
+    const queueResponse = await fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } });
+    assert.equal(queueResponse.status, 200);
+    const [request] = await queueResponse.json() as Array<{
+      refundRequestStatus: string;
+      refundVerifiedAmountUsd: number | null;
+    }>;
+    assert.equal(request.refundRequestStatus, "partial_review");
+    assert.equal(request.refundVerifiedAmountUsd, 2.5);
+
+    const unsafeRetry = await ownerRefundDecision("refund");
+    assert.equal(unsafeRetry.status, 409);
+    assert.match((await unsafeRetry.json() as { error: string }).error, /partial refund/i);
+    assert.equal(calls.filter((call) => call.path.endsWith("/refund")).length, 1);
+
+    const resolvedResponse = await ownerRefundDecision("resolve_partial");
+    assert.equal(resolvedResponse.status, 200);
+    const resolved = await resolvedResponse.json() as {
+      refundRequestStatus: string;
+      refundVerifiedAmountUsd: number | null;
+      notificationStatus: string;
+    };
+    assert.equal(resolved.refundRequestStatus, "partial_resolved");
+    assert.equal(resolved.refundVerifiedAmountUsd, 2.5);
+    assert.equal(resolved.notificationStatus, "sent");
+    assert.equal(calls.filter((call) => call.path.endsWith("/refund")).length, 1);
+    assert.match(String(sentEmails[0].body.text), /partial refund of \$2\.50 USD; this is not a full refund/);
+
+    const refreshedQueue = await fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } });
+    assert.deepEqual(await refreshedQueue.json(), []);
 
     const creatorResponse = await creatorCardAccess();
     assert.equal(creatorResponse.status, 200);
-    assert.equal((await creatorResponse.json() as { refundRequestStatus: string }).refundRequestStatus, "requested");
+    const creator = await creatorResponse.json() as {
+      refundRequestStatus: string;
+      refundVerifiedAmountUsd: number | null;
+      motionStatus: string;
+    };
+    assert.equal(creator.refundRequestStatus, "partial_resolved");
+    assert.equal(creator.refundVerifiedAmountUsd, 2.5);
+    assert.equal(creator.motionStatus, "unavailable");
   }, undefined, {}, { refundAmount: 2.5 });
   const order = creatorCardState().orders[0];
-  assert.equal(order.refundRequestStatus, "requested");
+  assert.equal(order.refundRequestStatus, "partial_resolved");
+  assert.equal(order.refundVerifiedAmountUsd, 2.5);
   assert.equal(order.refundProcessingAt, null);
+});
+
+test("a pre-existing partial refund is recorded without issuing another Whop refund", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 200);
+    const result = await response.json() as {
+      refundRequestStatus: string;
+      refundVerifiedAmountUsd: number | null;
+    };
+    assert.equal(result.refundRequestStatus, "partial_review");
+    assert.equal(result.refundVerifiedAmountUsd, 1.25);
+    assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+  }, undefined, { refunded_amount: 1.25 });
+
+  const [order] = creatorCardState().orders;
+  assert.equal(order.refundRequestStatus, "partial_review");
+  assert.equal(order.refundVerifiedAmountUsd, 1.25);
 });
 
 test("Whop provider failures leave the refund in processing until it can be reconciled", async () => {

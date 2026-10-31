@@ -12,4 +12,5 @@ export type CreatorMotionRefundDecisionInputDecision = typeof CreatorMotionRefun
 export const CreatorMotionRefundDecisionInputDecision = {
   refund: 'refund',
   decline: 'decline',
+  resolve_partial: 'resolve_partial',
 } as const;

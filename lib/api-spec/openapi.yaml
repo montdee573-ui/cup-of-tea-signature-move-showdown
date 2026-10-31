@@ -2394,7 +2394,9 @@ components:
           type: ["string", "null"]
         refundRequestStatus:
           type: string
-          enum: [none, requested, processing, completed, declined]
+          enum: [none, requested, processing, partial_review, partial_resolved, completed, declined]
+        refundVerifiedAmountUsd:
+          type: ["number", "null"]
         refundRequestedAt:
           type: ["string", "null"]
           format: date-time
@@ -2404,7 +2406,7 @@ components:
           oneOf:
             - $ref: "#/components/schemas/CreatorCard"
             - type: "null"
-      required: [submissionStatus, motionStatus, offerAvailable, priceUsd, generationStatus, generationError, motionVideoUrl, refundRequestStatus, refundRequestedAt, refundRequestAllowed, card]
+      required: [submissionStatus, motionStatus, offerAvailable, priceUsd, generationStatus, generationError, motionVideoUrl, refundRequestStatus, refundVerifiedAmountUsd, refundRequestedAt, refundRequestAllowed, card]
     CreatorCard:
       type: object
       properties:
@@ -2456,7 +2458,9 @@ components:
       properties:
         refundRequestStatus:
           type: string
-          enum: [requested, processing, completed, declined]
+          enum: [requested, processing, partial_review, partial_resolved, completed, declined]
+        refundVerifiedAmountUsd:
+          type: ["number", "null"]
         refundRequestedAt:
           type: ["string", "null"]
           format: date-time
@@ -2464,7 +2468,7 @@ components:
           type: string
           enum: [sent, failed, not_sent]
           description: Owner decision notification result; omitted for creator-submitted requests.
-      required: [refundRequestStatus, refundRequestedAt]
+      required: [refundRequestStatus, refundVerifiedAmountUsd, refundRequestedAt]
     CreatorMotionRefundRequest:
       type: object
       properties:
@@ -2482,17 +2486,19 @@ components:
           format: date-time
         refundRequestStatus:
           type: string
-          enum: [requested, processing]
+          enum: [requested, processing, partial_review]
+        refundVerifiedAmountUsd:
+          type: ["number", "null"]
         processingAt:
           type: ["string", "null"]
           format: date-time
-      required: [submissionId, creatorName, moveName, priceUsd, requestedAt, refundRequestStatus, processingAt]
+      required: [submissionId, creatorName, moveName, priceUsd, requestedAt, refundRequestStatus, refundVerifiedAmountUsd, processingAt]
     CreatorMotionRefundDecisionInput:
       type: object
       properties:
         decision:
           type: string
-          enum: [refund, decline]
+          enum: [refund, decline, resolve_partial]
       required: [decision]
     MoveSubmissionReviewInput:
       type: object

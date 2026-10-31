@@ -12,6 +12,8 @@ export type CreatorMotionRefundRequestResponseRefundRequestStatus = typeof Creat
 export const CreatorMotionRefundRequestResponseRefundRequestStatus = {
   requested: 'requested',
   processing: 'processing',
+  partial_review: 'partial_review',
+  partial_resolved: 'partial_resolved',
   completed: 'completed',
   declined: 'declined',
 } as const;

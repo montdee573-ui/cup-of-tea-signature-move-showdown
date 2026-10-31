@@ -11,6 +11,8 @@ import type { CreatorMotionRefundRequestResponseRefundRequestStatus } from './cr
 export interface CreatorMotionRefundRequestResponse {
   refundRequestStatus: CreatorMotionRefundRequestResponseRefundRequestStatus;
   /** @nullable */
+  refundVerifiedAmountUsd: number | null;
+  /** @nullable */
   refundRequestedAt: Date | null;
   /** Owner decision notification result; omitted for creator-submitted requests. */
   notificationStatus?: CreatorMotionRefundRequestResponseNotificationStatus;
