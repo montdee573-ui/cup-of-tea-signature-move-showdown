@@ -1,4 +1,5 @@
 import { contestResultsTable } from "../../../../lib/db/src/schema/contest-results";
+import { contestResultEmailSettingsTable } from "../../../../lib/db/src/schema/contest-result-email-settings";
 import { contestResultHistoryTable } from "../../../../lib/db/src/schema/contest-result-history";
 import { contestantsTable } from "../../../../lib/db/src/schema/contestants";
 import { creatorMotionOrdersTable } from "../../../../lib/db/src/schema/creator-motion-orders";
@@ -26,6 +27,8 @@ let historyRows: ContestResultHistoryRow[] = [];
 let nextId = 1;
 let nextHistoryId = 1;
 const studioLoginAttempts = new Map<string, StudioLoginAttemptRow>();
+type ContestResultEmailSetting = typeof contestResultEmailSettingsTable.$inferSelect;
+let contestResultEmailSetting: ContestResultEmailSetting | undefined;
 let transactionQueue = Promise.resolve();
 
 export function resetStudioLoginAttempts(): void {
@@ -114,6 +117,7 @@ export function resetContestResultRows(seed: Array<Partial<ContestResultRow>> = 
     ...row,
   }));
   historyRows = [];
+  contestResultEmailSetting = undefined;
 }
 
 export function getContestResultRowsForTest(): ContestResultRow[] {
@@ -162,6 +166,12 @@ const testDbOperations = {
           const ipAddress = columnTextFilter(condition, "ip_address");
           const attempt = ipAddress ? studioLoginAttempts.get(ipAddress) : undefined;
           matches = attempt ? [{ ...attempt }] : [];
+        } else if (table === contestResultEmailSettingsTable) {
+          const id = columnValueFilter(condition, "id");
+          matches = contestResultEmailSetting &&
+            (id === undefined || contestResultEmailSetting.id === id)
+            ? [{ ...contestResultEmailSetting }]
+            : [];
         } else if (table === contestResultHistoryTable) {
           const resultId = columnValueFilter(condition, "result_id");
           matches = historyRows
@@ -182,6 +192,18 @@ const testDbOperations = {
   }),
   insert: (_table: unknown) => ({
     values: (values: Partial<ContestResultRow> | Partial<ContestResultHistoryRow>) => ({
+      onConflictDoUpdate: () => ({
+        returning: async () => {
+          if (_table !== contestResultEmailSettingsTable) return [];
+          contestResultEmailSetting = {
+            id: 1,
+            recipient: "",
+            updatedAt: new Date(),
+            ...values,
+          } as ContestResultEmailSetting;
+          return [{ ...contestResultEmailSetting }];
+        },
+      }),
       returning: async () => {
         if (_table === studioLoginAttemptsTable) {
           const attempt = values as Partial<StudioLoginAttemptRow>;
@@ -318,4 +340,10 @@ export const db = Object.assign(testDbOperations, {
   },
 });
 
-export { contestResultHistoryTable, contestResultsTable, studioLoginAttemptsTable, studioReelsTable };
+export {
+  contestResultEmailSettingsTable,
+  contestResultHistoryTable,
+  contestResultsTable,
+  studioLoginAttemptsTable,
+  studioReelsTable,
+};

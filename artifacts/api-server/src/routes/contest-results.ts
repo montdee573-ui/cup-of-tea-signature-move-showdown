@@ -1,6 +1,11 @@
 import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { db, contestResultHistoryTable, contestResultsTable } from "@workspace/db";
+import {
+  db,
+  contestResultEmailSettingsTable,
+  contestResultHistoryTable,
+  contestResultsTable,
+} from "@workspace/db";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import {
   ClearStudioContestResultBody,
@@ -15,6 +20,8 @@ import {
   EmailStudioContestResultParams,
   EmailStudioContestResultResponse,
   ListStudioContestResultsResponse,
+  UpdateStudioContestResultEmailDestinationBody,
+  UpdateStudioContestResultEmailDestinationResponse,
   UpdateStudioContestResultBody,
   UpdateStudioContestResultParams,
   UpdateStudioContestResultResponse,
@@ -22,6 +29,13 @@ import {
 import { isStudioOwner } from "./studio";
 
 const router: IRouter = Router();
+const RESULT_EMAIL_SETTINGS_ID = 1;
+
+async function getResultEmailRecipient(): Promise<string | null> {
+  const [savedSetting] = await db.select().from(contestResultEmailSettingsTable)
+    .where(eq(contestResultEmailSettingsTable.id, RESULT_EMAIL_SETTINGS_ID));
+  return savedSetting?.recipient ?? (process.env.CONTEST_RESULTS_EMAIL_TO?.trim() || null);
+}
 
 function encodeResult(row: typeof contestResultsTable.$inferSelect) {
   return {
@@ -68,7 +82,7 @@ router.get("/studio/contest-results", async (req, res): Promise<void> => {
       .orderBy(asc(contestResultHistoryTable.changedAt));
     historyByResult.set(row.id, entries);
   }));
-  const emailRecipient = process.env.CONTEST_RESULTS_EMAIL_TO?.trim() || null;
+  const emailRecipient = await getResultEmailRecipient();
   const emailSenderConfigured = Boolean(process.env.CONTEST_RESULTS_EMAIL_FROM?.trim());
   const ownerNotificationConfigured = Boolean(
     process.env.CONTEST_RESULTS_OWNER_EMAIL?.trim() && process.env.CONTEST_RESULTS_EMAIL_FROM?.trim(),
@@ -92,6 +106,42 @@ router.get("/studio/contest-results", async (req, res): Promise<void> => {
         }];
       return { ...encodeResult(row), history: visibleHistory.map(encodeHistory) };
     }),
+  }));
+});
+
+router.put("/studio/contest-results/email-destination", async (req, res): Promise<void> => {
+  if (!isStudioOwner(req)) {
+    res.status(401).json({ error: "Owner login required." });
+    return;
+  }
+  const rawRecipient = (req.body as { emailRecipient?: unknown } | null)?.emailRecipient;
+  const candidate = typeof rawRecipient === "string" ? rawRecipient.trim() : rawRecipient;
+  const parsed = UpdateStudioContestResultEmailDestinationBody.safeParse({
+    emailRecipient: candidate,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a valid email address for contest results." });
+    return;
+  }
+
+  const [savedSetting] = await db.insert(contestResultEmailSettingsTable).values({
+    id: RESULT_EMAIL_SETTINGS_ID,
+    recipient: parsed.data.emailRecipient,
+    updatedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: contestResultEmailSettingsTable.id,
+    set: {
+      recipient: parsed.data.emailRecipient,
+      updatedAt: new Date(),
+    },
+  }).returning();
+  if (!savedSetting) {
+    res.status(500).json({ error: "Could not save the contest results email address." });
+    return;
+  }
+  res.json(UpdateStudioContestResultEmailDestinationResponse.parse({
+    emailRecipient: savedSetting.recipient,
+    emailSenderConfigured: Boolean(process.env.CONTEST_RESULTS_EMAIL_FROM?.trim()),
   }));
 });
 
@@ -366,9 +416,11 @@ router.post("/studio/contest-results/:id/email", async (req, res): Promise<void>
     return;
   }
 
-  const recipient = process.env.CONTEST_RESULTS_EMAIL_TO?.trim();
+  const recipient = await getResultEmailRecipient();
   const sender = process.env.CONTEST_RESULTS_EMAIL_FROM?.trim();
-  if (!recipient) {
+  if (!recipient || !UpdateStudioContestResultEmailDestinationBody.safeParse({
+    emailRecipient: recipient,
+  }).success) {
     res.status(503).json({ error: "The results email recipient is not configured. No email was sent." });
     return;
   }

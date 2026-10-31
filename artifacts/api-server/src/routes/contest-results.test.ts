@@ -158,8 +158,13 @@ test("unauthenticated requests cannot list, create, clear, or email contest resu
     method: "POST",
     body: JSON.stringify(correctionBody()),
   });
+  const updateEmailDestination = await request("/studio/contest-results/email-destination", {
+    method: "PUT",
+    body: JSON.stringify({ emailRecipient: "private-results@example.test" }),
+  });
 
-  assert.deepEqual([list.status, create.status, updateResult.status, clearResult.status, emailResult.status, correctResult.status], [401, 401, 401, 401, 401, 401]);
+  assert.deepEqual([list.status, create.status, updateResult.status, clearResult.status, emailResult.status, correctResult.status, updateEmailDestination.status], [401, 401, 401, 401, 401, 401, 401]);
+  assert.doesNotMatch(await updateEmailDestination.text(), /private-results@example\.test/);
   const results = await request("/studio/contest-results", {}, true);
   assert.deepEqual((await results.json() as { results: unknown[] }).results, []);
 });
@@ -210,6 +215,66 @@ test("only the authenticated owner receives the configured email destination", a
     delete process.env.CONTEST_RESULTS_EMAIL_TO;
     delete process.env.CONTEST_RESULTS_EMAIL_FROM;
     delete process.env.CONTEST_RESULTS_OWNER_EMAIL;
+  }
+});
+
+test("owners can save a validated recipient that is used by result emails and stays private", async () => {
+  const originalRecipient = process.env.CONTEST_RESULTS_EMAIL_TO;
+  const originalSender = process.env.CONTEST_RESULTS_EMAIL_FROM;
+  resetContestResultRows([{
+    status: "cleared",
+    clearanceNote: "Verified against both apps.",
+    clearedAt: new Date("2026-10-02T12:00:00.000Z"),
+  }]);
+  process.env.CONTEST_RESULTS_EMAIL_TO = "old-results@example.test";
+  process.env.CONTEST_RESULTS_EMAIL_FROM = "contest@example.test";
+  const originalProxy = ReplitConnectors.prototype.proxy;
+  let sentRecipient: string | undefined;
+  ReplitConnectors.prototype.proxy = async function (_connectorName, _path, options) {
+    sentRecipient = (options?.body as { to?: string } | undefined)?.to;
+    return new Response(JSON.stringify({ id: "email_corrected_recipient" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const invalid = await request("/studio/contest-results/email-destination", {
+      method: "PUT",
+      body: JSON.stringify({ emailRecipient: "not-an-email" }),
+    }, true);
+    assert.equal(invalid.status, 400);
+
+    const update = await request("/studio/contest-results/email-destination", {
+      method: "PUT",
+      body: JSON.stringify({ emailRecipient: "  corrected-results@example.test  " }),
+    }, true);
+    assert.equal(update.status, 200);
+    assert.deepEqual(await update.json(), {
+      emailRecipient: "corrected-results@example.test",
+      emailSenderConfigured: true,
+    });
+
+    const listed = await request("/studio/contest-results", {}, true);
+    assert.equal((await listed.json() as { emailRecipient: string }).emailRecipient, "corrected-results@example.test");
+
+    const publicResponse = await fetch(`${publicApiBaseUrl}/api/studio/contest-results`);
+    assert.equal(publicResponse.status, 401);
+    assert.doesNotMatch(await publicResponse.text(), /corrected-results@example\.test/);
+
+    const sent = await request("/studio/contest-results/1/email", {
+      method: "POST",
+      body: JSON.stringify({ confirm: true }),
+    }, true);
+    assert.equal(sent.status, 200);
+    assert.equal(sentRecipient, "corrected-results@example.test");
+  } finally {
+    ReplitConnectors.prototype.proxy = originalProxy;
+    if (originalRecipient === undefined) delete process.env.CONTEST_RESULTS_EMAIL_TO;
+    else process.env.CONTEST_RESULTS_EMAIL_TO = originalRecipient;
+    if (originalSender === undefined) delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+    else process.env.CONTEST_RESULTS_EMAIL_FROM = originalSender;
+    resetContestResultRows();
   }
 });
 

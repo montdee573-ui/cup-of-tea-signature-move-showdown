@@ -24,5 +24,6 @@ export * from "./move-submissions";
 export * from "./showdowns";
 export * from "./contest-results";
 export * from "./contest-result-history";
+export * from "./contest-result-email-settings";
 export * from "./creator-motion-orders";
 export * from "./studio-login-attempts";

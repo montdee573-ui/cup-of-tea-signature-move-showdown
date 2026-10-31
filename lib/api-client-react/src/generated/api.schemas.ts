@@ -409,6 +409,16 @@ export interface StudioContestResults {
   results: ContestResult[];
 }
 
+export interface ContestResultEmailDestinationInput {
+  /** @maxLength 254 */
+  emailRecipient: string;
+}
+
+export interface StudioContestEmailDestination {
+  emailRecipient: string;
+  emailSenderConfigured: boolean;
+}
+
 export type ResendEmailWebhookEventType = typeof ResendEmailWebhookEventType[keyof typeof ResendEmailWebhookEventType];
 
 

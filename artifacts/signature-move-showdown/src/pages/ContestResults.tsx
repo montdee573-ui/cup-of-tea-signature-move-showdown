@@ -18,6 +18,7 @@ import {
   useEmailStudioContestResult,
   useGetStudioSession,
   useListStudioContestResults,
+  useUpdateStudioContestResultEmailDestination,
   useUpdateStudioContestResult,
 } from "@workspace/api-client-react";
 import type { ContestResult } from "@workspace/api-client-react";
@@ -167,6 +168,73 @@ function ResultRecord({
   </article>;
 }
 
+function EmailDestinationSettings({
+  emailRecipient,
+  emailSenderConfigured,
+}: {
+  emailRecipient: string | null;
+  emailSenderConfigured: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const updateDestination = useUpdateStudioContestResultEmailDestination();
+  const [address, setAddress] = useState(emailRecipient ?? "");
+  const [error, setError] = useState("");
+
+  const saveDestination = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    updateDestination.mutate({ data: { emailRecipient: address.trim() } }, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getListStudioContestResultsQueryKey() });
+      },
+      onError: (mutationError) => {
+        setError(mutationError instanceof Error ? mutationError.message : "Could not update the results email address.");
+      },
+    });
+  };
+
+  return <section className="result-email-settings" aria-labelledby="result-email-settings-title">
+    <div className={`result-email-delivery ${emailRecipient ? "is-configured" : "is-config-missing"}`} data-testid="result-email-destination" role="status">
+      <Mail size={15} />
+      <p><strong id="result-email-settings-title">Active final email destination</strong>
+        {emailRecipient
+          ? <span>{emailRecipient}</span>
+          : <span>No recipient is configured. Sending is disabled; no email has been attempted.</span>}
+        {emailRecipient && !z.string().email().safeParse(emailRecipient).success &&
+          <span>This address is invalid. Replace it before sending a final.</span>}
+        {emailRecipient && !emailSenderConfigured &&
+          <span>The sender address is not configured. Sending is disabled; no email has been attempted.</span>}
+      </p>
+    </div>
+    <form className="result-email-settings-form" onSubmit={saveDestination}>
+      <label htmlFor="result-email-address">Change the destination for future final emails</label>
+      <div className="result-email-settings-controls">
+        <input
+          id="result-email-address"
+          type="email"
+          autoComplete="email"
+          maxLength={254}
+          required
+          value={address}
+          onChange={(event) => setAddress(event.target.value)}
+          aria-describedby="result-email-address-help"
+          data-testid="input-result-email-address"
+        />
+        <button
+          className="review-login-button"
+          type="submit"
+          disabled={updateDestination.isPending || address.trim() === (emailRecipient ?? "") || !z.string().email().safeParse(address.trim()).success}
+          data-testid="button-save-result-email-address"
+        >
+          {updateDestination.isPending ? "Saving address…" : "Save destination"}
+        </button>
+      </div>
+      <p id="result-email-address-help">The active address above is what new emails will use. Check it before sending each final.</p>
+      {error && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{error}</span></div>}
+    </form>
+  </section>;
+}
+
 export default function ContestResults() {
   const queryClient = useQueryClient();
   const session = useGetStudioSession({ query: { queryKey: getGetStudioSessionQueryKey(), retry: false } });
@@ -186,7 +254,11 @@ export default function ContestResults() {
   const correctResult = useCorrectStudioContestResult();
   const emailResult = useEmailStudioContestResult();
   const updateResult = useUpdateStudioContestResult();
-  const canEmail = Boolean(results.data?.emailRecipient && results.data.emailSenderConfigured);
+  const canEmail = Boolean(
+    results.data?.emailRecipient &&
+    z.string().email().safeParse(results.data.emailRecipient).success &&
+    results.data.emailSenderConfigured,
+  );
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [resultError, setResultError] = useState("");
@@ -373,15 +445,11 @@ export default function ContestResults() {
       </section>
       <section className="result-history" aria-labelledby="result-history-title">
         <div className="review-queue-heading"><div><span className="launch-label">PRIVATE RECORDS</span><h2 id="result-history-title">Drafts and cleared results</h2></div><button className="showdown-refresh" type="button" onClick={() => void results.refetch()} disabled={results.isFetching}>Refresh</button></div>
-        {results.data && <div className={`result-email-delivery ${canEmail ? "is-configured" : "is-config-missing"}`} data-testid="result-email-destination" role="status">
-          <Mail size={15} />
-          <p><strong>Final email destination</strong>
-            {results.data.emailRecipient
-              ? <span>{results.data.emailRecipient}</span>
-              : <span>No recipient is configured. Sending is disabled; no email has been attempted.</span>}
-            {results.data.emailRecipient && !results.data.emailSenderConfigured && <span>The sender address is not configured. Sending is disabled; no email has been attempted.</span>}
-          </p>
-        </div>}
+        {results.data && <EmailDestinationSettings
+          key={results.data.emailRecipient ?? "unconfigured"}
+          emailRecipient={results.data.emailRecipient}
+          emailSenderConfigured={results.data.emailSenderConfigured}
+        />}
         {results.data && <div className={`result-email-delivery ${results.data.ownerNotificationConfigured ? "is-configured" : "is-config-missing"}`} data-testid="owner-alert-destination" role="status">
           <Mail size={15} />
           <p><strong>Owner bounce and complaint alerts</strong>

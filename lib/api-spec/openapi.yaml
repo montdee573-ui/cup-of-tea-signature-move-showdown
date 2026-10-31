@@ -362,6 +362,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /studio/contest-results/email-destination:
+    put:
+      operationId: updateStudioContestResultEmailDestination
+      tags: [studio]
+      summary: Update the owner-only contest result email destination
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContestResultEmailDestinationInput"
+      responses:
+        "200":
+          description: Active result email destination
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudioContestEmailDestination"
+        "400":
+          description: The email destination is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /studio/contest-results/{id}:
     patch:
       operationId: updateStudioContestResult
@@ -1969,6 +1999,23 @@ components:
         - emailSenderConfigured
         - ownerNotificationConfigured
         - results
+    ContestResultEmailDestinationInput:
+      type: object
+      properties:
+        emailRecipient:
+          type: string
+          format: email
+          maxLength: 254
+      required: [emailRecipient]
+    StudioContestEmailDestination:
+      type: object
+      properties:
+        emailRecipient:
+          type: string
+          format: email
+        emailSenderConfigured:
+          type: boolean
+      required: [emailRecipient, emailSenderConfigured]
     ResendEmailWebhookEvent:
       type: object
       properties:

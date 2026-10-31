@@ -24,6 +24,7 @@ import type {
   ContestResult,
   ContestResultClearanceInput,
   ContestResultCorrectionInput,
+  ContestResultEmailDestinationInput,
   ContestResultEmailInput,
   ContestResultInput,
   ContestSummary,
@@ -56,6 +57,7 @@ import type {
   ShowdownInput,
   ShowdownResults,
   ShowdownVoteInput,
+  StudioContestEmailDestination,
   StudioContestResults,
   StudioLoginInput,
   StudioReel,
@@ -1297,6 +1299,94 @@ export const useCreateStudioContestResult = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateStudioContestResultMutationOptions(options));
+    }
+
+export const getUpdateStudioContestResultEmailDestinationUrl = () => {
+
+
+
+
+  return `/api/studio/contest-results/email-destination`
+}
+
+/**
+ * @summary Update the owner-only contest result email destination
+ */
+export const updateStudioContestResultEmailDestination = async (contestResultEmailDestinationInput: ContestResultEmailDestinationInput, options?: Parameters<typeof customFetch>[1]): Promise<StudioContestEmailDestination> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudioContestEmailDestination>(getUpdateStudioContestResultEmailDestinationUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(contestResultEmailDestinationInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateStudioContestResultEmailDestinationMutationKey = () => ['updateStudioContestResultEmailDestination'] as const;
+
+export const getUpdateStudioContestResultEmailDestinationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStudioContestResultEmailDestination>>, TError,UpdateStudioContestResultEmailDestinationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStudioContestResultEmailDestination>>, TError,UpdateStudioContestResultEmailDestinationMutationVariables, TContext> => {
+
+const mutationKey = getUpdateStudioContestResultEmailDestinationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStudioContestResultEmailDestination>>, UpdateStudioContestResultEmailDestinationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateStudioContestResultEmailDestination(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStudioContestResultEmailDestinationMutationResult = NonNullable<Awaited<ReturnType<typeof updateStudioContestResultEmailDestination>>>
+    export type UpdateStudioContestResultEmailDestinationMutationBody = BodyType<ContestResultEmailDestinationInput>
+    export type UpdateStudioContestResultEmailDestinationMutationError = ErrorType<ErrorResponse>
+    export type UpdateStudioContestResultEmailDestinationMutationVariables = {data: BodyType<ContestResultEmailDestinationInput>}
+
+    /**
+ * @summary Update the owner-only contest result email destination
+ */
+export const useUpdateStudioContestResultEmailDestination = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStudioContestResultEmailDestination>>, TError,UpdateStudioContestResultEmailDestinationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateStudioContestResultEmailDestination>>,
+        TError,
+        UpdateStudioContestResultEmailDestinationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateStudioContestResultEmailDestinationMutationOptions(options));
     }
 
 export const getUpdateStudioContestResultUrl = (id: number,) => {

@@ -469,6 +469,23 @@ export const CreateStudioContestResultResponse = zod.object({
 
 
 /**
+ * @summary Update the owner-only contest result email destination
+ */
+export const updateStudioContestResultEmailDestinationBodyEmailRecipientMax = 254;
+
+
+
+export const UpdateStudioContestResultEmailDestinationBody = zod.object({
+  "emailRecipient": zod.string().email().max(updateStudioContestResultEmailDestinationBodyEmailRecipientMax)
+})
+
+export const UpdateStudioContestResultEmailDestinationResponse = zod.object({
+  "emailRecipient": zod.string().email(),
+  "emailSenderConfigured": zod.boolean()
+})
+
+
+/**
  * @summary Update an owner-only contest result draft
  */
 
