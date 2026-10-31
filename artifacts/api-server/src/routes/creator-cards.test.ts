@@ -110,6 +110,7 @@ type WhopMockOptions = {
   refundAmount?: number;
   failEmail?: boolean;
   throwEmail?: boolean;
+  checkoutConfigurations?: Array<{ id: string; metadata?: Record<string, unknown> | null }>;
 };
 
 async function withWhop(
@@ -157,6 +158,8 @@ async function withWhop(
       ? payment
       : path.startsWith("/api/v1/payments?")
         ? { data: [payment] }
+      : path.startsWith("/api/v1/checkout_configurations?")
+        ? { data: mockOptions.checkoutConfigurations ?? [], page_info: { has_next_page: false } }
       : options?.method === "POST"
         ? { id: "checkout_test", purchase_url: "https://whop.com/checkout/test" }
         : plan;
@@ -437,6 +440,47 @@ test("overlapping checkouts create one Whop session and keep the winning order",
   assert.equal(order.priceUsd, PRICE_USD);
   assert.equal(order.checkoutConfigurationId, "checkout_test");
   assert.equal(order.checkoutUrl, "https://whop.com/checkout/test");
+});
+
+test("stale checkout reservations reconcile Whop before recovering the saved order", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    status: "creating",
+    checkoutConfigurationId: null,
+    checkoutUrl: null,
+    paymentId: null,
+    priceUsd: PRICE_USD,
+    createdAt: new Date(Date.now() - 10 * 60_000),
+    paidAt: null,
+  });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await checkout();
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      motionStatus: "checkout_pending",
+      checkoutUrl: "https://whop.com/checkout/test",
+      priceUsd: PRICE_USD,
+    });
+    const lookupIndex = calls.findIndex((call) => call.path.startsWith("/api/v1/checkout_configurations?"));
+    const createIndex = calls.findIndex((call) =>
+      call.path === "/api/v1/checkout_configurations" && call.method === "POST",
+    );
+    assert.ok(lookupIndex >= 0, "stale reservations must be checked with Whop");
+    assert.ok(createIndex > lookupIndex, "Whop must be checked before retrying checkout creation");
+  }, undefined, {}, {
+    checkoutConfigurations: [{
+      id: "checkout_test",
+      metadata: { source: "signature-move-showdown", submission_id: submissionId },
+    }],
+  });
+
+  const [order] = creatorCardState().orders;
+  assert.equal(order.status, "pending");
+  assert.equal(order.checkoutConfigurationId, "checkout_test");
+  assert.equal(order.checkoutUrl, "https://whop.com/checkout/test");
+  assert.equal(order.priceUsd, PRICE_USD);
+  assert.equal(order.paymentId, null);
 });
 
 test("invalid Whop payments never mark a checkout paid or start reel generation", async () => {

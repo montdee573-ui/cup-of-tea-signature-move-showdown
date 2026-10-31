@@ -57,6 +57,11 @@ type WhopCheckout = {
   purchase_url?: string;
 };
 
+type WhopCheckoutConfiguration = {
+  id?: string;
+  metadata?: Record<string, unknown> | null;
+};
+
 type WhopVariant = {
   id?: string;
   account?: { id?: string } | null;
@@ -67,6 +72,8 @@ type WhopVariant = {
   collect_tax?: boolean;
   adaptive_pricing_enabled?: boolean;
 };
+
+const staleCheckoutReservationMs = 5 * 60_000;
 
 function withinRateLimit(req: Request, res: Response, limit: number): boolean {
   const now = Date.now();
@@ -213,6 +220,47 @@ async function findVerifiedPayment(
     && typeof item.id === "string",
   );
   return payment ?? null;
+}
+
+async function findExistingCheckoutConfiguration(
+  order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
+  companyId: string,
+  planId: string,
+): Promise<string | null> {
+  const query = new URLSearchParams({
+    account_id: companyId,
+    plan_id: planId,
+    created_after: order.createdAt.toISOString(),
+    direction: "desc",
+    first: "100",
+  });
+  let pagesRead = 0;
+  while (pagesRead < 25) {
+    const payload = await whopJson<{
+      data?: WhopCheckoutConfiguration[];
+      page_info?: { has_next_page?: boolean; end_cursor?: string | null };
+    }>(`/api/v1/checkout_configurations?${query.toString()}`, { method: "GET" });
+    if (!Array.isArray(payload.data) || typeof payload.page_info?.has_next_page !== "boolean") {
+      throw new Error("Whop returned an unreadable checkout configuration list.");
+    }
+    const match = payload.data.find((checkout) =>
+      checkout.metadata?.source === "signature-move-showdown"
+      && checkout.metadata?.submission_id === order.submissionId,
+    );
+    if (match) {
+      if (typeof match.id !== "string" || !match.id) {
+        throw new Error("Whop returned a checkout configuration without an ID.");
+      }
+      return match.id;
+    }
+    if (!payload.page_info.has_next_page) return null;
+    if (typeof payload.page_info.end_cursor !== "string" || !payload.page_info.end_cursor) {
+      throw new Error("Whop returned incomplete checkout configuration pagination.");
+    }
+    query.set("after", payload.page_info.end_cursor);
+    pagesRead += 1;
+  }
+  throw new Error("Whop checkout configuration lookup exceeded its safe page limit.");
 }
 
 async function readVerifiedStoredPayment(
@@ -471,6 +519,7 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
   }
 
   let order = await readOrder(row.id);
+  let isStaleReservationRecovery = false;
   if (order) {
     try {
       order = await refreshOrderStatus(order, config.companyId);
@@ -501,8 +550,35 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
       return;
     }
     if (order.status === "creating") {
-      res.status(409).json({ error: "Checkout is being prepared. Please try again shortly." });
-      return;
+      const reservationIsStale = order.createdAt.getTime() <= Date.now() - staleCheckoutReservationMs;
+      if (!reservationIsStale) {
+        res.status(409).json({ error: "Checkout is being prepared. Please try again shortly." });
+        return;
+      }
+      isStaleReservationRecovery = true;
+      try {
+        const existingCheckoutId = await findExistingCheckoutConfiguration(
+          order,
+          config.companyId,
+          config.planId,
+        );
+        if (existingCheckoutId && order.priceUsd !== null
+          && Math.round(order.priceUsd * 100) !== Math.round(offer.priceUsd * 100)) {
+          res.status(409).json({ error: "A previous checkout has a different price. Do not complete it; contact the owner for help." });
+          return;
+        }
+        // The existing idempotency key reuses a checkout Whop already created.
+        // Keep its ID as an expectation so a different session cannot overwrite
+        // the stale reservation's provider mapping.
+        order = { ...order, checkoutConfigurationId: existingCheckoutId };
+      } catch (error) {
+        req.log.warn({
+          submissionId: row.id,
+          providerStatus: (error as { status?: number }).status,
+        }, "Unable to reconcile stale motion-card checkout");
+        res.status(503).json({ error: "Checkout status could not be verified. Please try again." });
+        return;
+      }
     }
     const [reopened] = await db.update(creatorMotionOrdersTable)
       .set({ status: "creating", priceUsd: offer.priceUsd })
@@ -561,6 +637,9 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
     if (!checkout.id || !checkout.purchase_url) {
       throw new Error("Whop did not return a hosted checkout link.");
     }
+    if (order.checkoutConfigurationId && checkout.id !== order.checkoutConfigurationId) {
+      throw new Error("Whop returned a different checkout than the existing session.");
+    }
     const [updated] = await db.update(creatorMotionOrdersTable)
       .set({
         checkoutConfigurationId: checkout.id,
@@ -583,12 +662,14 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
   } catch (error) {
     const status = (error as { status?: number }).status;
     req.log.error({ submissionId: row.id, providerStatus: status }, "Unable to create hosted motion-card checkout");
-    await db.update(creatorMotionOrdersTable)
-      .set({ status: "failed" })
-      .where(and(
-        eq(creatorMotionOrdersTable.submissionId, row.id),
-        eq(creatorMotionOrdersTable.status, "creating"),
-      ));
+    if (!isStaleReservationRecovery) {
+      await db.update(creatorMotionOrdersTable)
+        .set({ status: "failed" })
+        .where(and(
+          eq(creatorMotionOrdersTable.submissionId, row.id),
+          eq(creatorMotionOrdersTable.status, "creating"),
+        ));
+    }
     res.status(503).json({ error: "Optional motion-card checkout could not be started. Please try again." });
   }
 });
