@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -237,8 +237,20 @@ function EmailDestinationSettings({
 
 export default function ContestResults() {
   const queryClient = useQueryClient();
-  const session = useGetStudioSession({ query: { queryKey: getGetStudioSessionQueryKey(), retry: false } });
-  const authenticated = Boolean(session.data?.authenticated);
+  const session = useGetStudioSession({
+    query: {
+      queryKey: getGetStudioSessionQueryKey(),
+      retry: false,
+      refetchInterval: (query) => query.state.data?.authenticated ? 60_000 : false,
+    },
+  });
+  const [signedOut, setSignedOut] = useState(false);
+  const authenticated = Boolean(session.data?.authenticated) && !signedOut;
+  useEffect(() => {
+    if (!session.isLoading && !authenticated) {
+      queryClient.removeQueries({ queryKey: getListStudioContestResultsQueryKey() });
+    }
+  }, [authenticated, queryClient, session.isLoading]);
   const results = useListStudioContestResults({
     query: {
       queryKey: getListStudioContestResultsQueryKey(),
@@ -280,7 +292,7 @@ export default function ContestResults() {
     event.preventDefault();
     setLoginError("");
     createSession.mutate({ data: { password } }, {
-      onSuccess: () => { setPassword(""); refresh(); },
+      onSuccess: () => { setPassword(""); setSignedOut(false); refresh(); },
       onError: (error) => setLoginError(error instanceof Error ? error.message : "The passphrase was not accepted."),
     });
   };
@@ -381,8 +393,10 @@ export default function ContestResults() {
   const signOut = () => {
     deleteSession.mutate(undefined, {
       onSuccess: () => {
+        setSignedOut(true);
+        void queryClient.cancelQueries({ queryKey: getListStudioContestResultsQueryKey() });
         queryClient.removeQueries({ queryKey: getListStudioContestResultsQueryKey() });
-        refresh();
+        void queryClient.invalidateQueries({ queryKey: getGetStudioSessionQueryKey() });
       },
     });
   };
