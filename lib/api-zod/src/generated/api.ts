@@ -897,7 +897,8 @@ export const RequestCreatorMotionRefundBody = zod.object({
 
 export const RequestCreatorMotionRefundResponse = zod.object({
   "refundRequestStatus": zod.enum(['requested', 'processing', 'completed', 'declined']),
-  "refundRequestedAt": zod.coerce.date().nullable()
+  "refundRequestedAt": zod.coerce.date().nullable(),
+  "notificationStatus": zod.enum(['sent', 'failed', 'not_sent']).optional().describe('Owner decision notification result; omitted for creator-submitted requests.')
 })
 
 
@@ -929,7 +930,8 @@ export const ResolveCreatorMotionRefundRequestBody = zod.object({
 
 export const ResolveCreatorMotionRefundRequestResponse = zod.object({
   "refundRequestStatus": zod.enum(['requested', 'processing', 'completed', 'declined']),
-  "refundRequestedAt": zod.coerce.date().nullable()
+  "refundRequestedAt": zod.coerce.date().nullable(),
+  "notificationStatus": zod.enum(['sent', 'failed', 'not_sent']).optional().describe('Owner decision notification result; omitted for creator-submitted requests.')
 })
 
 

@@ -26,6 +26,7 @@ const OWNER_ENV = [
   "REEL_STUDIO_ADMIN_PASSWORD",
   "DEFAULT_OBJECT_STORAGE_BUCKET_ID",
   "PRIVATE_OBJECT_DIR",
+  "CONTEST_RESULTS_EMAIL_FROM",
 ] as const;
 const originalEnv = new Map(OWNER_ENV.map((key) => [key, process.env[key]]));
 const submissionId = "6dbec5fa-e3f8-4b1c-b245-1371b2ef51ae";
@@ -33,6 +34,8 @@ const app = express();
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
 let requestId = 0;
+type SentEmail = { path: string; body: Record<string, unknown> };
+let sentEmails: SentEmail[] = [];
 
 function configureOwner(planId = "plan_test"): void {
   process.env.CREATOR_MOTION_SALES_APPROVED = "true";
@@ -45,6 +48,7 @@ function configureOwner(planId = "plan_test"): void {
   process.env.REEL_STUDIO_ADMIN_PASSWORD = "creator-motion-test-owner-password";
   process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID = "creator-motion-test-bucket";
   process.env.PRIVATE_OBJECT_DIR = "creator-motion-private";
+  process.env.CONTEST_RESULTS_EMAIL_FROM = "studio@example.test";
 }
 
 function resetTestState(planId?: string): void {
@@ -104,6 +108,8 @@ type WhopMockOptions = {
   beforeRefund?: () => Promise<void>;
   failRequest?: { method: string; pathSuffix: string; status: number };
   refundAmount?: number;
+  failEmail?: boolean;
+  throwEmail?: boolean;
 };
 
 async function withWhop(
@@ -114,9 +120,18 @@ async function withWhop(
   mockOptions: WhopMockOptions = {},
 ): Promise<void> {
   const calls: WhopCall[] = [];
+  sentEmails = [];
   let refundedAmount = 0;
   const originalProxy = ReplitConnectors.prototype.proxy;
-  ReplitConnectors.prototype.proxy = async function (_connectorName, path, options) {
+  ReplitConnectors.prototype.proxy = async function (connectorName, path, options) {
+    if (connectorName === "resend") {
+      if (mockOptions.throwEmail) throw new Error("Resend is unavailable.");
+      sentEmails.push({ path, body: (options?.body ?? {}) as Record<string, unknown> });
+      return new Response(JSON.stringify({ id: "email_test" }), {
+        status: mockOptions.failEmail ? 503 : 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     calls.push({ path, method: options?.method });
     if (path.includes("/api/v1/checkout_configurations") && options?.method === "POST") {
       await beforeCheckout?.();
@@ -135,6 +150,7 @@ async function withWhop(
         amount: PRICE_USD,
         currency: "usd",
         refunded_amount: paymentOverrides.refunded_amount ?? refundedAmount,
+        user: { email: "creator@example.test" },
         ...paymentOverrides,
       };
     const payload = paymentPath
@@ -536,9 +552,17 @@ test("owner can issue a full Whop refund and persist the completed result", asyn
 
     const response = await ownerRefundDecision("refund");
     assert.equal(response.status, 200);
-    assert.equal((await response.json() as { refundRequestStatus: string }).refundRequestStatus, "completed");
+    const result = await response.json() as { refundRequestStatus: string; notificationStatus: string };
+    assert.equal(result.refundRequestStatus, "completed");
+    assert.equal(result.notificationStatus, "sent");
     assert.deepEqual(calls.map((call) => call.method), ["GET", "POST", "GET"]);
     assert.match(calls[1].path, /\/api\/v1\/payments\/pay_test\/refund$/);
+    assert.equal(sentEmails.length, 1);
+    assert.equal(sentEmails[0].path, "/emails");
+    assert.equal(sentEmails[0].body.to, "creator@example.test");
+    assert.equal(sentEmails[0].body.subject, "Update on your creator reel refund request");
+    assert.equal(sentEmails[0].body.text, "Your refund request for the optional creator reel has been completed.");
+    assert.doesNotMatch(JSON.stringify(sentEmails[0].body), new RegExp(`${submissionId}|${CREATOR_TOKEN}|Creator|Spin move`));
   });
   const state = creatorCardState();
   assert.equal(state.orders[0].refundRequestStatus, "completed");
@@ -661,16 +685,73 @@ test("overlapping owner refund decisions can issue only one Whop refund", async 
   assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
 });
 
-test("owner can decline a refund request without calling Whop", async () => {
+test("owner can decline a refund request without issuing a Whop refund", async () => {
   resetTestState();
   seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
   await withWhop(approvedPlan(), async (calls) => {
     const response = await ownerRefundDecision("decline");
     assert.equal(response.status, 200);
-    assert.equal((await response.json() as { refundRequestStatus: string }).refundRequestStatus, "declined");
-    assert.deepEqual(calls, []);
+    const rawResponse = await response.text();
+    const result = JSON.parse(rawResponse) as { refundRequestStatus: string; notificationStatus: string };
+    assert.equal(result.refundRequestStatus, "declined");
+    assert.equal(result.notificationStatus, "sent");
+    assert.doesNotMatch(rawResponse, /creator@example\.test/);
+    assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+    assert.equal(sentEmails.length, 1);
+    assert.equal(sentEmails[0].body.to, "creator@example.test");
+    assert.equal(sentEmails[0].body.text, "Your refund request for the optional creator reel has been declined.");
   });
   assert.equal(creatorCardState().orders[0].refundRequestStatus, "declined");
+});
+
+test("email delivery failure does not undo the completed refund", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+
+  await withWhop(approvedPlan(), async () => {
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 200);
+    const result = await response.json() as { refundRequestStatus: string; notificationStatus: string };
+    assert.equal(result.refundRequestStatus, "completed");
+    assert.equal(result.notificationStatus, "failed");
+  }, undefined, {}, { failEmail: true });
+
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
+  assert.equal(sentEmails.length, 1);
+});
+
+test("an email connector failure does not undo the completed refund", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+
+  await withWhop(approvedPlan(), async () => {
+    const response = await ownerRefundDecision("refund");
+    assert.equal(response.status, 200);
+    const result = await response.json() as { refundRequestStatus: string; notificationStatus: string };
+    assert.equal(result.refundRequestStatus, "completed");
+    assert.equal(result.notificationStatus, "failed");
+  }, undefined, {}, { throwEmail: true });
+
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
+});
+
+test("missing verified buyer email does not expose contact data or undo a decline", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+  const unavailableAddress = "not-an-email";
+
+  await withWhop(approvedPlan(), async () => {
+    const response = await ownerRefundDecision("decline");
+    assert.equal(response.status, 200);
+    const rawResponse = await response.text();
+    const result = JSON.parse(rawResponse) as { refundRequestStatus: string; notificationStatus: string };
+    assert.equal(result.refundRequestStatus, "declined");
+    assert.equal(result.notificationStatus, "not_sent");
+    assert.doesNotMatch(rawResponse, new RegExp(unavailableAddress));
+  }, undefined, { user: { email: unavailableAddress } });
+
+  assert.equal(creatorCardState().orders[0].refundRequestStatus, "declined");
+  assert.equal(sentEmails.length, 0);
 });
 
 test("private reel playback accepts a valid ticket and serves private byte ranges", async () => {

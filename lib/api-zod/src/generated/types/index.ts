@@ -41,6 +41,7 @@ export * from './creatorMotionRefundDecisionInputDecision';
 export * from './creatorMotionRefundRequest';
 export * from './creatorMotionRefundRequestRefundRequestStatus';
 export * from './creatorMotionRefundRequestResponse';
+export * from './creatorMotionRefundRequestResponseNotificationStatus';
 export * from './creatorMotionRefundRequestResponseRefundRequestStatus';
 export * from './errorResponse';
 export * from './healthStatus';

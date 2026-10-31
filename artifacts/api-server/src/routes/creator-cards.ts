@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 import {
   creatorMotionOrdersTable,
   db,
@@ -48,6 +49,7 @@ type WhopPayment = {
   refunded_amount?: number | string | null;
   created_at?: string | null;
   company?: { id?: string } | null;
+  user?: { email?: string | null } | null;
 };
 
 type WhopCheckout = {
@@ -232,6 +234,55 @@ async function readVerifiedStoredPayment(
     || Math.round(Number(payment.amount) * 100) !== Math.round(order.priceUsd * 100)
   ) return null;
   return payment;
+}
+
+type RefundNotificationStatus = "sent" | "failed" | "not_sent";
+
+async function notifyCreatorRefundResolution(
+  req: Request,
+  order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
+  status: "completed" | "declined",
+  companyId: string,
+  verifiedPayment?: WhopPayment,
+): Promise<RefundNotificationStatus> {
+  const sender = process.env.CONTEST_RESULTS_EMAIL_FROM?.trim();
+  if (!sender) {
+    req.log.warn({ submissionId: order.submissionId }, "Creator refund notification skipped because the email sender is not configured");
+    return "not_sent";
+  }
+
+  try {
+    const payment = verifiedPayment ?? await readVerifiedStoredPayment(order, companyId);
+    const recipient = payment?.user?.email?.trim();
+    if (!recipient || recipient.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      req.log.warn({ submissionId: order.submissionId }, "Creator refund notification skipped because the verified payment has no usable email");
+      return "not_sent";
+    }
+
+    const response = await new ReplitConnectors().proxy("resend", "/emails", {
+      method: "POST",
+      headers: { "Idempotency-Key": `creator-refund-${order.submissionId}-${status}` },
+      body: {
+        from: sender,
+        to: recipient,
+        subject: "Update on your creator reel refund request",
+        text: status === "completed"
+          ? "Your refund request for the optional creator reel has been completed."
+          : "Your refund request for the optional creator reel has been declined.",
+      },
+    });
+    if (!response.ok) {
+      req.log.warn({ submissionId: order.submissionId, statusCode: response.status }, "Creator refund notification was rejected by the email service");
+      return "failed";
+    }
+    return "sent";
+  } catch (error) {
+    req.log.warn({
+      submissionId: order.submissionId,
+      providerStatus: (error as { status?: number }).status,
+    }, "Creator refund notification could not be sent");
+    return "failed";
+  }
 }
 
 function refundRequestStatus(
@@ -704,9 +755,14 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
       res.status(409).json({ error: "This refund request is already being handled or resolved." });
       return;
     }
+    const config = whopConfiguration();
+    const notificationStatus = config
+      ? await notifyCreatorRefundResolution(req, order, "declined", config.companyId)
+      : "not_sent";
     res.json(ResolveCreatorMotionRefundRequestResponse.parse({
       refundRequestStatus: "declined",
       refundRequestedAt: declined.refundRequestedAt,
+      notificationStatus,
     }));
     return;
   }
@@ -748,9 +804,11 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
           res.status(409).json({ error: "The refund state changed. Refresh the queue and try again." });
           return;
         }
+        const notificationStatus = await notifyCreatorRefundResolution(req, order, "completed", config.companyId, payment);
         res.json(ResolveCreatorMotionRefundRequestResponse.parse({
           refundRequestStatus: "completed",
           refundRequestedAt: completed.refundRequestedAt,
+          notificationStatus,
         }));
         return;
       }
@@ -830,9 +888,11 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
       ))
       .returning();
     if (!completed) throw new Error("The refund result could not be recorded.");
+    const notificationStatus = await notifyCreatorRefundResolution(req, order, "completed", config.companyId, finalPayment);
     res.json(ResolveCreatorMotionRefundRequestResponse.parse({
       refundRequestStatus: "completed",
       refundRequestedAt: completed.refundRequestedAt,
+      notificationStatus,
     }));
   } catch (error) {
     req.log.error({ submissionId: params.data.id, providerStatus: (error as { status?: number }).status }, "Unable to complete creator refund through Whop");

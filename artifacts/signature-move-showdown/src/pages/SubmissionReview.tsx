@@ -92,6 +92,7 @@ export default function SubmissionReview() {
   const resolveRefund = useResolveCreatorMotionRefundRequest();
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [refundDecisionNotice, setRefundDecisionNotice] = useState("");
 
   const refreshSession = () => {
     void queryClient.invalidateQueries({ queryKey: getGetStudioSessionQueryKey() });
@@ -121,7 +122,14 @@ export default function SubmissionReview() {
       : `Decline the refund request from ${request.creatorName}?`;
     if (!window.confirm(confirmation)) return;
     resolveRefund.mutate({ id: request.submissionId, data: { decision } }, {
-      onSuccess: () => void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() }),
+      onSuccess: (result) => {
+        setRefundDecisionNotice(result.notificationStatus === "sent"
+          ? `Request ${result.refundRequestStatus}. Creator notification sent.`
+          : result.notificationStatus === "failed"
+            ? `Request ${result.refundRequestStatus}. The decision was saved, but the creator notification could not be sent.`
+            : `Request ${result.refundRequestStatus}. The decision was saved, but no creator notification was sent.`);
+        void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() });
+      },
     });
   };
   const signOut = () => {
@@ -173,6 +181,7 @@ export default function SubmissionReview() {
         </div>
         <p className="refund-review-intro">Review failed creator-reel retries. Full refunds are issued through Whop and do not change contest entries or results.</p>
         {resolveRefund.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{resolveRefund.error instanceof Error ? resolveRefund.error.message : "The refund decision could not be saved. Refresh the queue and try again."}</span></div>}
+        {refundDecisionNotice && <p className="refund-review-state" role="status">{refundDecisionNotice}</p>}
         {refundQueue.isLoading ? <p className="refund-review-state" role="status">Loading refund requests…</p> :
           refundQueue.isError ? <div className="refund-review-state error" role="alert">Refund requests are unavailable. Confirm your owner session and try again.</div> :
             !refundQueue.data?.length ? <p className="refund-review-state">No refund requests are waiting for review.</p> :

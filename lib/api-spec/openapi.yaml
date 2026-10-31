@@ -2110,6 +2110,10 @@ components:
         refundRequestedAt:
           type: ["string", "null"]
           format: date-time
+        notificationStatus:
+          type: string
+          enum: [sent, failed, not_sent]
+          description: Owner decision notification result; omitted for creator-submitted requests.
       required: [refundRequestStatus, refundRequestedAt]
     CreatorMotionRefundRequest:
       type: object

@@ -5,10 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CreatorMotionRefundRequestResponseNotificationStatus } from './creatorMotionRefundRequestResponseNotificationStatus';
 import type { CreatorMotionRefundRequestResponseRefundRequestStatus } from './creatorMotionRefundRequestResponseRefundRequestStatus';
 
 export interface CreatorMotionRefundRequestResponse {
   refundRequestStatus: CreatorMotionRefundRequestResponseRefundRequestStatus;
   /** @nullable */
   refundRequestedAt: Date | null;
+  /** Owner decision notification result; omitted for creator-submitted requests. */
+  notificationStatus?: CreatorMotionRefundRequestResponseNotificationStatus;
 }

@@ -726,10 +726,24 @@ export const CreatorMotionRefundRequestResponseRefundRequestStatus = {
   declined: 'declined',
 } as const;
 
+/**
+ * Owner decision notification result; omitted for creator-submitted requests.
+ */
+export type CreatorMotionRefundRequestResponseNotificationStatus = typeof CreatorMotionRefundRequestResponseNotificationStatus[keyof typeof CreatorMotionRefundRequestResponseNotificationStatus];
+
+
+export const CreatorMotionRefundRequestResponseNotificationStatus = {
+  sent: 'sent',
+  failed: 'failed',
+  not_sent: 'not_sent',
+} as const;
+
 export interface CreatorMotionRefundRequestResponse {
   refundRequestStatus: CreatorMotionRefundRequestResponseRefundRequestStatus;
   /** @nullable */
   refundRequestedAt: string | null;
+  /** Owner decision notification result; omitted for creator-submitted requests. */
+  notificationStatus?: CreatorMotionRefundRequestResponseNotificationStatus;
 }
 
 export type CreatorMotionRefundRequestRefundRequestStatus = typeof CreatorMotionRefundRequestRefundRequestStatus[keyof typeof CreatorMotionRefundRequestRefundRequestStatus];
