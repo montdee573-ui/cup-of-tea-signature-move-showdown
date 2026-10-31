@@ -23,5 +23,6 @@ export * from "./studio-reels";
 export * from "./move-submissions";
 export * from "./showdowns";
 export * from "./contest-results";
+export * from "./contest-result-history";
 export * from "./creator-motion-orders";
 export * from "./studio-login-attempts";

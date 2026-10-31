@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ContestResultEmailDeliveryStatus } from './contestResultEmailDeliveryStatus';
+import type { ContestResultHistoryEntry } from './contestResultHistoryEntry';
 import type { ContestResultStatus } from './contestResultStatus';
 
 export interface ContestResult {
@@ -32,4 +33,5 @@ export interface ContestResult {
   emailSentAt: Date | null;
   /** @nullable */
   emailDeliveryError: string | null;
+  history: ContestResultHistoryEntry[];
 }

@@ -338,6 +338,37 @@ export const ContestResultEmailDeliveryStatus = {
   complained: 'complained',
 } as const;
 
+export type ContestResultHistoryEntryChangeType = typeof ContestResultHistoryEntryChangeType[keyof typeof ContestResultHistoryEntryChangeType];
+
+
+export const ContestResultHistoryEntryChangeType = {
+  clearance: 'clearance',
+  correction: 'correction',
+} as const;
+
+export interface ContestResultSnapshot {
+  eventTitle: string;
+  division: string;
+  winnerName: string;
+  winnerHandle: string;
+  runnerUpName: string;
+  winnerVotes: number;
+  runnerUpVotes: number;
+  /** @nullable */
+  coreScore: number | null;
+  base44Summary: string;
+  viralReelSummary: string;
+}
+
+export interface ContestResultHistoryEntry {
+  id: number;
+  resultId: number;
+  changeType: ContestResultHistoryEntryChangeType;
+  snapshot: ContestResultSnapshot;
+  reason: string;
+  changedAt: string;
+}
+
 export interface ContestResult {
   id: number;
   eventTitle: string;
@@ -362,6 +393,7 @@ export interface ContestResult {
   emailSentAt: string | null;
   /** @nullable */
   emailDeliveryError: string | null;
+  history: ContestResultHistoryEntry[];
 }
 
 export interface StudioContestResults {
@@ -446,6 +478,57 @@ export interface ContestResultClearanceInput {
      * @maxLength 500
      */
   clearanceNote: string;
+}
+
+export interface ContestResultCorrectionInput {
+  confirm: true;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  correctionReason: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  eventTitle: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  division: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  winnerName: string;
+  /** @maxLength 50 */
+  winnerHandle: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  runnerUpName: string;
+  /** @minimum 0 */
+  winnerVotes: number;
+  /** @minimum 0 */
+  runnerUpVotes: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  coreScore?: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  base44Summary: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  viralReelSummary: string;
 }
 
 export interface ContestResultEmailInput {

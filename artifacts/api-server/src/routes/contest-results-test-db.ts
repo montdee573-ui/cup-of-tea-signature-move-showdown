@@ -1,12 +1,16 @@
 import { contestResultsTable } from "../../../../lib/db/src/schema/contest-results";
+import { contestResultHistoryTable } from "../../../../lib/db/src/schema/contest-result-history";
 import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
 import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
 
 type ContestResultRow = typeof contestResultsTable.$inferSelect;
+type ContestResultHistoryRow = typeof contestResultHistoryTable.$inferSelect;
 type StudioLoginAttemptRow = typeof studioLoginAttemptsTable.$inferSelect;
 
 let rows: ContestResultRow[] = [];
+let historyRows: ContestResultHistoryRow[] = [];
 let nextId = 1;
+let nextHistoryId = 1;
 const studioLoginAttempts = new Map<string, StudioLoginAttemptRow>();
 let transactionQueue = Promise.resolve();
 
@@ -70,6 +74,7 @@ function columnValueFilter(condition: unknown, columnName: string): unknown {
 
 export function resetContestResultRows(seed: Array<Partial<ContestResultRow>> = []): void {
   nextId = 1;
+  nextHistoryId = 1;
   rows = seed.map((row) => ({
     id: nextId++,
     eventTitle: "Test event",
@@ -94,10 +99,15 @@ export function resetContestResultRows(seed: Array<Partial<ContestResultRow>> = 
     emailLastWebhookAt: null,
     ...row,
   }));
+  historyRows = [];
 }
 
 export function getContestResultRowsForTest(): ContestResultRow[] {
   return rows.map((row) => ({ ...row }));
+}
+
+export function getContestResultHistoryForTest(): ContestResultHistoryRow[] {
+  return historyRows.map((row) => ({ ...row }));
 }
 
 function providerIdFilter(condition: unknown): string | undefined {
@@ -129,23 +139,35 @@ function providerIdFilter(condition: unknown): string | undefined {
 const testDbOperations = {
   select: () => ({
     from: (table: unknown) => ({
-      orderBy: async () => [...rows],
-      where: async (condition: unknown) => {
+      orderBy: async () => table === contestResultHistoryTable
+        ? historyRows.map((row) => ({ ...row }))
+        : rows.map((row) => ({ ...row })),
+      where: (condition: unknown) => {
+        let matches: unknown[];
         if (table === studioLoginAttemptsTable) {
           const ipAddress = columnTextFilter(condition, "ip_address");
           const attempt = ipAddress ? studioLoginAttempts.get(ipAddress) : undefined;
-          return attempt ? [{ ...attempt }] : [];
+          matches = attempt ? [{ ...attempt }] : [];
+        } else if (table === contestResultHistoryTable) {
+          const resultId = columnValueFilter(condition, "result_id");
+          matches = historyRows
+            .filter((row) => resultId === undefined || row.resultId === resultId)
+            .map((row) => ({ ...row }));
+        } else {
+          const providerId = providerIdFilter(condition);
+          matches = providerId === undefined
+            ? rows.map((row) => ({ ...row }))
+            : rows.filter((row) => row.emailProviderId === providerId).map((row) => ({ ...row }));
         }
-        const providerId = providerIdFilter(condition);
-        const matches = providerId === undefined
-          ? rows
-          : rows.filter((row) => row.emailProviderId === providerId);
-        return matches.length ? [matches[0]] : [];
+        const result = matches.length > 1 && table === contestResultsTable
+          ? [matches[0]]
+          : matches;
+        return Object.assign(result, { orderBy: async () => result });
       },
     }),
   }),
   insert: (_table: unknown) => ({
-    values: (values: Partial<ContestResultRow>) => ({
+    values: (values: Partial<ContestResultRow> | Partial<ContestResultHistoryRow>) => ({
       returning: async () => {
         if (_table === studioLoginAttemptsTable) {
           const attempt = values as Partial<StudioLoginAttemptRow>;
@@ -156,6 +178,30 @@ const testDbOperations = {
           };
           studioLoginAttempts.set(row.ipAddress, row);
           return [row];
+        }
+        if (_table === contestResultHistoryTable) {
+          const historyRow = {
+            id: nextHistoryId++,
+            resultId: 0,
+            changeType: "clearance",
+            snapshot: {
+              eventTitle: "",
+              division: "",
+              winnerName: "",
+              winnerHandle: "",
+              runnerUpName: "",
+              winnerVotes: 0,
+              runnerUpVotes: 0,
+              coreScore: null,
+              base44Summary: "",
+              viralReelSummary: "",
+            },
+            reason: "",
+            changedAt: new Date(),
+            ...values,
+          } as ContestResultHistoryRow;
+          historyRows.push(historyRow);
+          return [historyRow];
         }
         const row = {
           id: nextId++,
@@ -205,7 +251,11 @@ const testDbOperations = {
           if (providerId !== undefined && target.emailProviderId !== providerId) return [];
           const requiredStatus = columnTextFilter(condition, "status");
           if (requiredStatus && target.status !== requiredStatus) return [];
+          const requiredClearedAt = columnValueFilter(condition, "cleared_at");
+          if (requiredClearedAt !== undefined &&
+            (!(requiredClearedAt instanceof Date) || target.clearedAt?.getTime() !== requiredClearedAt.getTime())) return [];
           if (changes.status === "cleared" && target.status !== "draft") return [];
+          if (changes.clearedAt instanceof Date && target.emailDeliveryStatus === "sending") return [];
           if (changes.emailDeliveryStatus === "sending" &&
             (target.status !== "cleared" || !["not_sent", "failed"].includes(target.emailDeliveryStatus))) return [];
           if (changes.emailDeliveryStatus === "sent" && target.emailDeliveryStatus !== "sending") return [];
@@ -254,4 +304,4 @@ export const db = Object.assign(testDbOperations, {
   },
 });
 
-export { contestResultsTable, studioLoginAttemptsTable, studioReelsTable };
+export { contestResultHistoryTable, contestResultsTable, studioLoginAttemptsTable, studioReelsTable };

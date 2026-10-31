@@ -8,6 +8,7 @@ import contestResultsRouter from "./contest-results";
 import resendWebhookRouter from "./resend-webhook";
 import studioRouter from "./studio";
 import {
+  getContestResultHistoryForTest,
   getContestResultRowsForTest,
   resetContestResultRows,
   resetStudioLoginAttempts,
@@ -100,6 +101,17 @@ async function clear(id = 1, clearanceNote = "  Reviewed against both contest ap
   }, true);
 }
 
+function correctionBody(overrides: Record<string, unknown> = {}) {
+  return {
+    ...createBody(18, 7),
+    eventTitle: "Corrected event",
+    winnerName: "Corrected winner",
+    confirm: true,
+    correctionReason: "  Verified the final bracket against both contest apps.  ",
+    ...overrides,
+  };
+}
+
 test("unauthenticated requests cannot list, create, clear, or email contest results", async () => {
   resetContestResultRows();
   const list = await request("/studio/contest-results");
@@ -119,8 +131,12 @@ test("unauthenticated requests cannot list, create, clear, or email contest resu
     method: "POST",
     body: JSON.stringify({ confirm: true }),
   });
+  const correctResult = await request("/studio/contest-results/1/correct", {
+    method: "POST",
+    body: JSON.stringify(correctionBody()),
+  });
 
-  assert.deepEqual([list.status, create.status, updateResult.status, clearResult.status, emailResult.status], [401, 401, 401, 401, 401]);
+  assert.deepEqual([list.status, create.status, updateResult.status, clearResult.status, emailResult.status, correctResult.status], [401, 401, 401, 401, 401, 401]);
   const results = await request("/studio/contest-results", {}, true);
   assert.deepEqual((await results.json() as { results: unknown[] }).results, []);
 });
@@ -214,14 +230,157 @@ test("an owner can clear a winning result once and records the note and timestam
     status: string;
     clearanceNote: string | null;
     clearedAt: string;
+    history: Array<{
+      changeType: string;
+      reason: string;
+      changedAt: string;
+      snapshot: { winnerName: string; winnerVotes: number };
+    }>;
   };
   assert.equal(body.status, "cleared");
   assert.equal(body.clearanceNote, "Reviewed against both contest apps.");
   assert.ok(Number.isFinite(Date.parse(body.clearedAt)));
+  assert.equal(body.history.length, 1);
+  assert.equal(body.history[0].changeType, "clearance");
+  assert.equal(body.history[0].reason, body.clearanceNote);
+  assert.equal(body.history[0].snapshot.winnerName, "Winner");
+  assert.equal(body.history[0].snapshot.winnerVotes, 10);
+  assert.ok(Number.isFinite(Date.parse(body.history[0].changedAt)));
+  assert.equal(getContestResultHistoryForTest().length, 1);
+  const listed = await request("/studio/contest-results", {}, true);
+  const listedResult = (await listed.json() as { results: Array<typeof body> }).results[0];
+  assert.equal(listedResult.history[0].reason, body.history[0].reason);
 
   const secondResponse = await clear();
   assert.equal(secondResponse.status, 409);
   assert.match((await secondResponse.json() as { error: string }).error, /already been cleared/);
+});
+
+test("official corrections append complete snapshots and reasons without replacing earlier history", async () => {
+  resetContestResultRows([{
+    status: "cleared",
+    clearanceNote: "Initially verified against both contest apps.",
+    clearedAt: new Date("2026-10-30T12:00:00.000Z"),
+  }]);
+
+  const legacyList = await request("/studio/contest-results", {}, true);
+  const [legacyResult] = (await legacyList.json() as { results: Array<{
+    history: Array<{ changeType: string; reason: string; snapshot: { winnerName: string } }>;
+  }> }).results;
+  assert.equal(legacyResult.history.length, 1);
+  assert.equal(legacyResult.history[0].changeType, "clearance");
+  assert.equal(legacyResult.history[0].reason, "Initially verified against both contest apps.");
+  assert.equal(legacyResult.history[0].snapshot.winnerName, "Winner");
+  assert.equal(getContestResultHistoryForTest().length, 0);
+
+  const firstResponse = await request("/studio/contest-results/1/correct", {
+    method: "POST",
+    body: JSON.stringify(correctionBody()),
+  }, true);
+  assert.equal(firstResponse.status, 200);
+  const first = await firstResponse.json() as {
+    winnerName: string;
+    status: string;
+    history: Array<{
+      changeType: string;
+      reason: string;
+      changedAt: string;
+      snapshot: { winnerName: string; winnerVotes: number };
+    }>;
+  };
+  assert.equal(first.status, "cleared");
+  assert.equal(first.winnerName, "Corrected winner");
+  assert.deepEqual(first.history.map(({ changeType, reason, snapshot }) => ({
+    changeType,
+    reason,
+    winnerName: snapshot.winnerName,
+  })), [
+    {
+      changeType: "clearance",
+      reason: "Initially verified against both contest apps.",
+      winnerName: "Winner",
+    },
+    {
+      changeType: "correction",
+      reason: "Verified the final bracket against both contest apps.",
+      winnerName: "Corrected winner",
+    },
+  ]);
+  assert.equal(first.history[0].snapshot.winnerVotes, 10);
+  assert.equal(first.history[1].snapshot.winnerVotes, 18);
+  assert.ok(Date.parse(first.history[1].changedAt) > Date.parse(first.history[0].changedAt));
+
+  const secondResponse = await request("/studio/contest-results/1/correct", {
+    method: "POST",
+    body: JSON.stringify(correctionBody({
+      winnerName: "Final corrected winner",
+      winnerVotes: 20,
+      runnerUpVotes: 8,
+      correctionReason: "A second review corrected the verified vote total.",
+    })),
+  }, true);
+  assert.equal(secondResponse.status, 200);
+  const second = await secondResponse.json() as typeof first;
+  assert.deepEqual(second.history.map((entry) => entry.snapshot.winnerName), [
+    "Winner",
+    "Corrected winner",
+    "Final corrected winner",
+  ]);
+  assert.deepEqual(second.history.map((entry) => entry.reason), [
+    "Initially verified against both contest apps.",
+    "Verified the final bracket against both contest apps.",
+    "A second review corrected the verified vote total.",
+  ]);
+  assert.equal(getContestResultHistoryForTest().length, 3);
+  assert.equal(getContestResultRowsForTest()[0].winnerName, "Final corrected winner");
+
+  const refreshed = await request("/studio/contest-results", {}, true);
+  const [saved] = (await refreshed.json() as { results: Array<typeof second> }).results;
+  assert.deepEqual(saved.history.map((entry) => entry.snapshot.winnerVotes), [10, 18, 20]);
+});
+
+test("official correction requires a cleared result, a valid winner, and a reason", async () => {
+  resetContestResultRows([{ status: "draft" }]);
+  const draftCorrection = await request("/studio/contest-results/1/correct", {
+    method: "POST",
+    body: JSON.stringify(correctionBody()),
+  }, true);
+  assert.equal(draftCorrection.status, 409);
+
+  resetContestResultRows([{
+    status: "cleared",
+    clearanceNote: "Verified.",
+    clearedAt: new Date("2026-10-30T12:00:00.000Z"),
+  }]);
+  for (const body of [
+    correctionBody({ correctionReason: "   " }),
+    correctionBody({ winnerName: "Runner-up", runnerUpName: " Runner-up " }),
+    correctionBody({ winnerVotes: 7, runnerUpVotes: 7 }),
+  ]) {
+    const response = await request("/studio/contest-results/1/correct", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }, true);
+    assert.ok([400, 409].includes(response.status));
+  }
+  assert.equal(getContestResultHistoryForTest().length, 0);
+  assert.equal(getContestResultRowsForTest()[0].winnerName, "Winner");
+});
+
+test("official corrections cannot change a result while its email is sending", async () => {
+  resetContestResultRows([{
+    status: "cleared",
+    clearanceNote: "Verified.",
+    clearedAt: new Date("2026-10-30T12:00:00.000Z"),
+    emailDeliveryStatus: "sending",
+  }]);
+  const response = await request("/studio/contest-results/1/correct", {
+    method: "POST",
+    body: JSON.stringify(correctionBody()),
+  }, true);
+  assert.equal(response.status, 409);
+  assert.equal(getContestResultRowsForTest()[0].winnerName, "Winner");
+  assert.equal(getContestResultHistoryForTest().length, 0);
 });
 
 test("an owner can edit every result field while the result remains a draft", async () => {

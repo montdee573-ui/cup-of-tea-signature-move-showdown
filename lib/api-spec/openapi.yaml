@@ -460,6 +460,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /studio/contest-results/{id}/correct:
+    post:
+      operationId: correctStudioContestResult
+      tags: [studio]
+      summary: Correct an owner-cleared contest result and preserve its history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContestResultCorrectionInput"
+      responses:
+        "200":
+          description: Corrected official result with its permanent change history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContestResult"
+        "400":
+          description: Confirmation or corrected result is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Result not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Result is not official or changed in another session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /studio/contest-results/{id}/email:
     post:
       operationId: emailStudioContestResult
@@ -1823,6 +1872,10 @@ components:
           format: date-time
         emailDeliveryError:
           type: ["string", "null"]
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContestResultHistoryEntry"
       required:
         - id
         - eventTitle
@@ -1842,6 +1895,59 @@ components:
         - emailDeliveryStatus
         - emailSentAt
         - emailDeliveryError
+        - history
+    ContestResultSnapshot:
+      type: object
+      properties:
+        eventTitle:
+          type: string
+        division:
+          type: string
+        winnerName:
+          type: string
+        winnerHandle:
+          type: string
+        runnerUpName:
+          type: string
+        winnerVotes:
+          type: integer
+        runnerUpVotes:
+          type: integer
+        coreScore:
+          type: ["integer", "null"]
+        base44Summary:
+          type: string
+        viralReelSummary:
+          type: string
+      required:
+        - eventTitle
+        - division
+        - winnerName
+        - winnerHandle
+        - runnerUpName
+        - winnerVotes
+        - runnerUpVotes
+        - coreScore
+        - base44Summary
+        - viralReelSummary
+    ContestResultHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        resultId:
+          type: integer
+        changeType:
+          type: string
+          enum: [clearance, correction]
+        snapshot:
+          $ref: "#/components/schemas/ContestResultSnapshot"
+        reason:
+          type: string
+        changedAt:
+          type: string
+          format: date-time
+      required: [id, resultId, changeType, snapshot, reason, changedAt]
     StudioContestResults:
       type: object
       properties:
@@ -1936,6 +2042,65 @@ components:
           minLength: 1
           maxLength: 500
       required: [confirm, clearanceNote]
+    ContestResultCorrectionInput:
+      type: object
+      properties:
+        confirm:
+          type: boolean
+          enum: [true]
+        correctionReason:
+          type: string
+          minLength: 1
+          maxLength: 500
+        eventTitle:
+          type: string
+          minLength: 1
+          maxLength: 100
+        division:
+          type: string
+          minLength: 1
+          maxLength: 80
+        winnerName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        winnerHandle:
+          type: string
+          maxLength: 50
+        runnerUpName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        winnerVotes:
+          type: integer
+          minimum: 0
+        runnerUpVotes:
+          type: integer
+          minimum: 0
+        coreScore:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 100
+        base44Summary:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        viralReelSummary:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required:
+        - confirm
+        - correctionReason
+        - eventTitle
+        - division
+        - winnerName
+        - winnerHandle
+        - runnerUpName
+        - winnerVotes
+        - runnerUpVotes
+        - base44Summary
+        - viralReelSummary
     ContestResultEmailInput:
       type: object
       properties:

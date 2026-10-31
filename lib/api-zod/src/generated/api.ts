@@ -363,7 +363,26 @@ export const ListStudioContestResultsResponse = zod.object({
   "clearedAt": zod.coerce.date().nullable(),
   "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
-  "emailDeliveryError": zod.string().nullable()
+  "emailDeliveryError": zod.string().nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "resultId": zod.number().int(),
+  "changeType": zod.enum(['clearance', 'correction']),
+  "snapshot": zod.object({
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string()
+}),
+  "reason": zod.string(),
+  "changedAt": zod.coerce.date()
+}))
 }))
 })
 
@@ -425,7 +444,26 @@ export const CreateStudioContestResultResponse = zod.object({
   "clearedAt": zod.coerce.date().nullable(),
   "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
-  "emailDeliveryError": zod.string().nullable()
+  "emailDeliveryError": zod.string().nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "resultId": zod.number().int(),
+  "changeType": zod.enum(['clearance', 'correction']),
+  "snapshot": zod.object({
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string()
+}),
+  "reason": zod.string(),
+  "changedAt": zod.coerce.date()
+}))
 })
 
 
@@ -493,7 +531,26 @@ export const UpdateStudioContestResultResponse = zod.object({
   "clearedAt": zod.coerce.date().nullable(),
   "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
-  "emailDeliveryError": zod.string().nullable()
+  "emailDeliveryError": zod.string().nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "resultId": zod.number().int(),
+  "changeType": zod.enum(['clearance', 'correction']),
+  "snapshot": zod.object({
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string()
+}),
+  "reason": zod.string(),
+  "changedAt": zod.coerce.date()
+}))
 })
 
 
@@ -534,7 +591,117 @@ export const ClearStudioContestResultResponse = zod.object({
   "clearedAt": zod.coerce.date().nullable(),
   "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
-  "emailDeliveryError": zod.string().nullable()
+  "emailDeliveryError": zod.string().nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "resultId": zod.number().int(),
+  "changeType": zod.enum(['clearance', 'correction']),
+  "snapshot": zod.object({
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string()
+}),
+  "reason": zod.string(),
+  "changedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Correct an owner-cleared contest result and preserve its history
+ */
+
+
+
+export const CorrectStudioContestResultParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const correctStudioContestResultBodyCorrectionReasonMax = 500;
+
+export const correctStudioContestResultBodyEventTitleMax = 100;
+
+export const correctStudioContestResultBodyDivisionMax = 80;
+
+export const correctStudioContestResultBodyWinnerNameMax = 80;
+
+export const correctStudioContestResultBodyWinnerHandleMax = 50;
+
+export const correctStudioContestResultBodyRunnerUpNameMax = 80;
+
+export const correctStudioContestResultBodyWinnerVotesMin = 0;
+
+export const correctStudioContestResultBodyRunnerUpVotesMin = 0;
+
+export const correctStudioContestResultBodyCoreScoreMin = 0;
+export const correctStudioContestResultBodyCoreScoreMax = 100;
+
+export const correctStudioContestResultBodyBase44SummaryMax = 2000;
+
+export const correctStudioContestResultBodyViralReelSummaryMax = 2000;
+
+
+
+export const CorrectStudioContestResultBody = zod.object({
+  "confirm": zod.literal(true),
+  "correctionReason": zod.string().min(1).max(correctStudioContestResultBodyCorrectionReasonMax),
+  "eventTitle": zod.string().min(1).max(correctStudioContestResultBodyEventTitleMax),
+  "division": zod.string().min(1).max(correctStudioContestResultBodyDivisionMax),
+  "winnerName": zod.string().min(1).max(correctStudioContestResultBodyWinnerNameMax),
+  "winnerHandle": zod.string().max(correctStudioContestResultBodyWinnerHandleMax),
+  "runnerUpName": zod.string().min(1).max(correctStudioContestResultBodyRunnerUpNameMax),
+  "winnerVotes": zod.number().int().min(correctStudioContestResultBodyWinnerVotesMin),
+  "runnerUpVotes": zod.number().int().min(correctStudioContestResultBodyRunnerUpVotesMin),
+  "coreScore": zod.number().int().min(correctStudioContestResultBodyCoreScoreMin).max(correctStudioContestResultBodyCoreScoreMax).nullish(),
+  "base44Summary": zod.string().min(1).max(correctStudioContestResultBodyBase44SummaryMax),
+  "viralReelSummary": zod.string().min(1).max(correctStudioContestResultBodyViralReelSummaryMax)
+})
+
+export const CorrectStudioContestResultResponse = zod.object({
+  "id": zod.number().int(),
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string(),
+  "status": zod.enum(['draft', 'cleared']),
+  "clearanceNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().nullable(),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
+  "emailSentAt": zod.coerce.date().nullable(),
+  "emailDeliveryError": zod.string().nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "resultId": zod.number().int(),
+  "changeType": zod.enum(['clearance', 'correction']),
+  "snapshot": zod.object({
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string()
+}),
+  "reason": zod.string(),
+  "changedAt": zod.coerce.date()
+}))
 })
 
 
@@ -570,7 +737,26 @@ export const EmailStudioContestResultResponse = zod.object({
   "clearedAt": zod.coerce.date().nullable(),
   "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
-  "emailDeliveryError": zod.string().nullable()
+  "emailDeliveryError": zod.string().nullable(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "resultId": zod.number().int(),
+  "changeType": zod.enum(['clearance', 'correction']),
+  "snapshot": zod.object({
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string()
+}),
+  "reason": zod.string(),
+  "changedAt": zod.coerce.date()
+}))
 })
 
 

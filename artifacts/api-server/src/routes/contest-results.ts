@@ -1,11 +1,14 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { Router, type IRouter } from "express";
-import { db, contestResultsTable } from "@workspace/db";
+import { db, contestResultHistoryTable, contestResultsTable } from "@workspace/db";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import {
   ClearStudioContestResultBody,
   ClearStudioContestResultParams,
   ClearStudioContestResultResponse,
+  CorrectStudioContestResultBody,
+  CorrectStudioContestResultParams,
+  CorrectStudioContestResultResponse,
   CreateStudioContestResultBody,
   CreateStudioContestResultResponse,
   EmailStudioContestResultBody,
@@ -25,6 +28,29 @@ function encodeResult(row: typeof contestResultsTable.$inferSelect) {
     ...row,
     status: row.status as "draft" | "cleared",
     emailDeliveryStatus: row.emailDeliveryStatus as "not_sent" | "sending" | "sent" | "failed" | "delivered" | "bounced" | "complained",
+    history: [] as Array<typeof contestResultHistoryTable.$inferSelect>,
+  };
+}
+
+function resultSnapshot(row: typeof contestResultsTable.$inferSelect) {
+  return {
+    eventTitle: row.eventTitle,
+    division: row.division,
+    winnerName: row.winnerName,
+    winnerHandle: row.winnerHandle,
+    runnerUpName: row.runnerUpName,
+    winnerVotes: row.winnerVotes,
+    runnerUpVotes: row.runnerUpVotes,
+    coreScore: row.coreScore,
+    base44Summary: row.base44Summary,
+    viralReelSummary: row.viralReelSummary,
+  };
+}
+
+function encodeHistory(entry: typeof contestResultHistoryTable.$inferSelect) {
+  return {
+    ...entry,
+    changeType: entry.changeType as "clearance" | "correction",
   };
 }
 
@@ -35,12 +61,33 @@ router.get("/studio/contest-results", async (req, res): Promise<void> => {
   }
   const rows = await db.select().from(contestResultsTable)
     .orderBy(desc(contestResultsTable.createdAt));
+  const historyByResult = new Map<number, Array<typeof contestResultHistoryTable.$inferSelect>>();
+  await Promise.all(rows.map(async (row) => {
+    const entries = await db.select().from(contestResultHistoryTable)
+      .where(eq(contestResultHistoryTable.resultId, row.id))
+      .orderBy(asc(contestResultHistoryTable.changedAt));
+    historyByResult.set(row.id, entries);
+  }));
   const emailRecipient = process.env.CONTEST_RESULTS_EMAIL_TO?.trim() || null;
   const emailSenderConfigured = Boolean(process.env.CONTEST_RESULTS_EMAIL_FROM?.trim());
   res.json(ListStudioContestResultsResponse.parse({
     emailRecipient,
     emailSenderConfigured,
-    results: rows.map(encodeResult),
+    results: rows.map((row) => {
+      const history = historyByResult.get(row.id) ?? [];
+      // Retain a useful view of records cleared before the audit table existed.
+      const visibleHistory = history.length || row.status !== "cleared" || !row.clearedAt
+        ? history
+        : [{
+          id: 0,
+          resultId: row.id,
+          changeType: "clearance",
+          snapshot: resultSnapshot(row),
+          reason: row.clearanceNote ?? "Owner-cleared official result.",
+          changedAt: row.clearedAt,
+        }];
+      return { ...encodeResult(row), history: visibleHistory.map(encodeHistory) };
+    }),
   }));
 });
 
@@ -155,21 +202,133 @@ router.post("/studio/contest-results/:id/clear", async (req, res): Promise<void>
     return;
   }
 
-  const [cleared] = await db.update(contestResultsTable).set({
-    status: "cleared",
-    clearanceNote: parsed.data.clearanceNote.trim(),
-    clearedAt: new Date(),
-  }).where(and(
-    eq(contestResultsTable.id, params.data.id),
-    eq(contestResultsTable.status, "draft"),
-  )).returning();
+  const clearanceNote = parsed.data.clearanceNote.trim();
+  const clearedAt = new Date();
+  const clearedRecord = await db.transaction(async (transaction) => {
+    const [cleared] = await transaction.update(contestResultsTable).set({
+      status: "cleared",
+      clearanceNote,
+      clearedAt,
+    }).where(and(
+      eq(contestResultsTable.id, params.data.id),
+      eq(contestResultsTable.status, "draft"),
+    )).returning();
+    if (!cleared) return null;
+    const [auditEntry] = await transaction.insert(contestResultHistoryTable).values({
+      resultId: cleared.id,
+      changeType: "clearance",
+      snapshot: resultSnapshot(cleared),
+      reason: clearanceNote,
+      changedAt: cleared.clearedAt ?? clearedAt,
+    }).returning();
+    return { cleared, auditEntry };
+  });
 
-  if (!cleared) {
+  if (!clearedRecord) {
     res.status(409).json({ error: "This result was cleared in another session." });
     return;
   }
+  const { cleared, auditEntry } = clearedRecord;
   req.log.info({ resultId: cleared.id }, "Owner cleared official contest result");
-  res.json(ClearStudioContestResultResponse.parse(encodeResult(cleared)));
+  res.json(ClearStudioContestResultResponse.parse({
+    ...encodeResult(cleared),
+    history: [encodeHistory(auditEntry)],
+  }));
+});
+
+router.post("/studio/contest-results/:id/correct", async (req, res): Promise<void> => {
+  if (!isStudioOwner(req)) {
+    res.status(401).json({ error: "Owner login required." });
+    return;
+  }
+  const params = CorrectStudioContestResultParams.safeParse(req.params);
+  const parsed = CorrectStudioContestResultBody.safeParse(req.body);
+  if (!params.success || !parsed.success || !parsed.data.correctionReason.trim()) {
+    res.status(400).json({ error: "Confirm the correction, provide a reason, and enter valid result details." });
+    return;
+  }
+  if (parsed.data.winnerName.trim().toLocaleLowerCase() === parsed.data.runnerUpName.trim().toLocaleLowerCase()) {
+    res.status(400).json({ error: "Winner and runner-up must be different participants." });
+    return;
+  }
+  if (parsed.data.winnerVotes <= parsed.data.runnerUpVotes) {
+    res.status(409).json({ error: "A tied or trailing entry cannot be corrected as the vote winner." });
+    return;
+  }
+
+  const correctionReason = parsed.data.correctionReason.trim();
+  const correction = await db.transaction(async (transaction) => {
+    const [current] = await transaction.select().from(contestResultsTable)
+      .where(eq(contestResultsTable.id, params.data.id));
+    if (!current) return { kind: "missing" as const };
+    if (current.status !== "cleared" || !current.clearedAt) return { kind: "not-cleared" as const };
+    if (current.emailDeliveryStatus === "sending") return { kind: "conflict" as const };
+
+    const existingHistory = await transaction.select().from(contestResultHistoryTable)
+      .where(eq(contestResultHistoryTable.resultId, current.id))
+      .orderBy(asc(contestResultHistoryTable.changedAt));
+    const correctedAt = new Date(Math.max(Date.now(), current.clearedAt.getTime() + 1));
+    const [updated] = await transaction.update(contestResultsTable).set({
+      eventTitle: parsed.data.eventTitle.trim(),
+      division: parsed.data.division.trim(),
+      winnerName: parsed.data.winnerName.trim(),
+      winnerHandle: parsed.data.winnerHandle.trim(),
+      runnerUpName: parsed.data.runnerUpName.trim(),
+      winnerVotes: parsed.data.winnerVotes,
+      runnerUpVotes: parsed.data.runnerUpVotes,
+      coreScore: parsed.data.coreScore ?? null,
+      base44Summary: parsed.data.base44Summary.trim(),
+      viralReelSummary: parsed.data.viralReelSummary.trim(),
+      clearanceNote: correctionReason,
+      clearedAt: correctedAt,
+    }).where(and(
+      eq(contestResultsTable.id, current.id),
+      eq(contestResultsTable.status, "cleared"),
+      eq(contestResultsTable.clearedAt, current.clearedAt),
+      ne(contestResultsTable.emailDeliveryStatus, "sending"),
+    )).returning();
+    if (!updated) return { kind: "conflict" as const };
+
+    const history = [...existingHistory];
+    if (history.length === 0) {
+      const [originalClearance] = await transaction.insert(contestResultHistoryTable).values({
+        resultId: current.id,
+        changeType: "clearance",
+        snapshot: resultSnapshot(current),
+        reason: current.clearanceNote ?? "Owner-cleared official result.",
+        changedAt: current.clearedAt,
+      }).returning();
+      history.push(originalClearance);
+    }
+    const [auditEntry] = await transaction.insert(contestResultHistoryTable).values({
+      resultId: updated.id,
+      changeType: "correction",
+      snapshot: resultSnapshot(updated),
+      reason: correctionReason,
+      changedAt: correctedAt,
+    }).returning();
+    history.push(auditEntry);
+    return { kind: "corrected" as const, result: updated, history };
+  });
+
+  if (correction.kind === "missing") {
+    res.status(404).json({ error: "Contest result not found." });
+    return;
+  }
+  if (correction.kind === "not-cleared") {
+    res.status(409).json({ error: "Only an owner-cleared result can be corrected." });
+    return;
+  }
+  if (correction.kind === "conflict") {
+    res.status(409).json({ error: "This result changed in another session. Refresh before correcting it." });
+    return;
+  }
+
+  req.log.info({ resultId: correction.result.id }, "Owner corrected official contest result");
+  res.json(CorrectStudioContestResultResponse.parse({
+    ...encodeResult(correction.result),
+    history: correction.history.map(encodeHistory),
+  }));
 });
 
 router.post("/studio/contest-results/:id/email", async (req, res): Promise<void> => {

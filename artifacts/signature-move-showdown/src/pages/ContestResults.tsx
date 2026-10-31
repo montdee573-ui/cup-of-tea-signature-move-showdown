@@ -4,7 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "wouter";
 import {
-  ArrowLeft, BadgeCheck, CircleAlert, ClipboardCheck, LockKeyhole, Mail,
+  ArrowLeft, BadgeCheck, CircleAlert, ClipboardCheck, History, LockKeyhole, Mail,
   MailCheck, LogOut, Pencil, ShieldCheck, Trophy, X,
 } from "lucide-react";
 import {
@@ -13,6 +13,7 @@ import {
   useClearStudioContestResult,
   useCreateStudioContestResult,
   useCreateStudioSession,
+  useCorrectStudioContestResult,
   useDeleteStudioSession,
   useEmailStudioContestResult,
   useGetStudioSession,
@@ -64,7 +65,9 @@ function ResultRecord({
   onEmail,
   busy,
   emailBusy,
+  correctionBusy,
   canEmail,
+  onCorrect,
 }: {
   result: ContestResult;
   emailRecipient: string | null;
@@ -73,7 +76,9 @@ function ResultRecord({
   onEmail: (id: number) => void;
   busy: boolean;
   emailBusy: boolean;
+  correctionBusy: boolean;
   canEmail: boolean;
+  onCorrect: (result: ContestResult) => void;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [clearanceNote, setClearanceNote] = useState("");
@@ -102,6 +107,32 @@ function ResultRecord({
     </div>
     {isCleared ? <>
       <div className="result-clearance-note"><ShieldCheck size={15} /><p><strong>Owner clearance</strong>{result.clearanceNote}</p></div>
+      <section className="result-audit-history" aria-label="Official result change history" data-testid={`result-audit-history-${result.id}`}>
+        <header><History size={14} /><strong>Official change history</strong><span>{result.history.length} {result.history.length === 1 ? "entry" : "entries"}</span></header>
+        {result.history.length === 0 ? <p className="result-audit-empty">No changes recorded yet.</p> : <ol>
+          {result.history.map((entry) => <li key={entry.id}>
+            <div className="result-audit-entry-head">
+              <strong>{entry.changeType === "clearance" ? "Official result cleared" : "Official result corrected"}</strong>
+              <time dateTime={entry.changedAt}>{new Date(entry.changedAt).toLocaleString()}</time>
+            </div>
+            <p className="result-audit-reason"><b>Reason:</b> {entry.reason}</p>
+            <details className="result-audit-details">
+              <summary>Recorded result details</summary>
+              <dl>
+                <div><dt>Event / division</dt><dd>{entry.snapshot.eventTitle} · {entry.snapshot.division}</dd></div>
+                <div><dt>Winner</dt><dd>{entry.snapshot.winnerName}{entry.snapshot.winnerHandle ? ` (${entry.snapshot.winnerHandle})` : ""} · {entry.snapshot.winnerVotes} votes</dd></div>
+                <div><dt>Runner-up</dt><dd>{entry.snapshot.runnerUpName} · {entry.snapshot.runnerUpVotes} votes</dd></div>
+                <div><dt>C.O.R.E. score</dt><dd>{entry.snapshot.coreScore === null ? "Not recorded" : `${entry.snapshot.coreScore}/100`}</dd></div>
+                <div><dt>Cup of Tea / Base44 notes</dt><dd>{entry.snapshot.base44Summary}</dd></div>
+                <div><dt>Viral Reel / Replit notes</dt><dd>{entry.snapshot.viralReelSummary}</dd></div>
+              </dl>
+            </details>
+          </li>)}
+        </ol>}
+      </section>
+      <button type="button" className="result-edit-button result-correct-button" onClick={() => onCorrect(result)} disabled={correctionBusy} data-testid={`button-correct-result-${result.id}`}>
+        <Pencil size={13} /> {correctionBusy ? "Saving correction…" : "Correct official result"}
+      </button>
       <div className={`result-email-delivery is-${result.emailDeliveryStatus}`} data-testid={`email-delivery-${result.id}`} role="status">
         {["sent", "delivered"].includes(result.emailDeliveryStatus) ? <MailCheck size={15} /> : <Mail size={15} />}
         <p><strong>Email delivery: {result.emailDeliveryStatus === "not_sent" ? "not sent" : result.emailDeliveryStatus}</strong>
@@ -150,6 +181,7 @@ export default function ContestResults() {
   const deleteSession = useDeleteStudioSession();
   const createResult = useCreateStudioContestResult();
   const clearResult = useClearStudioContestResult();
+  const correctResult = useCorrectStudioContestResult();
   const emailResult = useEmailStudioContestResult();
   const updateResult = useUpdateStudioContestResult();
   const canEmail = Boolean(results.data?.emailRecipient && results.data.emailSenderConfigured);
@@ -158,6 +190,9 @@ export default function ContestResults() {
   const [resultError, setResultError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
+  const [correctingOfficialId, setCorrectingOfficialId] = useState<number | null>(null);
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [correctionConfirmed, setCorrectionConfirmed] = useState(false);
   const form = useForm<ResultFormValues>({
     resolver: zodResolver(resultSchema),
     defaultValues,
@@ -180,9 +215,19 @@ export default function ContestResults() {
     const onSuccess = () => {
       form.reset(defaultValues);
       setEditingDraftId(null);
+      setCorrectingOfficialId(null);
+      setCorrectionReason("");
+      setCorrectionConfirmed(false);
       void queryClient.invalidateQueries({ queryKey: getListStudioContestResultsQueryKey() });
     };
     const onError = (error: Error) => setResultError(error instanceof Error ? error.message : "Could not save this result draft.");
+    if (correctingOfficialId !== null) {
+      correctResult.mutate({
+        id: correctingOfficialId,
+        data: { ...values, confirm: true, correctionReason },
+      }, { onSuccess, onError });
+      return;
+    }
     if (editingDraftId !== null) {
       updateResult.mutate({ id: editingDraftId, data: values }, { onSuccess, onError });
       return;
@@ -195,7 +240,31 @@ export default function ContestResults() {
   const editDraft = (result: ContestResult) => {
     if (result.status !== "draft") return;
     setResultError("");
+    setCorrectingOfficialId(null);
+    setCorrectionReason("");
+    setCorrectionConfirmed(false);
     setEditingDraftId(result.id);
+    form.reset({
+      eventTitle: result.eventTitle,
+      division: result.division,
+      winnerName: result.winnerName,
+      winnerHandle: result.winnerHandle,
+      runnerUpName: result.runnerUpName,
+      winnerVotes: result.winnerVotes,
+      runnerUpVotes: result.runnerUpVotes,
+      coreScore: result.coreScore,
+      base44Summary: result.base44Summary,
+      viralReelSummary: result.viralReelSummary,
+    });
+    document.getElementById("result-entry-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const correctOfficialResult = (result: ContestResult) => {
+    if (result.status !== "cleared") return;
+    setResultError("");
+    setEditingDraftId(null);
+    setCorrectingOfficialId(result.id);
+    setCorrectionReason("");
+    setCorrectionConfirmed(false);
     form.reset({
       eventTitle: result.eventTitle,
       division: result.division,
@@ -212,7 +281,10 @@ export default function ContestResults() {
   };
   const cancelEdit = () => {
     setEditingDraftId(null);
+    setCorrectingOfficialId(null);
     setResultError("");
+    setCorrectionReason("");
+    setCorrectionConfirmed(false);
     form.reset(defaultValues);
   };
   const clearDraft = (id: number, clearanceNote: string) => {
@@ -269,7 +341,7 @@ export default function ContestResults() {
       </div>
       <div className="result-guardrail"><LockKeyhole size={17} /><p><strong>No live contest data is connected.</strong> Enter only verified results from both Cup of Tea/Base44 and Viral Reel/Replit. Drafts stay private; only an owner-cleared result can be emailed, and only after you press send. Email requires a configured recipient and sender with Resend connected.</p></div>
       <section className="result-entry-panel" id="result-entry-panel" aria-labelledby="result-entry-title">
-        <div className="review-queue-heading"><div><span className="launch-label">{editingDraftId === null ? "OWNER ENTERED · NEVER FABRICATED" : "CORRECT A PRIVATE DRAFT"}</span><h2 id="result-entry-title">{editingDraftId === null ? "Record a final" : "Edit result draft"}</h2></div></div>
+        <div className="review-queue-heading"><div><span className="launch-label">{correctingOfficialId !== null ? "PERMANENT AUDIT · OWNER ONLY" : editingDraftId === null ? "OWNER ENTERED · NEVER FABRICATED" : "CORRECT A PRIVATE DRAFT"}</span><h2 id="result-entry-title">{correctingOfficialId !== null ? "Correct official result" : editingDraftId === null ? "Record a final" : "Edit result draft"}</h2></div></div>
         <Form {...form}>
           <form className="result-form" onSubmit={saveDraft}>
             <div className="result-fields two-col">
@@ -288,8 +360,12 @@ export default function ContestResults() {
               <FormField control={form.control} name="base44Summary" render={({ field }) => <FormItem className="result-field"><FormLabel>Cup of Tea / Base44 result notes</FormLabel><FormControl><Textarea {...field} rows={4} maxLength={2000} placeholder="Record the completed bracket, vote totals, and final shown in Base44." data-testid="input-result-base44-notes" /></FormControl><FormMessage /></FormItem>} />
               <FormField control={form.control} name="viralReelSummary" render={({ field }) => <FormItem className="result-field"><FormLabel>Viral Reel / Replit result notes</FormLabel><FormControl><Textarea {...field} rows={4} maxLength={2000} placeholder="Record the matching verified entry and result information shown in Replit." data-testid="input-result-replit-notes" /></FormControl><FormMessage /></FormItem>} />
             </div>
+            {correctingOfficialId !== null && <>
+              <label className="result-clear-note">Reason for this correction<textarea value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} maxLength={500} placeholder="Explain what was incorrect and what was verified." data-testid="input-result-correction-reason" /></label>
+              <label className="result-confirm"><input type="checkbox" checked={correctionConfirmed} onChange={(event) => setCorrectionConfirmed(event.target.checked)} data-testid="checkbox-confirm-result-correction" /><span>I confirm this correction is based on verified results from both contest apps. The prior official record will remain in the history.</span></label>
+            </>}
             {resultError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{resultError}</span></div>}
-            <div className="result-form-actions"><p>{editingDraftId === null ? "Saving creates a private draft only. Ties cannot be cleared as a vote win." : "Edits stay private until you clear this result. Ties cannot be cleared as a vote win."}</p><div className="result-form-buttons">{editingDraftId !== null && <button className="result-cancel-edit" type="button" onClick={cancelEdit} disabled={updateResult.isPending}><X size={14} /> Cancel</button>}<button className="review-login-button" type="submit" disabled={createResult.isPending || updateResult.isPending} data-testid={editingDraftId === null ? "button-save-result-draft" : "button-update-result-draft"}>{createResult.isPending || updateResult.isPending ? "Saving draft…" : editingDraftId === null ? "Save private draft" : "Save draft changes"}</button></div></div>
+            <div className="result-form-actions"><p>{correctingOfficialId !== null ? "A correction replaces the current official details, but permanently keeps the earlier result, timestamp, and reason in the history." : editingDraftId === null ? "Saving creates a private draft only. Ties cannot be cleared as a vote win." : "Edits stay private until you clear this result. Ties cannot be cleared as a vote win."}</p><div className="result-form-buttons">{(editingDraftId !== null || correctingOfficialId !== null) && <button className="result-cancel-edit" type="button" onClick={cancelEdit} disabled={updateResult.isPending || correctResult.isPending}><X size={14} /> Cancel</button>}<button className="review-login-button" type="submit" disabled={createResult.isPending || updateResult.isPending || correctResult.isPending || (correctingOfficialId !== null && (!correctionReason.trim() || !correctionConfirmed))} data-testid={correctingOfficialId !== null ? "button-submit-result-correction" : editingDraftId === null ? "button-save-result-draft" : "button-update-result-draft"}>{correctResult.isPending ? "Saving correction…" : correctingOfficialId !== null ? "Append official correction" : createResult.isPending || updateResult.isPending ? "Saving draft…" : editingDraftId === null ? "Save private draft" : "Save draft changes"}</button></div></div>
           </form>
         </Form>
       </section>
@@ -307,7 +383,7 @@ export default function ContestResults() {
         {clearResult.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{clearResult.error instanceof Error ? clearResult.error.message : "Could not clear this result."}</span></div>}
         {emailError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{emailError}</span></div>}
         {results.isLoading ? <div className="showdown-loading" role="status">Loading private results…</div> : results.isError ? <div className="review-alert" role="alert"><CircleAlert size={16} /><span>Private results could not be loaded.</span><button type="button" onClick={() => void results.refetch()}>Retry</button></div> : !results.data?.results.length ? <div className="review-empty"><ClipboardCheck size={24} /><h2>No results recorded.</h2><p>There is no final outcome yet. Do not create a draft until both app results have been checked.</p></div> :
-          <div className="result-record-list">{results.data.results.map((result) => <ResultRecord key={result.id} result={result} emailRecipient={results.data.emailRecipient} onClear={clearDraft} onEdit={editDraft} onEmail={emailClearedResult} busy={clearResult.isPending && clearResult.variables?.id === result.id} emailBusy={emailResult.isPending && emailResult.variables?.id === result.id} canEmail={canEmail} />)}</div>}
+          <div className="result-record-list">{results.data.results.map((result) => <ResultRecord key={result.id} result={result} emailRecipient={results.data.emailRecipient} onClear={clearDraft} onEdit={editDraft} onEmail={emailClearedResult} onCorrect={correctOfficialResult} busy={clearResult.isPending && clearResult.variables?.id === result.id} emailBusy={emailResult.isPending && emailResult.variables?.id === result.id} correctionBusy={correctResult.isPending && correctResult.variables?.id === result.id} canEmail={canEmail} />)}</div>}
       </section>
     </section>}
   </main>;
