@@ -9,6 +9,6 @@ The physical champion prize was intended to be one single card, not a poker-card
 
 The Replit pilot stays separate from Base44 and uses the existing pairwise matchups. Its optional motion card is a temporary four-second in-app template, priced at $2 once and offered only after moderation approval. The user chose a private creator link without login; treat it as a bearer link, warn that anyone with it can access the card, and do not call it identity verification. It must not affect free entry, votes, matchups, standings, or official results. Do not claim Base44 card generation is connected until its callable function is verified.
 
-**Why:** the user selected Base44 as contest authority, chose one overall champion and a single physical card, then explicitly paused physical prize setup when Printful lacked a single-card product. They also chose a separate Replit pairwise pilot with an optional $2 motion card and private no-login link.
+**Why:** the user selected Base44 as contest authority, chose one overall champion and a single physical card, then explicitly paused physical prize setup when Printful lacked a single-card product. They reconfirmed the broader direction: free entry and voting, optional paid motion reels kept separate from contest outcomes, and merchandise as a later phase.
 
 **How to apply:** verify the official final result and obtain the winner-card export; keep the Replit pilot and its motion-card purchase outside official contest decisions.
