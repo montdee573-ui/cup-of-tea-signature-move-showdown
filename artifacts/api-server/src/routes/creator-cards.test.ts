@@ -102,11 +102,12 @@ function approvedPlan(overrides: Record<string, unknown> = {}) {
   };
 }
 
-type WhopCall = { path: string; method?: string };
+type WhopCall = { path: string; method?: string; idempotencyKey?: string };
 
 type WhopMockOptions = {
   beforeRefund?: () => Promise<void>;
   failRequest?: { method: string; pathSuffix: string; status: number };
+  timeoutAfterCheckoutCreated?: boolean;
   refundAmount?: number;
   failEmail?: boolean;
   throwEmail?: boolean;
@@ -115,12 +116,15 @@ type WhopMockOptions = {
 
 async function withWhop(
   plan: Record<string, unknown>,
-  run: (calls: WhopCall[]) => Promise<void>,
+  run: (calls: WhopCall[], getCheckoutCreationCount: () => number) => Promise<void>,
   beforeCheckout?: () => Promise<void>,
   paymentOverrides: Record<string, unknown> = {},
   mockOptions: WhopMockOptions = {},
 ): Promise<void> {
   const calls: WhopCall[] = [];
+  const checkoutSessions = new Map<string, { id: string; purchase_url: string }>();
+  let checkoutCreationCount = 0;
+  let timedOutAfterCheckoutCreation = false;
   sentEmails = [];
   let refundedAmount = 0;
   const originalProxy = ReplitConnectors.prototype.proxy;
@@ -133,9 +137,29 @@ async function withWhop(
         headers: { "Content-Type": "application/json" },
       });
     }
-    calls.push({ path, method: options?.method });
-    if (path.includes("/api/v1/checkout_configurations") && options?.method === "POST") {
+    const idempotencyKey = (options?.headers as Record<string, string> | undefined)?.["Idempotency-Key"];
+    calls.push({ path, method: options?.method, idempotencyKey });
+    const isCheckoutCreation = path === "/api/v1/checkout_configurations" && options?.method === "POST";
+    if (isCheckoutCreation) {
       await beforeCheckout?.();
+    }
+    let checkoutSession: { id: string; purchase_url: string } | undefined;
+    if (isCheckoutCreation) {
+      checkoutSession = idempotencyKey ? checkoutSessions.get(idempotencyKey) : undefined;
+      if (!checkoutSession) {
+        checkoutCreationCount += 1;
+        checkoutSession = {
+          id: checkoutCreationCount === 1 ? "checkout_test" : `checkout_test_${checkoutCreationCount}`,
+          purchase_url: checkoutCreationCount === 1
+            ? "https://whop.com/checkout/test"
+            : `https://whop.com/checkout/test-${checkoutCreationCount}`,
+        };
+        if (idempotencyKey) checkoutSessions.set(idempotencyKey, checkoutSession);
+      }
+      if (mockOptions.timeoutAfterCheckoutCreated && !timedOutAfterCheckoutCreation) {
+        timedOutAfterCheckoutCreation = true;
+        throw new Error("Whop response timed out after creating the checkout.");
+      }
     }
     const paymentPath = path.includes("/api/v1/payments/pay_test");
     const isRefundRequest = paymentPath && options?.method === "POST" && path.endsWith("/refund");
@@ -161,7 +185,7 @@ async function withWhop(
       : path.startsWith("/api/v1/checkout_configurations?")
         ? { data: mockOptions.checkoutConfigurations ?? [], page_info: { has_next_page: false } }
       : options?.method === "POST"
-        ? { id: "checkout_test", purchase_url: "https://whop.com/checkout/test" }
+        ? checkoutSession ?? { id: "checkout_test", purchase_url: "https://whop.com/checkout/test" }
         : plan;
     const failRequest = mockOptions.failRequest;
     const failed = Boolean(failRequest
@@ -173,7 +197,7 @@ async function withWhop(
     });
   };
   try {
-    await run(calls);
+    await run(calls, () => checkoutCreationCount);
   } finally {
     ReplitConnectors.prototype.proxy = originalProxy;
   }
@@ -440,6 +464,39 @@ test("overlapping checkouts create one Whop session and keep the winning order",
   assert.equal(order.priceUsd, PRICE_USD);
   assert.equal(order.checkoutConfigurationId, "checkout_test");
   assert.equal(order.checkoutUrl, "https://whop.com/checkout/test");
+});
+
+test("retry recovers a Whop checkout created before the response timed out", async () => {
+  resetTestState();
+
+  await withWhop(approvedPlan(), async (calls, getCheckoutCreationCount) => {
+    const timedOutResponse = await checkout();
+    assert.equal(timedOutResponse.status, 503);
+    assert.equal(creatorCardState().orders[0]?.status, "failed");
+    assert.equal(creatorCardState().orders[0]?.checkoutConfigurationId, null);
+
+    const retryResponse = await checkout();
+    assert.equal(retryResponse.status, 200);
+    assert.deepEqual(await retryResponse.json(), {
+      motionStatus: "checkout_pending",
+      checkoutUrl: "https://whop.com/checkout/test",
+      priceUsd: PRICE_USD,
+    });
+
+    const checkoutCalls = calls.filter((call) =>
+      call.path === "/api/v1/checkout_configurations" && call.method === "POST",
+    );
+    assert.equal(checkoutCalls.length, 2, "the retry must call Whop with the same idempotency key");
+    assert.equal(checkoutCalls[0].idempotencyKey, checkoutCalls[1].idempotencyKey);
+    assert.equal(getCheckoutCreationCount(), 1, "Whop must create only one hosted session");
+  }, undefined, {}, { timeoutAfterCheckoutCreated: true });
+
+  const [order] = creatorCardState().orders;
+  assert.equal(creatorCardState().orders.length, 1);
+  assert.equal(order.status, "pending");
+  assert.equal(order.checkoutConfigurationId, "checkout_test");
+  assert.equal(order.checkoutUrl, "https://whop.com/checkout/test");
+  assert.equal(order.priceUsd, PRICE_USD);
 });
 
 test("stale checkout reservations reconcile Whop before recovering the saved order", async () => {

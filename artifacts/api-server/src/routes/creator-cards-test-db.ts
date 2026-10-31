@@ -126,8 +126,8 @@ export const db: any = {
   }),
   update: (table: unknown) => ({
     set: (changes: Partial<MotionOrderRow>) => ({
-      where: () => ({
-        returning: async () => {
+      where: () => {
+        const applyUpdate = async () => {
           recordWrite(table);
           if (table !== creatorMotionOrdersTable) return [];
           const order = orders.find((candidate) => {
@@ -160,8 +160,13 @@ export const db: any = {
           if (!order) return [];
           Object.assign(order, changes);
           return [{ ...order }];
-        },
-      }),
+        };
+        return {
+          returning: applyUpdate,
+          then: (resolve: (value: MotionOrderRow[]) => unknown, reject: (reason: unknown) => unknown) =>
+            applyUpdate().then(resolve, reject),
+        };
+      },
     }),
   }),
 };
