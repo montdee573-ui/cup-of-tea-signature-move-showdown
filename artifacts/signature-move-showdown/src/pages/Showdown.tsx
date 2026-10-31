@@ -135,8 +135,8 @@ export default function Showdown() {
       <div className="showdown-promise"><ShieldCheck size={17} /><span>Merchandise purchases never affect eligibility, voting, rankings, or winners.</span></div>
       <aside className="showdown-prize-status" aria-label="Champion card prize status" data-testid="showdown-prize-status">
         <span className="launch-label"><Trophy size={13} /> PHYSICAL CHAMPION CARD · PAUSED</span>
-        <p>Physical prize setup is paused; no card is being awarded in this run. If resumed, the proposed prize is one printed card for the overall champion, with no purchase required. Base44's current rules do not define a cross-era final or physical prize, and Printful does not offer a single-card order. Replit pairwise matchups remain separate exhibitions.</p>
-        <small>The internal prize-terms draft is inactive and for owner and counsel review only. No artwork, mockup, order, or promotion is approved.</small>
+        <p>No prize is active or being offered. These free Replit pairwise matchups are community exhibitions and do not decide an official Cup of Tea champion or prize winner.</p>
+        <small>The internal rules draft is inactive and for qualified legal review only. No prize, artwork, mockup, order, or promotion is approved.</small>
         <div className="showdown-prize-links">
           <a href="https://tea-clash-cards.base44.app" target="_blank" rel="noopener noreferrer">Official Cup of Tea bracket <ArrowRight size={13} /></a>
           <a href="https://tea-clash-cards.base44.app/rules" target="_blank" rel="noopener noreferrer">Current contest rules <ArrowRight size={13} /></a>
