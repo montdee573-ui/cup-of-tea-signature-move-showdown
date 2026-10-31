@@ -439,6 +439,8 @@ paths:
       operationId: getMerchProductDetails
       tags: [merch]
       summary: Get catalog variants and print placements
+      security:
+        - studioOwnerCookie: []
       parameters:
         - name: id
           in: path
@@ -453,6 +455,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MerchProductDetails"
+        "400":
+          description: Catalog product ID is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Owner session required
           content:
@@ -477,6 +485,8 @@ paths:
       tags: [merch]
       summary: Generate a private mockup from artwork
       description: Creates only a temporary Printful mockup-generation task. Does not create a product, order, or checkout.
+      security:
+        - studioOwnerCookie: []
       parameters:
         - name: id
           in: path
@@ -526,6 +536,8 @@ paths:
       operationId: getMerchMockupTask
       tags: [merch]
       summary: Check a private mockup task
+      security:
+        - studioOwnerCookie: []
       parameters:
         - name: taskKey
           in: path
@@ -541,6 +553,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MerchMockupTask"
+        "400":
+          description: Task key is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Owner session required
           content:
@@ -984,6 +1002,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 components:
+  securitySchemes:
+    studioOwnerCookie:
+      type: apiKey
+      in: cookie
+      name: reel_studio_owner
   parameters:
     ContestantId:
       name: id
