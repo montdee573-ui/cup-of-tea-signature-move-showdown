@@ -619,8 +619,8 @@ test("Whop provider failures leave the refund in processing until it can be reco
     assert.deepEqual(calls.map((call) => call.method), ["GET"]);
 
     const creatorResponse = await creatorCardAccess();
-    assert.equal(creatorResponse.status, 200);
-    assert.equal((await creatorResponse.json() as { refundRequestStatus: string }).refundRequestStatus, "processing");
+    assert.equal(creatorResponse.status, 503);
+    assert.doesNotMatch(await creatorResponse.text(), /motionVideoUrl/);
   }, undefined, {}, {
     failRequest: { method: "GET", pathSuffix: "/payments/pay_test", status: 504 },
   });
@@ -762,16 +762,82 @@ test("private reel playback accepts a valid ticket and serves private byte range
   });
   resetCreatorMotionVideo(Buffer.from("0123456789"));
 
-  const response = await playCreatorMotionVideo(videoTicket(), "bytes=2-5");
-  assert.equal(response.status, 206);
-  assert.equal(await response.text(), "2345");
-  assert.equal(response.headers.get("accept-ranges"), "bytes");
-  assert.equal(response.headers.get("content-range"), "bytes 2-5/10");
-  assert.equal(response.headers.get("content-length"), "4");
-  assert.equal(response.headers.get("content-type"), "video/mp4");
-  assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
-  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
-  assert.deepEqual(creatorMotionVideoState().streamRanges, [{ start: 2, end: 5 }]);
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await playCreatorMotionVideo(videoTicket(), "bytes=2-5");
+    assert.equal(response.status, 206);
+    assert.equal(await response.text(), "2345");
+    assert.equal(response.headers.get("accept-ranges"), "bytes");
+    assert.equal(response.headers.get("content-range"), "bytes 2-5/10");
+    assert.equal(response.headers.get("content-length"), "4");
+    assert.equal(response.headers.get("content-type"), "video/mp4");
+    assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+    assert.deepEqual(creatorMotionVideoState().streamRanges, [{ start: 2, end: 5 }]);
+    assert.equal(calls.filter((call) => call.path.endsWith("/payments/pay_test")).length, 1);
+  });
+});
+
+test("refunded purchases cannot receive or use a creator-reel playback ticket", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    generationStatus: "succeeded",
+    generationObjectPath: `creator-motion/${submissionId}.mp4`,
+  });
+  resetCreatorMotionVideo(Buffer.from("private-video"));
+
+  await withWhop(approvedPlan(), async () => {
+    const response = await creatorCardAccess();
+    assert.equal(response.status, 200);
+    const payload = await response.json() as {
+      motionStatus: string;
+      motionVideoUrl: string | null;
+      offerAvailable: boolean;
+      priceUsd: number | null;
+    };
+    assert.equal(payload.motionStatus, "unavailable");
+    assert.equal(payload.motionVideoUrl, null);
+    assert.equal(payload.offerAvailable, false);
+    assert.equal(payload.priceUsd, null);
+  }, undefined, { status: "refunded", refunded_amount: PRICE_USD });
+
+  await withWhop(approvedPlan(), async () => {
+    const response = await playCreatorMotionVideo();
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+    assert.equal(creatorMotionVideoState().metadataReads, 0);
+    assert.deepEqual(creatorMotionVideoState().streamRanges, []);
+  }, undefined, { status: "refunded", refunded_amount: PRICE_USD });
+
+  await withWhop(approvedPlan(), async () => {
+    const response = await playCreatorMotionVideo();
+    assert.equal(response.status, 403);
+    assert.equal(creatorMotionVideoState().metadataReads, 0);
+    assert.deepEqual(creatorMotionVideoState().streamRanges, []);
+  }, undefined, { status: "paid", refunded_amount: 1 });
+});
+
+test("Whop verification failures block ticket issuance and stored video playback", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    generationStatus: "succeeded",
+    generationObjectPath: `creator-motion/${submissionId}.mp4`,
+  });
+  resetCreatorMotionVideo(Buffer.from("private-video"));
+  const failure = { method: "GET", pathSuffix: "/payments/pay_test", status: 504 };
+
+  await withWhop(approvedPlan(), async () => {
+    const response = await creatorCardAccess();
+    assert.equal(response.status, 503);
+    assert.doesNotMatch(await response.text(), /motionVideoUrl/);
+  }, undefined, {}, { failRequest: failure });
+
+  await withWhop(approvedPlan(), async () => {
+    const response = await playCreatorMotionVideo();
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+    assert.equal(creatorMotionVideoState().metadataReads, 0);
+    assert.deepEqual(creatorMotionVideoState().streamRanges, []);
+  }, undefined, {}, { failRequest: failure });
 });
 
 test("expired and malformed reel tickets never access stored videos", async () => {
@@ -822,9 +888,11 @@ test("a missing stored reel returns unavailable without opening a video stream",
   });
   resetCreatorMotionVideo(Buffer.from("private-video"), true);
 
-  const response = await playCreatorMotionVideo();
-  assert.equal(response.status, 404);
-  assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
-  assert.equal(creatorMotionVideoState().metadataReads, 1);
-  assert.deepEqual(creatorMotionVideoState().streamRanges, []);
+  await withWhop(approvedPlan(), async () => {
+    const response = await playCreatorMotionVideo();
+    assert.equal(response.status, 404);
+    assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+    assert.equal(creatorMotionVideoState().metadataReads, 1);
+    assert.deepEqual(creatorMotionVideoState().streamRanges, []);
+  });
 });

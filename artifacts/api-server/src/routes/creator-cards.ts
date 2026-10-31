@@ -236,6 +236,19 @@ async function readVerifiedStoredPayment(
   return payment;
 }
 
+async function readCurrentlyPaidStoredPayment(
+  order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
+  companyId: string,
+): Promise<WhopPayment | null> {
+  const payment = await readVerifiedStoredPayment(order, companyId);
+  if (
+    !payment
+    || payment.status !== "paid"
+    || Number(payment.refunded_amount ?? 0) !== 0
+  ) return null;
+  return payment;
+}
+
 type RefundNotificationStatus = "sent" | "failed" | "not_sent";
 
 async function notifyCreatorRefundResolution(
@@ -373,7 +386,21 @@ router.post("/creator-cards/:id/access", async (req, res): Promise<void> => {
       return;
     }
   }
+  let paymentCurrentlyPaid = false;
   if (row.status === "approved" && order?.status === "paid") {
+    if (!config) {
+      res.status(503).json({ error: "Payment status could not be verified. Please try again." });
+      return;
+    }
+    try {
+      paymentCurrentlyPaid = Boolean(await readCurrentlyPaidStoredPayment(order, config.companyId));
+    } catch (error) {
+      req.log.warn({ submissionId: row.id, providerStatus: (error as { status?: number }).status }, "Unable to verify creator-reel payment before access");
+      res.status(503).json({ error: "Payment status could not be verified. Please try again." });
+      return;
+    }
+  }
+  if (row.status === "approved" && order?.status === "paid" && paymentCurrentlyPaid) {
     if (order.generationStatus === "not_started") {
       await startCreatorMotionGeneration(row);
       order = await readOrder(row.id);
@@ -381,23 +408,26 @@ router.post("/creator-cards/:id/access", async (req, res): Promise<void> => {
       order = await refreshCreatorMotionGeneration(order);
     }
   }
-  if (order?.status === "paid") motionStatus = "paid";
+  if (order?.status === "paid" && paymentCurrentlyPaid) motionStatus = "paid";
+  else if (order?.status === "paid") motionStatus = "unavailable";
   else if (order?.status === "pending" || order?.status === "creating") motionStatus = "checkout_pending";
   else if (row.status === "approved" && offerAvailable) motionStatus = "not_purchased";
 
+  const purchaseOfferAvailable = offerAvailable && order?.status !== "paid";
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   res.json(GetCreatorCardAccessResponse.parse({
     submissionStatus: row.status,
     motionStatus,
-    offerAvailable,
-    priceUsd: offerAvailable ? offer.priceUsd : null,
+    offerAvailable: purchaseOfferAvailable,
+    priceUsd: purchaseOfferAvailable ? offer.priceUsd : null,
     generationStatus: order?.generationStatus ?? "not_started",
     generationError: order?.generationError ?? null,
-    motionVideoUrl: order?.generationStatus === "succeeded" ? creatorMotionVideoUrl(row.id) : null,
+    motionVideoUrl: paymentCurrentlyPaid && order?.generationStatus === "succeeded" ? creatorMotionVideoUrl(row.id) : null,
     refundRequestStatus: refundRequestStatus(order?.refundRequestStatus),
     refundRequestedAt: order?.refundRequestedAt ?? null,
     refundRequestAllowed: Boolean(
       order?.status === "paid"
+      && paymentCurrentlyPaid
       && order.generationStatus === "failed"
       && order.generationRetryCount >= 1
       && refundRequestStatus(order.refundRequestStatus) === "none",
@@ -913,6 +943,22 @@ router.get("/creator-cards/:id/motion/video", async (req, res): Promise<void> =>
     .where(eq(creatorMotionOrdersTable.submissionId, params.data.id));
   if (!order || order.status !== "paid" || order.generationStatus !== "succeeded" || !order.generationObjectPath) {
     res.status(404).json({ error: "The generated creator reel is not available." });
+    return;
+  }
+  const config = whopConfiguration();
+  if (!config) {
+    res.status(503).json({ error: "Payment status could not be verified. Please try again." });
+    return;
+  }
+  try {
+    const payment = await readCurrentlyPaidStoredPayment(order, config.companyId);
+    if (!payment) {
+      res.status(403).json({ error: "This private video is no longer available." });
+      return;
+    }
+  } catch (error) {
+    req.log.warn({ submissionId: params.data.id, providerStatus: (error as { status?: number }).status }, "Unable to verify creator-reel payment before playback");
+    res.status(503).json({ error: "Payment status could not be verified. Please try again." });
     return;
   }
   try {

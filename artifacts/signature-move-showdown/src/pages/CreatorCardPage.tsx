@@ -127,7 +127,7 @@ export default function CreatorCardPage() {
                 {checkoutMessage && <p className="creator-feedback" role="status">{checkoutMessage}</p>}
                 {checkout.isError && !checkoutMessage && <p className="creator-feedback" role="alert">{checkout.error instanceof Error ? checkout.error.message : "Checkout is temporarily unavailable."}</p>}
               </section> : <p className="creator-unavailable" role="status" data-testid="creator-reel-unavailable">
-                Optional creator-reel sales are not enabled. The owner must approve the payment provider and final price first. Your free entry and contest access are unchanged.
+                The optional creator reel is not available for this card right now. Your free entry and contest access are unchanged.
               </p>}
             </>}
 
