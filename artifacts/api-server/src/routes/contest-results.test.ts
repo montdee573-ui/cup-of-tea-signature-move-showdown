@@ -366,6 +366,63 @@ test("an owner can email a cleared result once and sees the saved delivery statu
   }
 });
 
+test("simultaneous email requests send once and return a conflict to the losing owner", async () => {
+  resetContestResultRows([{
+    status: "cleared",
+    clearanceNote: "Verified against both apps.",
+    clearedAt: new Date("2026-10-02T12:00:00.000Z"),
+  }]);
+  process.env.CONTEST_RESULTS_EMAIL_TO = "results@example.test";
+  process.env.CONTEST_RESULTS_EMAIL_FROM = "contest@example.test";
+  const originalProxy = ReplitConnectors.prototype.proxy;
+  let providerCalls = 0;
+  let releaseProvider!: () => void;
+  let signalProviderStarted!: () => void;
+  const providerGate = new Promise<void>((resolve) => {
+    releaseProvider = resolve;
+  });
+  const providerStarted = new Promise<void>((resolve) => {
+    signalProviderStarted = resolve;
+  });
+  ReplitConnectors.prototype.proxy = async function () {
+    providerCalls += 1;
+    signalProviderStarted();
+    await providerGate;
+    return new Response(JSON.stringify({ id: "email_concurrent_1" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  try {
+    const winningRequest = request("/studio/contest-results/1/email", {
+      method: "POST",
+      body: JSON.stringify({ confirm: true }),
+    }, true);
+    await providerStarted;
+
+    const losingResponse = await request("/studio/contest-results/1/email", {
+      method: "POST",
+      body: JSON.stringify({ confirm: true }),
+    }, true);
+    assert.equal(losingResponse.status, 409);
+    assert.match((await losingResponse.json() as { error: string }).error, /already being emailed|already been sent/);
+    assert.equal(providerCalls, 1);
+
+    releaseProvider();
+    const winningResponse = await winningRequest;
+    assert.equal(winningResponse.status, 200);
+    assert.equal((await winningResponse.json() as { emailDeliveryStatus: string }).emailDeliveryStatus, "sent");
+    assert.equal(providerCalls, 1);
+    assert.equal(getContestResultRowsForTest()[0].emailProviderId, "email_concurrent_1");
+  } finally {
+    releaseProvider();
+    ReplitConnectors.prototype.proxy = originalProxy;
+    delete process.env.CONTEST_RESULTS_EMAIL_TO;
+    delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+  }
+});
+
 function signedWebhookRequest(body: unknown, options: {
   eventId?: string;
   timestamp?: number;
