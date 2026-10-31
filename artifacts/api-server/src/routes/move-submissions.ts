@@ -3,7 +3,6 @@ import express, { Router, type IRouter, type Request, type Response, type NextFu
 import { and, desc, eq } from "drizzle-orm";
 import { db, moveSubmissionsTable } from "@workspace/db";
 import {
-  CreateMoveSubmissionHeader,
   CreateMoveSubmissionResponse,
   ListMoveSubmissionsForReviewResponse,
   GetMoveSubmissionVideoParams,
@@ -17,6 +16,11 @@ import {
   saveMoveSubmissionVideo,
 } from "../lib/studio-object-storage";
 import { isStudioOwner } from "./studio";
+import {
+  encodeMoveSubmissionForReview,
+  parseSubmissionMetadataHeader,
+  submissionFieldsFromMetadata,
+} from "../lib/move-submission-contract";
 
 const router: IRouter = Router();
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
@@ -25,53 +29,6 @@ const UPLOADS_PER_IP_PER_HOUR = 5;
 const acceptedContentTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const rateWindows = new Map<string, { count: number; resetAt: number }>();
 let activeUploads = 0;
-
-type SubmissionMetadata = {
-  sport: string;
-  category: string;
-  moveName: string;
-  displayName: string;
-  handle: string;
-  team?: string;
-  design: "holo" | "court";
-  merchProductId?: number | null;
-  consent: true;
-  videoFileName?: string;
-};
-
-function isSubmissionMetadata(value: unknown): value is SubmissionMetadata {
-  if (typeof value !== "object" || value === null) return false;
-  const input = value as Record<string, unknown>;
-  const textInRange = (field: unknown, min: number, max: number): field is string =>
-    typeof field === "string" && field.trim().length >= min && field.length <= max;
-
-  return textInRange(input.sport, 1, 50)
-    && ["Open", "Men's", "Women's", "Mixed"].includes(String(input.category))
-    && textInRange(input.moveName, 1, 60)
-    && textInRange(input.displayName, 1, 50)
-    && textInRange(input.handle, 1, 30)
-    && (input.team === undefined || textInRange(input.team, 0, 60))
-    && (input.design === "holo" || input.design === "court")
-    && (input.merchProductId === undefined || input.merchProductId === null
-      || (Number.isSafeInteger(input.merchProductId) && Number(input.merchProductId) >= 1))
-    && input.consent === true
-    && (input.videoFileName === undefined || textInRange(input.videoFileName, 1, 150));
-}
-
-function submissionInputFromHeader(req: Request): SubmissionMetadata | null {
-  const parsedHeader = CreateMoveSubmissionHeader.safeParse({
-    "X-Submission-Metadata": req.get("X-Submission-Metadata"),
-  });
-  if (!parsedHeader.success) return null;
-  try {
-    const parsed: unknown = JSON.parse(
-      Buffer.from(parsedHeader.data["X-Submission-Metadata"], "base64url").toString("utf8"),
-    );
-    return isSubmissionMetadata(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
 
 function submissionRateLimit(req: Request, res: Response, next: NextFunction): void {
   const now = Date.now();
@@ -131,30 +88,8 @@ function parseVideoBody(req: Request, res: Response, next: NextFunction): void {
   });
 }
 
-function encodeForReview(row: typeof moveSubmissionsTable.$inferSelect) {
-  return {
-    id: row.id,
-    sport: row.sport,
-    category: row.category,
-    moveName: row.moveName,
-    displayName: row.displayName,
-    handle: row.handle,
-    team: row.team,
-    merchProductId: row.merchProductId,
-    design: row.design as "holo" | "court",
-    videoFileName: row.videoFileName,
-    videoContentType: row.videoContentType,
-    videoSizeBytes: row.videoSizeBytes,
-    consentAt: row.consentAt,
-    status: row.status as "pending" | "approved" | "rejected",
-    createdAt: row.createdAt,
-    reviewedAt: row.reviewedAt,
-    videoUrl: `/api/studio/move-submissions/${row.id}/video`,
-  };
-}
-
 router.post("/move-submissions", submissionRateLimit, parseVideoBody, async (req, res): Promise<void> => {
-  const metadata = submissionInputFromHeader(req);
+  const metadata = parseSubmissionMetadataHeader(req.get("X-Submission-Metadata"));
   if (!metadata) {
     res.status(400).json({ error: "Submission details or consent are missing or invalid." });
     return;
@@ -190,14 +125,7 @@ router.post("/move-submissions", submissionRateLimit, parseVideoBody, async (req
     objectSaved = true;
     const [row] = await db.insert(moveSubmissionsTable).values({
       id,
-      sport: metadata.sport.trim(),
-      category: metadata.category,
-      moveName: metadata.moveName.trim(),
-      displayName: metadata.displayName.trim(),
-      handle: metadata.handle.trim(),
-      team: metadata.team?.trim() || null,
-      design: metadata.design,
-      merchProductId: metadata.merchProductId ?? null,
+      ...submissionFieldsFromMetadata(metadata),
       videoObjectPath: objectPath,
       videoFileName: filename,
       videoContentType: contentType,
@@ -235,7 +163,7 @@ router.get("/studio/move-submissions/review", async (req, res): Promise<void> =>
   const rows = await db.select().from(moveSubmissionsTable)
     .where(eq(moveSubmissionsTable.status, "pending"))
     .orderBy(desc(moveSubmissionsTable.createdAt));
-  res.json(ListMoveSubmissionsForReviewResponse.parse(rows.map(encodeForReview)));
+  res.json(ListMoveSubmissionsForReviewResponse.parse(rows.map(encodeMoveSubmissionForReview)));
 });
 
 router.patch("/studio/move-submissions/:id/review", async (req, res): Promise<void> => {
@@ -268,7 +196,7 @@ router.patch("/studio/move-submissions/:id/review", async (req, res): Promise<vo
     return;
   }
   req.log.info({ submissionId: row.id, status: row.status }, "Move submission moderation decision saved");
-  res.json(ReviewMoveSubmissionResponse.parse(encodeForReview(row)));
+  res.json(ReviewMoveSubmissionResponse.parse(encodeMoveSubmissionForReview(row)));
 });
 
 router.get("/studio/move-submissions/:id/video", async (req, res): Promise<void> => {

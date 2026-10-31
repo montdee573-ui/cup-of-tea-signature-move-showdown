@@ -7,24 +7,9 @@ import {
   ListCommunityCardsResponse,
 } from "@workspace/api-zod";
 import { moveSubmissionVideoFile } from "../lib/studio-object-storage";
+import { encodeCommunityCard } from "../lib/move-submission-contract";
 
 const router: IRouter = Router();
-
-function encodeCommunityCard(row: typeof moveSubmissionsTable.$inferSelect) {
-  return {
-    id: row.id,
-    displayName: row.displayName,
-    handle: row.handle,
-    sport: row.sport,
-    category: row.category,
-    moveName: row.moveName,
-    team: row.team,
-    merchProductId: row.merchProductId,
-    design: row.design as "holo" | "court",
-    createdAt: row.createdAt,
-    videoUrl: `/api/community-cards/${row.id}/video`,
-  };
-}
 
 router.get("/community-cards", async (req, res): Promise<void> => {
   const cards = await db
