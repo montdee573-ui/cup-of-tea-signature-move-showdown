@@ -128,6 +128,39 @@ test("an owner can clear a winning result once and records the note and timestam
   assert.match((await secondResponse.json() as { error: string }).error, /already been cleared/);
 });
 
+test("simultaneous clear requests produce one clearance using the winning request's details", async () => {
+  resetContestResultRows([{ winnerVotes: 10, runnerUpVotes: 5 }]);
+
+  const notes = ["First owner review.", "Second owner review."];
+  const responses = await Promise.all(notes.map((note) => clear(1, note)));
+  const successfulResponses = responses.filter((response) => response.status === 200);
+  const conflicts = responses.filter((response) => response.status === 409);
+
+  assert.equal(successfulResponses.length, 1);
+  assert.equal(conflicts.length, 1);
+  const successfulBody = await successfulResponses[0].json() as {
+    status: string;
+    clearanceNote: string | null;
+    clearedAt: string;
+  };
+  assert.equal(successfulBody.status, "cleared");
+  assert.ok(notes.includes(successfulBody.clearanceNote ?? ""));
+  assert.ok(Number.isFinite(Date.parse(successfulBody.clearedAt)));
+
+  const conflictBody = await conflicts[0].json() as { error: string };
+  assert.match(conflictBody.error, /already been cleared|another session/);
+
+  const results = await request("/studio/contest-results", {}, true);
+  const [stored] = await results.json() as Array<{
+    status: string;
+    clearanceNote: string | null;
+    clearedAt: string | null;
+  }>;
+  assert.equal(stored.status, "cleared");
+  assert.equal(stored.clearanceNote, successfulBody.clearanceNote);
+  assert.equal(stored.clearedAt, successfulBody.clearedAt);
+});
+
 test("a draft cannot be emailed, even when the owner confirms", async () => {
   resetContestResultRows([{ status: "draft" }]);
 
