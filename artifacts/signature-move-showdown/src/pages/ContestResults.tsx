@@ -60,6 +60,7 @@ const defaultValues: ResultFormValues = {
 function ResultRecord({
   result,
   emailRecipient,
+  ownerNotificationConfigured,
   onClear,
   onEdit,
   onEmail,
@@ -71,6 +72,7 @@ function ResultRecord({
 }: {
   result: ContestResult;
   emailRecipient: string | null;
+  ownerNotificationConfigured: boolean;
   onClear: (id: number, clearanceNote: string) => void;
   onEdit: (result: ContestResult) => void;
   onEmail: (id: number) => void;
@@ -138,8 +140,8 @@ function ResultRecord({
         <p><strong>Email delivery: {result.emailDeliveryStatus === "not_sent" ? "not sent" : result.emailDeliveryStatus}</strong>
           {result.emailSentAt && <span>Accepted by the email service {new Date(result.emailSentAt).toLocaleString()}.</span>}
           {result.emailDeliveryStatus === "delivered" && <span>Resend confirmed delivery to the recipient.</span>}
-          {result.emailDeliveryStatus === "bounced" && <span>Resend reported that delivery failed.</span>}
-          {result.emailDeliveryStatus === "complained" && <span>The recipient marked the email as spam.</span>}
+          {result.emailDeliveryStatus === "bounced" && <span>Resend reported that delivery failed. {ownerNotificationConfigured ? "Owner alerts are enabled." : "Owner alerts are not configured."}</span>}
+          {result.emailDeliveryStatus === "complained" && <span>The recipient marked the email as spam. {ownerNotificationConfigured ? "Owner alerts are enabled." : "Owner alerts are not configured."}</span>}
           {emailRecipient && <span>Final email destination: {emailRecipient}</span>}
           {result.emailDeliveryError && <span>{result.emailDeliveryError}</span>}
         </p>
@@ -380,10 +382,18 @@ export default function ContestResults() {
             {results.data.emailRecipient && !results.data.emailSenderConfigured && <span>The sender address is not configured. Sending is disabled; no email has been attempted.</span>}
           </p>
         </div>}
+        {results.data && <div className={`result-email-delivery ${results.data.ownerNotificationConfigured ? "is-configured" : "is-config-missing"}`} data-testid="owner-alert-destination" role="status">
+          <Mail size={15} />
+          <p><strong>Owner bounce and complaint alerts</strong>
+            {results.data.ownerNotificationConfigured
+              ? <span>Configured. A notification is sent when a new bounce or complaint is verified.</span>
+              : <span>Not configured. Set CONTEST_RESULTS_OWNER_EMAIL and CONTEST_RESULTS_EMAIL_FROM to receive alerts.</span>}
+          </p>
+        </div>}
         {clearResult.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{clearResult.error instanceof Error ? clearResult.error.message : "Could not clear this result."}</span></div>}
         {emailError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{emailError}</span></div>}
         {results.isLoading ? <div className="showdown-loading" role="status">Loading private results…</div> : results.isError ? <div className="review-alert" role="alert"><CircleAlert size={16} /><span>Private results could not be loaded.</span><button type="button" onClick={() => void results.refetch()}>Retry</button></div> : !results.data?.results.length ? <div className="review-empty"><ClipboardCheck size={24} /><h2>No results recorded.</h2><p>There is no final outcome yet. Do not create a draft until both app results have been checked.</p></div> :
-          <div className="result-record-list">{results.data.results.map((result) => <ResultRecord key={result.id} result={result} emailRecipient={results.data.emailRecipient} onClear={clearDraft} onEdit={editDraft} onEmail={emailClearedResult} onCorrect={correctOfficialResult} busy={clearResult.isPending && clearResult.variables?.id === result.id} emailBusy={emailResult.isPending && emailResult.variables?.id === result.id} correctionBusy={correctResult.isPending && correctResult.variables?.id === result.id} canEmail={canEmail} />)}</div>}
+           <div className="result-record-list">{results.data.results.map((result) => <ResultRecord key={result.id} result={result} emailRecipient={results.data.emailRecipient} ownerNotificationConfigured={results.data.ownerNotificationConfigured} onClear={clearDraft} onEdit={editDraft} onEmail={emailClearedResult} onCorrect={correctOfficialResult} busy={clearResult.isPending && clearResult.variables?.id === result.id} emailBusy={emailResult.isPending && emailResult.variables?.id === result.id} correctionBusy={correctResult.isPending && correctResult.variables?.id === result.id} canEmail={canEmail} />)}</div>}
       </section>
     </section>}
   </main>;

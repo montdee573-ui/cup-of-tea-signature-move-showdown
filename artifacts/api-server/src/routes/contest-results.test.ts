@@ -166,6 +166,7 @@ test("only the authenticated owner receives the configured email destination", a
   resetContestResultRows();
   process.env.CONTEST_RESULTS_EMAIL_TO = "results@example.test";
   process.env.CONTEST_RESULTS_EMAIL_FROM = "contest@example.test";
+  process.env.CONTEST_RESULTS_OWNER_EMAIL = "owner@example.test";
   try {
     const unauthorized = await request("/studio/contest-results");
     assert.equal(unauthorized.status, 401);
@@ -175,14 +176,17 @@ test("only the authenticated owner receives the configured email destination", a
     const body = await response.json() as {
       emailRecipient: string | null;
       emailSenderConfigured: boolean;
+      ownerNotificationConfigured: boolean;
       results: unknown[];
     };
     assert.equal(body.emailRecipient, "results@example.test");
     assert.equal(body.emailSenderConfigured, true);
+    assert.equal(body.ownerNotificationConfigured, true);
     assert.deepEqual(body.results, []);
   } finally {
     delete process.env.CONTEST_RESULTS_EMAIL_TO;
     delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+    delete process.env.CONTEST_RESULTS_OWNER_EMAIL;
   }
 });
 
@@ -693,6 +697,14 @@ test("verified Resend events update owner-visible delivery status and ignore old
   }]);
   const testSecret = `whsec_${Buffer.from("test webhook signing secret with enough bytes").toString("base64")}`;
   process.env.RESEND_WEBHOOK_SECRET = testSecret;
+  process.env.CONTEST_RESULTS_EMAIL_FROM = "contest@example.test";
+  process.env.CONTEST_RESULTS_OWNER_EMAIL = "owner@example.test";
+  const originalProxy = ReplitConnectors.prototype.proxy;
+  const alertRequests: Array<{ options?: { headers?: Record<string, string>; body?: unknown } }> = [];
+  ReplitConnectors.prototype.proxy = async function (_connectorName, _path, options) {
+    alertRequests.push({ options });
+    return new Response(JSON.stringify({ id: "owner_alert_1" }), { status: 200 });
+  };
   try {
     const delivered = { type: "email.delivered", created_at: "2026-10-31T12:00:01.000Z", data: { email_id: "email_tracking_1" } };
     const deliveredResponse = await signedWebhookRequest(delivered, { eventId: "evt_delivered" });
@@ -704,10 +716,17 @@ test("verified Resend events update owner-visible delivery status and ignore old
     const newer = { type: "email.bounced", created_at: "2026-10-31T12:00:02.000Z", data: { email_id: "email_tracking_1" } };
     const newerResponse = await signedWebhookRequest(newer, { eventId: "evt_newer" });
     assert.equal(newerResponse.status, 204);
+    assert.equal(alertRequests.length, 1);
+    const bounceAlert = alertRequests[0].options?.body as { to: string; subject: string; text: string };
+    assert.equal(bounceAlert.to, "owner@example.test");
+    assert.match(bounceAlert.subject, /bounced/);
+    assert.match(bounceAlert.text, /Test event \(Open\).*bounced/);
+    assert.match(alertRequests[0].options?.headers?.["Idempotency-Key"] ?? "", /^contest-result-alert-1-[a-f0-9]{64}$/);
 
     const older = { type: "email.delivered", created_at: "2026-10-31T12:00:01.000Z", data: { email_id: "email_tracking_1" } };
     const olderResponse = await signedWebhookRequest(older, { eventId: "evt_older" });
     assert.equal(olderResponse.status, 204);
+    assert.equal(alertRequests.length, 1);
 
     const results = await request("/studio/contest-results", {}, true);
     const [ownerVisible] = (await results.json() as { results: Array<{ emailDeliveryStatus: string }> }).results;
@@ -718,6 +737,13 @@ test("verified Resend events update owner-visible delivery status and ignore old
     const complained = { type: "email.complained", created_at: "2026-10-31T12:00:03.000Z", data: { email_id: "email_tracking_1" } };
     const complainedResponse = await signedWebhookRequest(complained, { eventId: "evt_complained" });
     assert.equal(complainedResponse.status, 204);
+    assert.equal(alertRequests.length, 2);
+    const complaintAlert = alertRequests[1].options?.body as { to: string; subject: string };
+    assert.equal(complaintAlert.to, "owner@example.test");
+    assert.match(complaintAlert.subject, /complained/);
+    const duplicateComplaint = await signedWebhookRequest(complained, { eventId: "evt_complained" });
+    assert.equal(duplicateComplaint.status, 204);
+    assert.equal(alertRequests.length, 2);
     const finalResults = await request("/studio/contest-results", {}, true);
     const [finalOwnerView] = (await finalResults.json() as { results: Array<{ emailDeliveryStatus: string }> }).results;
     const finalStored = getContestResultRowsForTest()[0];
@@ -725,7 +751,57 @@ test("verified Resend events update owner-visible delivery status and ignore old
     assert.equal(finalStored.emailLastWebhookEventId, "evt_complained");
     assert.equal(finalStored.emailLastWebhookAt?.toISOString(), "2026-10-31T12:00:03.000Z");
   } finally {
+    ReplitConnectors.prototype.proxy = originalProxy;
     delete process.env.RESEND_WEBHOOK_SECRET;
+    delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+    delete process.env.CONTEST_RESULTS_OWNER_EMAIL;
+  }
+});
+
+test("owner notification failures do not expose provider payloads or fail webhook delivery", async () => {
+  resetContestResultRows([{
+    status: "cleared",
+    emailDeliveryStatus: "sent",
+    emailProviderId: "email_tracking_1",
+  }]);
+  const testSecret = `whsec_${Buffer.from("test webhook signing secret with enough bytes").toString("base64")}`;
+  process.env.RESEND_WEBHOOK_SECRET = testSecret;
+  process.env.CONTEST_RESULTS_EMAIL_FROM = "contest@example.test";
+  process.env.CONTEST_RESULTS_OWNER_EMAIL = "owner@example.test";
+  const originalProxy = ReplitConnectors.prototype.proxy;
+  let providerCalls = 0;
+  ReplitConnectors.prototype.proxy = async function () {
+    providerCalls += 1;
+    if (providerCalls === 1) {
+      return new Response("private provider rejection payload", { status: 503 });
+    }
+    throw new Error("private provider exception payload");
+  };
+  try {
+    const bounced = await signedWebhookRequest({
+      type: "email.bounced",
+      created_at: "2026-10-31T12:00:02.000Z",
+      data: { email_id: "email_tracking_1" },
+    }, { eventId: "evt_failed_alert" });
+    assert.equal(bounced.status, 204);
+    assert.equal(await bounced.text(), "");
+    assert.equal(getContestResultRowsForTest()[0].emailDeliveryStatus, "bounced");
+
+    const complained = await signedWebhookRequest({
+      type: "email.complained",
+      created_at: "2026-10-31T12:00:03.000Z",
+      data: { email_id: "email_tracking_1" },
+    }, { eventId: "evt_thrown_alert" });
+    assert.equal(complained.status, 204);
+    const body = await complained.text();
+    assert.doesNotMatch(body, /private provider/);
+    assert.equal(providerCalls, 2);
+    assert.equal(getContestResultRowsForTest()[0].emailDeliveryStatus, "complained");
+  } finally {
+    ReplitConnectors.prototype.proxy = originalProxy;
+    delete process.env.RESEND_WEBHOOK_SECRET;
+    delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+    delete process.env.CONTEST_RESULTS_OWNER_EMAIL;
   }
 });
 

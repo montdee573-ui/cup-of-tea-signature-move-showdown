@@ -1957,6 +1957,9 @@ components:
         emailSenderConfigured:
           type: boolean
           description: Whether an email sender is configured.
+        ownerNotificationConfigured:
+          type: boolean
+          description: Whether an owner email destination is configured for bounce and complaint alerts.
         results:
           type: array
           items:
@@ -1964,6 +1967,7 @@ components:
       required:
         - emailRecipient
         - emailSenderConfigured
+        - ownerNotificationConfigured
         - results
     ResendEmailWebhookEvent:
       type: object

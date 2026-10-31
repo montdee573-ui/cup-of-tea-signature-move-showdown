@@ -404,6 +404,8 @@ export interface StudioContestResults {
   emailRecipient: string | null;
   /** Whether an email sender is configured. */
   emailSenderConfigured: boolean;
+  /** Whether an owner email destination is configured for bounce and complaint alerts. */
+  ownerNotificationConfigured: boolean;
   results: ContestResult[];
 }
 

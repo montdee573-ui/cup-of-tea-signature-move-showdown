@@ -70,9 +70,13 @@ router.get("/studio/contest-results", async (req, res): Promise<void> => {
   }));
   const emailRecipient = process.env.CONTEST_RESULTS_EMAIL_TO?.trim() || null;
   const emailSenderConfigured = Boolean(process.env.CONTEST_RESULTS_EMAIL_FROM?.trim());
+  const ownerNotificationConfigured = Boolean(
+    process.env.CONTEST_RESULTS_OWNER_EMAIL?.trim() && process.env.CONTEST_RESULTS_EMAIL_FROM?.trim(),
+  );
   res.json(ListStudioContestResultsResponse.parse({
     emailRecipient,
     emailSenderConfigured,
+    ownerNotificationConfigured,
     results: rows.map((row) => {
       const history = historyByResult.get(row.id) ?? [];
       // Retain a useful view of records cleared before the audit table existed.

@@ -1,7 +1,8 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { Router, type IRouter, type Request } from "express";
 import { db, contestResultsTable } from "@workspace/db";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const router: IRouter = Router();
 const MAX_SIGNATURE_AGE_SECONDS = 5 * 60;
@@ -99,7 +100,7 @@ router.post("/webhooks/resend", async (req, res): Promise<void> => {
     return;
   }
 
-  await db.update(contestResultsTable).set({
+  const [updated] = await db.update(contestResultsTable).set({
     emailDeliveryStatus: event.status,
     emailLastWebhookEventId: webhookEventId,
     emailLastWebhookAt: event.eventAt,
@@ -111,6 +112,43 @@ router.post("/webhooks/resend", async (req, res): Promise<void> => {
       lt(contestResultsTable.emailLastWebhookAt, event.eventAt),
     ),
   )).returning();
+
+  if (updated && (event.status === "bounced" || event.status === "complained")) {
+    const ownerEmail = process.env.CONTEST_RESULTS_OWNER_EMAIL?.trim();
+    const sender = process.env.CONTEST_RESULTS_EMAIL_FROM?.trim();
+    if (!ownerEmail || !sender) {
+      req.log.warn(
+        { resultId: updated.id },
+        "Owner delivery alert skipped because its sender or destination is not configured",
+      );
+    } else {
+      const idempotencySuffix = createHash("sha256").update(webhookEventId).digest("hex");
+      try {
+        const response = await new ReplitConnectors().proxy("resend", "/emails", {
+          method: "POST",
+          headers: { "Idempotency-Key": `contest-result-alert-${updated.id}-${idempotencySuffix}` },
+          body: {
+            from: sender,
+            to: ownerEmail,
+            subject: `Contest result email ${event.status}: ${updated.eventTitle}`,
+            text: [
+              `Resend reported that the official result email for ${updated.eventTitle} (${updated.division}) was ${event.status}.`,
+              `Event time: ${event.eventAt.toISOString()}`,
+              "Review delivery status in the contest results desk.",
+            ].join("\n"),
+          },
+        });
+        if (!response.ok) {
+          req.log.warn(
+            { resultId: updated.id, statusCode: response.status },
+            "Owner delivery alert was rejected by the email service",
+          );
+        }
+      } catch {
+        req.log.warn({ resultId: updated.id }, "Owner delivery alert could not be sent");
+      }
+    }
+  }
 
   res.status(204).end();
 });

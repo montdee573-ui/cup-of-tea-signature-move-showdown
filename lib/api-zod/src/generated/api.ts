@@ -345,6 +345,7 @@ export const VoteOnShowdownResponse = zod.object({
 export const ListStudioContestResultsResponse = zod.object({
   "emailRecipient": zod.string().nullable().describe('Configured email destination for owner-cleared results; null when not configured.'),
   "emailSenderConfigured": zod.boolean().describe('Whether an email sender is configured.'),
+  "ownerNotificationConfigured": zod.boolean().describe('Whether an owner email destination is configured for bounce and complaint alerts.'),
   "results": zod.array(zod.object({
   "id": zod.number().int(),
   "eventTitle": zod.string(),
