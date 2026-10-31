@@ -30,6 +30,7 @@ import type {
   CreateStudioReelInput,
   CreatorCardAccessInput,
   CreatorCardAccessResponse,
+  CreatorMotionCheckoutInput,
   CreatorMotionCheckoutResponse,
   ErrorResponse,
   HealthStatus,
@@ -2355,7 +2356,7 @@ export const getGetCreatorCardAccessUrl = (id: string,) => {
 }
 
 /**
- * @summary Load a private creator card and verify its motion-card purchase
+ * @summary Load a private creator card and verify its generated-reel purchase
  */
 export const getCreatorCardAccess = async (id: string,
     creatorCardAccessInput: CreatorCardAccessInput, options?: Parameters<typeof customFetch>[1]): Promise<CreatorCardAccessResponse> => {
@@ -2422,7 +2423,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type GetCreatorCardAccessMutationVariables = {id: string;data: BodyType<CreatorCardAccessInput>}
 
     /**
- * @summary Load a private creator card and verify its motion-card purchase
+ * @summary Load a private creator card and verify its generated-reel purchase
  */
 export const useGetCreatorCardAccess = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getCreatorCardAccess>>, TError,GetCreatorCardAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -2444,10 +2445,10 @@ export const getCreateCreatorMotionCardCheckoutUrl = (id: string,) => {
 }
 
 /**
- * @summary Create a hosted checkout for an optional motion card
+ * @summary Create a hosted checkout for an optional generated creator reel
  */
 export const createCreatorMotionCardCheckout = async (id: string,
-    creatorCardAccessInput: CreatorCardAccessInput, options?: Parameters<typeof customFetch>[1]): Promise<CreatorMotionCheckoutResponse> => {
+    creatorMotionCheckoutInput: CreatorMotionCheckoutInput, options?: Parameters<typeof customFetch>[1]): Promise<CreatorMotionCheckoutResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -2468,7 +2469,7 @@ return customFetch<CreatorMotionCheckoutResponse>(getCreateCreatorMotionCardChec
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(creatorCardAccessInput)
+    body: JSON.stringify(creatorMotionCheckoutInput)
   }
 );}
 
@@ -2506,12 +2507,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateCreatorMotionCardCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createCreatorMotionCardCheckout>>>
-    export type CreateCreatorMotionCardCheckoutMutationBody = BodyType<CreatorCardAccessInput>
+    export type CreateCreatorMotionCardCheckoutMutationBody = BodyType<CreatorMotionCheckoutInput>
     export type CreateCreatorMotionCardCheckoutMutationError = ErrorType<ErrorResponse>
-    export type CreateCreatorMotionCardCheckoutMutationVariables = {id: string;data: BodyType<CreatorCardAccessInput>}
+    export type CreateCreatorMotionCardCheckoutMutationVariables = {id: string;data: BodyType<CreatorMotionCheckoutInput>}
 
     /**
- * @summary Create a hosted checkout for an optional motion card
+ * @summary Create a hosted checkout for an optional generated creator reel
  */
 export const useCreateCreatorMotionCardCheckout = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCreatorMotionCardCheckout>>, TError,CreateCreatorMotionCardCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -2522,6 +2523,95 @@ export const useCreateCreatorMotionCardCheckout = <TError = ErrorType<ErrorRespo
         TContext
       > => {
       return useMutation(getCreateCreatorMotionCardCheckoutMutationOptions(options));
+    }
+
+export const getRetryCreatorMotionGenerationUrl = (id: string,) => {
+
+
+
+
+  return `/api/creator-cards/${id}/motion/retry`
+}
+
+/**
+ * @summary Retry a failed generated reel without creating another payment
+ */
+export const retryCreatorMotionGeneration = async (id: string,
+    creatorCardAccessInput: CreatorCardAccessInput, options?: Parameters<typeof customFetch>[1]): Promise<CreatorCardAccessResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CreatorCardAccessResponse>(getRetryCreatorMotionGenerationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(creatorCardAccessInput)
+  }
+);}
+
+
+
+
+
+export const getRetryCreatorMotionGenerationMutationKey = () => ['retryCreatorMotionGeneration'] as const;
+
+export const getRetryCreatorMotionGenerationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryCreatorMotionGeneration>>, TError,RetryCreatorMotionGenerationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryCreatorMotionGeneration>>, TError,RetryCreatorMotionGenerationMutationVariables, TContext> => {
+
+const mutationKey = getRetryCreatorMotionGenerationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryCreatorMotionGeneration>>, RetryCreatorMotionGenerationMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  retryCreatorMotionGeneration(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryCreatorMotionGenerationMutationResult = NonNullable<Awaited<ReturnType<typeof retryCreatorMotionGeneration>>>
+    export type RetryCreatorMotionGenerationMutationBody = BodyType<CreatorCardAccessInput>
+    export type RetryCreatorMotionGenerationMutationError = ErrorType<ErrorResponse>
+    export type RetryCreatorMotionGenerationMutationVariables = {id: string;data: BodyType<CreatorCardAccessInput>}
+
+    /**
+ * @summary Retry a failed generated reel without creating another payment
+ */
+export const useRetryCreatorMotionGeneration = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryCreatorMotionGeneration>>, TError,RetryCreatorMotionGenerationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryCreatorMotionGeneration>>,
+        TError,
+        RetryCreatorMotionGenerationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryCreatorMotionGenerationMutationOptions(options));
     }
 
 export const getListMoveSubmissionsForReviewUrl = () => {

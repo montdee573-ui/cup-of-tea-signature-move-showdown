@@ -737,7 +737,7 @@ paths:
     post:
       operationId: getCreatorCardAccess
       tags: [submissions]
-      summary: Load a private creator card and verify its motion-card purchase
+      summary: Load a private creator card and verify its generated-reel purchase
       parameters:
         - name: id
           in: path
@@ -786,7 +786,7 @@ paths:
     post:
       operationId: createCreatorMotionCardCheckout
       tags: [submissions]
-      summary: Create a hosted checkout for an optional motion card
+      summary: Create a hosted checkout for an optional generated creator reel
       parameters:
         - name: id
           in: path
@@ -799,7 +799,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreatorCardAccessInput"
+              $ref: "#/components/schemas/CreatorMotionCheckoutInput"
       responses:
         "200":
           description: Existing verified purchase or hosted checkout link
@@ -833,6 +833,49 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: Too many checkout requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /creator-cards/{id}/motion/retry:
+    post:
+      operationId: retryCreatorMotionGeneration
+      tags: [submissions]
+      summary: Retry a failed generated reel without creating another payment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatorCardAccessInput"
+      responses:
+        "200":
+          description: Current generation state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorCardAccessResponse"
+        "403":
+          description: Creator link is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Generation is not eligible for retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Submission not found
           content:
             application/json:
               schema:
@@ -1668,11 +1711,22 @@ components:
         motionStatus:
           type: string
           enum: [unavailable, not_purchased, checkout_pending, paid]
+        offerAvailable:
+          type: boolean
+        priceUsd:
+          type: ["number", "null"]
+        generationStatus:
+          type: string
+          enum: [not_started, starting, processing, succeeded, failed]
+        generationError:
+          type: ["string", "null"]
+        motionVideoUrl:
+          type: ["string", "null"]
         card:
           oneOf:
             - $ref: "#/components/schemas/CreatorCard"
             - type: "null"
-      required: [submissionStatus, motionStatus, card]
+      required: [submissionStatus, motionStatus, offerAvailable, priceUsd, generationStatus, generationError, motionVideoUrl, card]
     CreatorCard:
       type: object
       properties:
@@ -1702,7 +1756,23 @@ components:
         checkoutUrl:
           type: ["string", "null"]
           format: uri
-      required: [motionStatus, checkoutUrl]
+        priceUsd:
+          type: number
+      required: [motionStatus, checkoutUrl, priceUsd]
+    CreatorMotionCheckoutInput:
+      type: object
+      properties:
+        creatorToken:
+          type: string
+          minLength: 43
+          maxLength: 128
+        approvedPriceUsd:
+          type: number
+          minimum: 0.01
+        confirmPurchase:
+          type: boolean
+          enum: [true]
+      required: [creatorToken, approvedPriceUsd, confirmPurchase]
     MoveSubmissionReviewInput:
       type: object
       properties:

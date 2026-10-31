@@ -1,4 +1,4 @@
-import { index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { doublePrecision, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { moveSubmissionsTable } from "./move-submissions";
 
 export const creatorMotionOrdersTable = pgTable("creator_motion_orders", {
@@ -10,6 +10,12 @@ export const creatorMotionOrdersTable = pgTable("creator_motion_orders", {
   checkoutUrl: text("checkout_url"),
   paymentId: text("payment_id"),
   status: text("status").notNull().default("creating"),
+  priceUsd: doublePrecision("price_usd"),
+  generationStatus: text("generation_status").notNull().default("not_started"),
+  generationPredictionId: text("generation_prediction_id"),
+  generationObjectPath: text("generation_object_path"),
+  generationError: text("generation_error"),
+  generationStartedAt: timestamp("generation_started_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   paidAt: timestamp("paid_at", { withTimezone: true }),
 }, (table) => [

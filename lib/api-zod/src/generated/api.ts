@@ -699,7 +699,7 @@ export const CreateMoveSubmissionResponse = zod.object({
 
 
 /**
- * @summary Load a private creator card and verify its motion-card purchase
+ * @summary Load a private creator card and verify its generated-reel purchase
  */
 export const GetCreatorCardAccessParams = zod.object({
   "id": zod.coerce.string().uuid()
@@ -717,6 +717,11 @@ export const GetCreatorCardAccessBody = zod.object({
 export const GetCreatorCardAccessResponse = zod.object({
   "submissionStatus": zod.enum(['pending', 'approved', 'rejected']),
   "motionStatus": zod.enum(['unavailable', 'not_purchased', 'checkout_pending', 'paid']),
+  "offerAvailable": zod.boolean(),
+  "priceUsd": zod.number().nullable(),
+  "generationStatus": zod.enum(['not_started', 'starting', 'processing', 'succeeded', 'failed']),
+  "generationError": zod.string().nullable(),
+  "motionVideoUrl": zod.string().nullable(),
   "card": zod.union([zod.object({
   "id": zod.string().uuid(),
   "displayName": zod.string(),
@@ -730,7 +735,7 @@ export const GetCreatorCardAccessResponse = zod.object({
 
 
 /**
- * @summary Create a hosted checkout for an optional motion card
+ * @summary Create a hosted checkout for an optional generated creator reel
  */
 export const CreateCreatorMotionCardCheckoutParams = zod.object({
   "id": zod.coerce.string().uuid()
@@ -739,15 +744,56 @@ export const CreateCreatorMotionCardCheckoutParams = zod.object({
 export const createCreatorMotionCardCheckoutBodyCreatorTokenMin = 43;
 export const createCreatorMotionCardCheckoutBodyCreatorTokenMax = 128;
 
+export const createCreatorMotionCardCheckoutBodyApprovedPriceUsdMin = 0.01;
+
 
 
 export const CreateCreatorMotionCardCheckoutBody = zod.object({
-  "creatorToken": zod.string().min(createCreatorMotionCardCheckoutBodyCreatorTokenMin).max(createCreatorMotionCardCheckoutBodyCreatorTokenMax)
+  "creatorToken": zod.string().min(createCreatorMotionCardCheckoutBodyCreatorTokenMin).max(createCreatorMotionCardCheckoutBodyCreatorTokenMax),
+  "approvedPriceUsd": zod.number().min(createCreatorMotionCardCheckoutBodyApprovedPriceUsdMin),
+  "confirmPurchase": zod.literal(true)
 })
 
 export const CreateCreatorMotionCardCheckoutResponse = zod.object({
   "motionStatus": zod.enum(['checkout_pending', 'paid']),
-  "checkoutUrl": zod.string().url().nullable()
+  "checkoutUrl": zod.string().url().nullable(),
+  "priceUsd": zod.number()
+})
+
+
+/**
+ * @summary Retry a failed generated reel without creating another payment
+ */
+export const RetryCreatorMotionGenerationParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const retryCreatorMotionGenerationBodyCreatorTokenMin = 43;
+export const retryCreatorMotionGenerationBodyCreatorTokenMax = 128;
+
+
+
+export const RetryCreatorMotionGenerationBody = zod.object({
+  "creatorToken": zod.string().min(retryCreatorMotionGenerationBodyCreatorTokenMin).max(retryCreatorMotionGenerationBodyCreatorTokenMax)
+})
+
+export const RetryCreatorMotionGenerationResponse = zod.object({
+  "submissionStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "motionStatus": zod.enum(['unavailable', 'not_purchased', 'checkout_pending', 'paid']),
+  "offerAvailable": zod.boolean(),
+  "priceUsd": zod.number().nullable(),
+  "generationStatus": zod.enum(['not_started', 'starting', 'processing', 'succeeded', 'failed']),
+  "generationError": zod.string().nullable(),
+  "motionVideoUrl": zod.string().nullable(),
+  "card": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "displayName": zod.string(),
+  "handle": zod.string(),
+  "sport": zod.string(),
+  "moveName": zod.string(),
+  "team": zod.string().nullable(),
+  "design": zod.enum(['holo', 'court'])
+}),zod.null()])
 })
 
 

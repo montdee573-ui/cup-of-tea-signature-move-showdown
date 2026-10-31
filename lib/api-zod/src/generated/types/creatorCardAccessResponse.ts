@@ -6,11 +6,20 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CreatorCard } from './creatorCard';
+import type { CreatorCardAccessResponseGenerationStatus } from './creatorCardAccessResponseGenerationStatus';
 import type { CreatorCardAccessResponseMotionStatus } from './creatorCardAccessResponseMotionStatus';
 import type { CreatorCardAccessResponseSubmissionStatus } from './creatorCardAccessResponseSubmissionStatus';
 
 export interface CreatorCardAccessResponse {
   submissionStatus: CreatorCardAccessResponseSubmissionStatus;
   motionStatus: CreatorCardAccessResponseMotionStatus;
+  offerAvailable: boolean;
+  /** @nullable */
+  priceUsd: number | null;
+  generationStatus: CreatorCardAccessResponseGenerationStatus;
+  /** @nullable */
+  generationError: string | null;
+  /** @nullable */
+  motionVideoUrl: string | null;
   card: CreatorCard | null;
 }

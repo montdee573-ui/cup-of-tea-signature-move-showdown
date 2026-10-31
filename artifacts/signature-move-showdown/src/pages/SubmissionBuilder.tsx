@@ -206,7 +206,7 @@ export default function SubmissionBuilder() {
         </div>
         <section className="creator-link-panel" aria-labelledby="creator-link-title">
           <div className="creator-link-heading"><LockKeyhole size={17} /><div><span className="launch-label">PRIVATE CREATOR ACCESS</span><h2 id="creator-link-title">Keep your card close.</h2></div></div>
-          <p>This private link lets you check moderation and, after approval, optionally unlock a four-second motion card. Anyone who has the link can access it—there is no login—so keep it private.</p>
+          <p>This private link lets you check moderation and, if the owner approves a provider and final price, optionally order a four-second generated reel. Entry and voting remain free. Anyone who has the link can access it—there is no login—so keep it private.</p>
           <div className="creator-link-actions"><a className="creator-link-button" href={creatorPath}>Open your private card <ArrowLeft size={14} /></a><button type="button" className="creator-copy-button" onClick={async () => { try { await navigator.clipboard.writeText(creatorLink); setCreatorLinkCopied(true); } catch { setCreatorLinkCopied(false); } }}>{creatorLinkCopied ? <Check size={14} /> : <Copy size={14} />}{creatorLinkCopied ? "Copied" : "Copy private link"}</button></div>
           <input className="creator-link-value" aria-label="Private creator link" readOnly value={creatorLink} onFocus={(event) => event.currentTarget.select()} />
         </section>

@@ -11,4 +11,5 @@ export interface CreatorMotionCheckoutResponse {
   motionStatus: CreatorMotionCheckoutResponseMotionStatus;
   /** @nullable */
   checkoutUrl: string | null;
+  priceUsd: number;
 }

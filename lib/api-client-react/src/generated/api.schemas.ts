@@ -568,6 +568,17 @@ export const CreatorCardAccessResponseMotionStatus = {
   paid: 'paid',
 } as const;
 
+export type CreatorCardAccessResponseGenerationStatus = typeof CreatorCardAccessResponseGenerationStatus[keyof typeof CreatorCardAccessResponseGenerationStatus];
+
+
+export const CreatorCardAccessResponseGenerationStatus = {
+  not_started: 'not_started',
+  starting: 'starting',
+  processing: 'processing',
+  succeeded: 'succeeded',
+  failed: 'failed',
+} as const;
+
 export type CreatorCardDesign = typeof CreatorCardDesign[keyof typeof CreatorCardDesign];
 
 
@@ -590,6 +601,14 @@ export interface CreatorCard {
 export interface CreatorCardAccessResponse {
   submissionStatus: CreatorCardAccessResponseSubmissionStatus;
   motionStatus: CreatorCardAccessResponseMotionStatus;
+  offerAvailable: boolean;
+  /** @nullable */
+  priceUsd: number | null;
+  generationStatus: CreatorCardAccessResponseGenerationStatus;
+  /** @nullable */
+  generationError: string | null;
+  /** @nullable */
+  motionVideoUrl: string | null;
   card: CreatorCard | null;
 }
 
@@ -605,6 +624,18 @@ export interface CreatorMotionCheckoutResponse {
   motionStatus: CreatorMotionCheckoutResponseMotionStatus;
   /** @nullable */
   checkoutUrl: string | null;
+  priceUsd: number;
+}
+
+export interface CreatorMotionCheckoutInput {
+  /**
+     * @minLength 43
+     * @maxLength 128
+     */
+  creatorToken: string;
+  /** @minimum 0.01 */
+  approvedPriceUsd: number;
+  confirmPurchase: true;
 }
 
 export type MoveSubmissionReviewInputStatus = typeof MoveSubmissionReviewInputStatus[keyof typeof MoveSubmissionReviewInputStatus];
