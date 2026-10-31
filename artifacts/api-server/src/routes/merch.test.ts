@@ -312,6 +312,64 @@ test("artwork URLs must be public HTTPS URLs without local hosts or credentials"
   assert.deepEqual(calls, []);
 });
 
+test("public catalog provider HTTP errors return only a fixed safe error", async () => {
+  const privateProviderMessage = "private-artwork.png https://private.example/artwork";
+  providerResponseOverrides.set("GET /products", Response.json(
+    {
+      error: { message: privateProviderMessage },
+      request: { payload: { source: "private-catalog-data" } },
+    },
+    { status: 503 },
+  ));
+
+  const response = await request("/merch/catalog");
+
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.deepEqual(body, {
+    error: "Printful catalog is temporarily unavailable.",
+  });
+  assert.equal(JSON.stringify(body).includes(privateProviderMessage), false);
+  assert.equal(JSON.stringify(body).includes("private-catalog-data"), false);
+});
+
+test("malformed public catalog responses return only a fixed safe error", async () => {
+  const privateProviderMessage = "private-artwork.png https://private.example/artwork";
+  providerResponseOverrides.set("GET /products", Response.json({
+    result: {
+      error: privateProviderMessage,
+      product: { title: "private-catalog-data" },
+    },
+  }));
+
+  const response = await request("/merch/catalog");
+
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.deepEqual(body, {
+    error: "Printful catalog is temporarily unavailable.",
+  });
+  assert.equal(JSON.stringify(body).includes(privateProviderMessage), false);
+  assert.equal(JSON.stringify(body).includes("private-catalog-data"), false);
+});
+
+test("unreadable public catalog response bodies return only a fixed safe error", async () => {
+  const privateProviderMessage = "private-artwork.png https://private.example/artwork";
+  providerResponseOverrides.set("GET /products", new Response(privateProviderMessage, {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  }));
+
+  const response = await request("/merch/catalog");
+
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.deepEqual(body, {
+    error: "Printful catalog is temporarily unavailable.",
+  });
+  assert.equal(JSON.stringify(body).includes(privateProviderMessage), false);
+});
+
 test("invalid and duplicate variants or placements never create a task", async () => {
   const invalidBodies = [
     { variantIds: [999], placements: ["front"], artworkUrl: "https://images.example.test/art.png" },
