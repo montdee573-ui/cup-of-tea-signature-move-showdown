@@ -133,6 +133,7 @@ export const db: any = {
             if (changes.status === "creating") return candidate.status === "failed";
             if (changes.status === "pending") return candidate.status === "creating";
             if (changes.status === "failed") return candidate.status === "creating";
+            if (changes.status === "paid") return candidate.status === "pending";
             if (changes.refundRequestStatus === "requested") {
               return candidate.refundRequestStatus === "none"
                 && candidate.status === "paid"
@@ -142,6 +143,10 @@ export const db: any = {
             if (changes.refundRequestStatus === "processing") return candidate.refundRequestStatus === "requested";
             if (changes.refundRequestStatus === "completed") return candidate.refundRequestStatus === "processing";
             if (changes.refundRequestStatus === "declined") return candidate.refundRequestStatus === "requested";
+            if (changes.generationStatus === "starting") {
+              return candidate.status === "paid"
+                && candidate.generationStatus === "not_started";
+            }
             if (changes.generationStatus === "not_started") {
               return candidate.status === "paid"
                 && candidate.generationStatus === "failed"

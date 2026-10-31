@@ -104,6 +104,7 @@ async function withWhop(
   plan: Record<string, unknown>,
   run: (calls: WhopCall[]) => Promise<void>,
   beforeCheckout?: () => Promise<void>,
+  paymentOverrides: Record<string, unknown> = {},
 ): Promise<void> {
   const calls: WhopCall[] = [];
   let refundedAmount = 0;
@@ -115,16 +116,20 @@ async function withWhop(
     }
     const paymentPath = path.includes("/api/v1/payments/pay_test");
     if (paymentPath && options?.method === "POST" && path.endsWith("/refund")) refundedAmount = PRICE_USD;
-    const payload = paymentPath
-      ? {
+    const payment = {
         id: "pay_test",
         company: { id: "biz_test" },
         checkout_configuration_id: "checkout_test",
-        status: refundedAmount >= PRICE_USD ? "refunded" : "paid",
+        status: paymentOverrides.status ?? (refundedAmount >= PRICE_USD ? "refunded" : "paid"),
         amount: PRICE_USD,
         currency: "usd",
-        refunded_amount: refundedAmount,
-      }
+        refunded_amount: paymentOverrides.refunded_amount ?? refundedAmount,
+        ...paymentOverrides,
+      };
+    const payload = paymentPath
+      ? payment
+      : path.startsWith("/api/v1/payments?")
+        ? { data: [payment] }
       : options?.method === "POST"
         ? { id: "checkout_test", purchase_url: "https://whop.com/checkout/test" }
         : plan;
@@ -137,6 +142,29 @@ async function withWhop(
     await run(calls);
   } finally {
     ReplitConnectors.prototype.proxy = originalProxy;
+  }
+}
+
+async function withReplicate(
+  run: (calls: string[]) => Promise<void>,
+): Promise<void> {
+  const calls: string[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input, init) => {
+    const url = String(input);
+    if (url.startsWith("https://api.replicate.com/")) {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      return new Response(JSON.stringify({ id: "prediction_test", status: "processing" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+  try {
+    await run(calls);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 }
 
@@ -378,6 +406,68 @@ test("overlapping checkouts create one Whop session and keep the winning order",
   assert.equal(order.priceUsd, PRICE_USD);
   assert.equal(order.checkoutConfigurationId, "checkout_test");
   assert.equal(order.checkoutUrl, "https://whop.com/checkout/test");
+});
+
+test("invalid Whop payments never mark a checkout paid or start reel generation", async () => {
+  const invalidPayments: Array<[string, Record<string, unknown>]> = [
+    ["wrong amount", { amount: PRICE_USD + 1 }],
+    ["wrong currency", { currency: "eur" }],
+    ["wrong checkout configuration", { checkout_configuration_id: "checkout_other" }],
+    ["fully refunded", { status: "refunded", refunded_amount: PRICE_USD }],
+    ["partially refunded", { refunded_amount: 1 }],
+  ];
+
+  for (const [label, payment] of invalidPayments) {
+    resetTestState();
+    await withReplicate(async (generationCalls) => {
+      await withWhop(approvedPlan(), async (whopCalls) => {
+        const checkoutResponse = await checkout();
+        assert.equal(checkoutResponse.status, 200, `${label}: hosted checkout should be created`);
+
+        const accessResponse = await creatorCardAccess();
+        assert.equal(accessResponse.status, 200, `${label}: access should remain available`);
+        const access = await accessResponse.json() as {
+          motionStatus: string;
+          generationStatus: string;
+        };
+        assert.equal(access.motionStatus, "checkout_pending", `${label}: order must remain pending`);
+        assert.equal(access.generationStatus, "not_started", `${label}: generation must not start`);
+        assert.equal(whopCalls.filter((call) => call.path.startsWith("/api/v1/payments?")).length, 1);
+      }, undefined, payment);
+      const [order] = creatorCardState().orders;
+      assert.equal(order.status, "pending", `${label}: invalid payment must not mark order paid`);
+      assert.equal(order.paymentId, null, `${label}: invalid payment must not be stored`);
+      assert.equal(order.generationStatus, "not_started", `${label}: generation must remain unstarted`);
+      assert.deepEqual(generationCalls, [], `${label}: provider must not receive a generation request`);
+    });
+  }
+});
+
+test("a matching, non-refunded USD payment marks the order paid and starts generation", async () => {
+  resetTestState();
+  await withReplicate(async (generationCalls) => {
+    await withWhop(approvedPlan(), async (whopCalls) => {
+      const checkoutResponse = await checkout();
+      assert.equal(checkoutResponse.status, 200);
+
+      const accessResponse = await creatorCardAccess();
+      assert.equal(accessResponse.status, 200);
+      const access = await accessResponse.json() as {
+        motionStatus: string;
+        generationStatus: string;
+      };
+      assert.equal(access.motionStatus, "paid");
+      assert.equal(access.generationStatus, "processing");
+      assert.equal(whopCalls.filter((call) => call.path.startsWith("/api/v1/payments?")).length, 1);
+    });
+    const [order] = creatorCardState().orders;
+    assert.equal(order.status, "paid");
+    assert.equal(order.paymentId, "pay_test");
+    assert.equal(order.generationStatus, "processing");
+    assert.equal(order.generationPredictionId, "prediction_test");
+    assert.equal(generationCalls.length, 1);
+    assert.match(generationCalls[0], /^POST https:\/\/api\.replicate\.com\/v1\/models\//);
+  });
 });
 
 test("refund requests require a failed retry and persist only on the verified payment order", async () => {
