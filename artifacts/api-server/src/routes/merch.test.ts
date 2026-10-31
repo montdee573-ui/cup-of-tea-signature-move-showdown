@@ -14,15 +14,23 @@ let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
 const originalProxy = ReplitConnectors.prototype.proxy;
 
-function ownerCookie(): string {
+function sessionCookie(role: string, exp: number): string {
   const payload = Buffer.from(JSON.stringify({
-    role: "owner",
-    exp: Date.now() + 60_000,
+    role,
+    exp,
   })).toString("base64url");
   const signature = createHmac("sha256", `${SESSION_SECRET}:${ADMIN_PASSWORD}`)
     .update(payload)
     .digest("base64url");
   return `reel_studio_owner=${payload}.${signature}`;
+}
+
+function ownerCookie(): string {
+  return sessionCookie("owner", Date.now() + 60_000);
+}
+
+function tamperedOwnerCookie(): string {
+  return ownerCookie().replace(/\.[^.]+$/, ".invalid");
 }
 
 function printfulResponse(path: string, method: string): Response {
@@ -154,6 +162,57 @@ test("private product details, task creation, and task retrieval require owner a
 
   for (const response of await Promise.all(operations)) {
     assert.equal(response.status, 401);
+  }
+  assert.deepEqual(calls, []);
+});
+
+test("expired owner sessions are rejected before private mockup requests", async () => {
+  const expiredCookie = sessionCookie("owner", Date.now() - 1);
+  const operations: Array<{ path: string; init?: RequestInit }> = [
+    { path: "/merch/catalog/42/details" },
+    {
+      path: "/merch/catalog/42/mockups",
+      init: {
+        method: "POST",
+        body: JSON.stringify({ variantIds: [7], placements: ["front"], artworkUrl: "https://images.example/art.png" }),
+      },
+    },
+    { path: "/merch/mockups/task_123" },
+  ];
+
+  for (const { path, init } of operations) {
+    const headers = new Headers(init?.headers);
+    headers.set("Cookie", expiredCookie);
+    const response = await request(path, { ...init, headers });
+    assert.equal(response.status, 401, path);
+  }
+  assert.deepEqual(calls, []);
+});
+
+test("modified signatures and non-owner sessions are rejected before private mockup requests", async () => {
+  const invalidCookies = [
+    tamperedOwnerCookie(),
+    sessionCookie("participant", Date.now() + 60_000),
+  ];
+  const operations: Array<{ path: string; init?: RequestInit }> = [
+    { path: "/merch/catalog/42/details" },
+    {
+      path: "/merch/catalog/42/mockups",
+      init: {
+        method: "POST",
+        body: JSON.stringify({ variantIds: [7], placements: ["front"], artworkUrl: "https://images.example/art.png" }),
+      },
+    },
+    { path: "/merch/mockups/task_123" },
+  ];
+
+  for (const cookie of invalidCookies) {
+    for (const { path, init } of operations) {
+      const headers = new Headers(init?.headers);
+      headers.set("Cookie", cookie);
+      const response = await request(path, { ...init, headers });
+      assert.equal(response.status, 401, path);
+    }
   }
   assert.deepEqual(calls, []);
 });
