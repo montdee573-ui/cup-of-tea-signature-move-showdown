@@ -2,3 +2,4 @@
 - [Replicate model liveness](replicate-model-liveness.md) — A successful model metadata check does not prove its upstream generation endpoint is still active.
 - [Anonymous submissions](anonymous-submissions.md) — Participants must be able to submit without an account; keep public archive browsing open.
 - [POD merchandising scope](pod-merchandising-scope.md) — Keep sales off and ensure merchandise never affects free entry, votes, or contest outcomes.
+- [Contest result clearance](contest-result-clearance.md) — Use both contest apps, but require owner clearance before declaring or emailing an official final.
