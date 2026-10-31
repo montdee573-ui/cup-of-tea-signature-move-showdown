@@ -338,6 +338,125 @@ export const VoteOnShowdownResponse = zod.object({
 
 
 /**
+ * @summary List owner-only draft and cleared contest results
+ */
+export const ListStudioContestResultsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string(),
+  "status": zod.enum(['draft', 'cleared']),
+  "clearanceNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().nullable()
+})
+export const ListStudioContestResultsResponse = zod.array(ListStudioContestResultsResponseItem)
+
+
+/**
+ * @summary Save a manually verified contest result as a draft
+ */
+export const createStudioContestResultBodyEventTitleMax = 100;
+
+export const createStudioContestResultBodyDivisionMax = 80;
+
+export const createStudioContestResultBodyWinnerNameMax = 80;
+
+export const createStudioContestResultBodyWinnerHandleMax = 50;
+
+export const createStudioContestResultBodyRunnerUpNameMax = 80;
+
+export const createStudioContestResultBodyWinnerVotesMin = 0;
+
+export const createStudioContestResultBodyRunnerUpVotesMin = 0;
+
+export const createStudioContestResultBodyCoreScoreMin = 0;
+export const createStudioContestResultBodyCoreScoreMax = 100;
+
+export const createStudioContestResultBodyBase44SummaryMax = 2000;
+
+export const createStudioContestResultBodyViralReelSummaryMax = 2000;
+
+
+
+export const CreateStudioContestResultBody = zod.object({
+  "eventTitle": zod.string().min(1).max(createStudioContestResultBodyEventTitleMax),
+  "division": zod.string().min(1).max(createStudioContestResultBodyDivisionMax),
+  "winnerName": zod.string().min(1).max(createStudioContestResultBodyWinnerNameMax),
+  "winnerHandle": zod.string().max(createStudioContestResultBodyWinnerHandleMax),
+  "runnerUpName": zod.string().min(1).max(createStudioContestResultBodyRunnerUpNameMax),
+  "winnerVotes": zod.number().int().min(createStudioContestResultBodyWinnerVotesMin),
+  "runnerUpVotes": zod.number().int().min(createStudioContestResultBodyRunnerUpVotesMin),
+  "coreScore": zod.number().int().min(createStudioContestResultBodyCoreScoreMin).max(createStudioContestResultBodyCoreScoreMax).nullish(),
+  "base44Summary": zod.string().min(1).max(createStudioContestResultBodyBase44SummaryMax),
+  "viralReelSummary": zod.string().min(1).max(createStudioContestResultBodyViralReelSummaryMax)
+})
+
+export const CreateStudioContestResultResponse = zod.object({
+  "id": zod.number().int(),
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string(),
+  "status": zod.enum(['draft', 'cleared']),
+  "clearanceNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Clear a draft as an official contest result
+ */
+
+
+
+export const ClearStudioContestResultParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const clearStudioContestResultBodyClearanceNoteMax = 500;
+
+
+
+export const ClearStudioContestResultBody = zod.object({
+  "confirm": zod.literal(true),
+  "clearanceNote": zod.string().min(1).max(clearStudioContestResultBodyClearanceNoteMax)
+})
+
+export const ClearStudioContestResultResponse = zod.object({
+  "id": zod.number().int(),
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string(),
+  "status": zod.enum(['draft', 'cleared']),
+  "clearanceNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().nullable()
+})
+
+
+/**
  * Read-only catalog. Does not create or publish products.
  * @summary List Printful products for planning
  */

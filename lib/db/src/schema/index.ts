@@ -22,3 +22,4 @@ export * from "./move-cards";
 export * from "./studio-reels";
 export * from "./move-submissions";
 export * from "./showdowns";
+export * from "./contest-results";

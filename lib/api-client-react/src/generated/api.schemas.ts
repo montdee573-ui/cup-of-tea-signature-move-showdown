@@ -281,6 +281,89 @@ export interface ErrorResponse {
   error: string;
 }
 
+export type ContestResultStatus = typeof ContestResultStatus[keyof typeof ContestResultStatus];
+
+
+export const ContestResultStatus = {
+  draft: 'draft',
+  cleared: 'cleared',
+} as const;
+
+export interface ContestResult {
+  id: number;
+  eventTitle: string;
+  division: string;
+  winnerName: string;
+  winnerHandle: string;
+  runnerUpName: string;
+  winnerVotes: number;
+  runnerUpVotes: number;
+  /** @nullable */
+  coreScore: number | null;
+  base44Summary: string;
+  viralReelSummary: string;
+  status: ContestResultStatus;
+  /** @nullable */
+  clearanceNote: string | null;
+  createdAt: string;
+  /** @nullable */
+  clearedAt: string | null;
+}
+
+export interface ContestResultInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  eventTitle: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  division: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  winnerName: string;
+  /** @maxLength 50 */
+  winnerHandle: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  runnerUpName: string;
+  /** @minimum 0 */
+  winnerVotes: number;
+  /** @minimum 0 */
+  runnerUpVotes: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  coreScore?: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  base44Summary: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  viralReelSummary: string;
+}
+
+export interface ContestResultClearanceInput {
+  confirm: true;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  clearanceNote: string;
+}
+
 export interface StudioSession {
   configured: boolean;
   authenticated: boolean;

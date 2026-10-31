@@ -315,6 +315,104 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /studio/contest-results:
+    get:
+      operationId: listStudioContestResults
+      tags: [studio]
+      summary: List owner-only draft and cleared contest results
+      responses:
+        "200":
+          description: Contest result records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContestResult"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createStudioContestResult
+      tags: [studio]
+      summary: Save a manually verified contest result as a draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContestResultInput"
+      responses:
+        "201":
+          description: Draft result saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContestResult"
+        "400":
+          description: Invalid result details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/contest-results/{id}/clear:
+    post:
+      operationId: clearStudioContestResult
+      tags: [studio]
+      summary: Clear a draft as an official contest result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContestResultClearanceInput"
+      responses:
+        "200":
+          description: Official result cleared by owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContestResult"
+        "400":
+          description: Confirmation or result is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Draft result not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Result is tied or already cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /merch/catalog:
     get:
       operationId: listMerchCatalog
@@ -1133,6 +1231,119 @@ components:
           type: string
       required:
         - error
+    ContestResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        eventTitle:
+          type: string
+        division:
+          type: string
+        winnerName:
+          type: string
+        winnerHandle:
+          type: string
+        runnerUpName:
+          type: string
+        winnerVotes:
+          type: integer
+        runnerUpVotes:
+          type: integer
+        coreScore:
+          type: ["integer", "null"]
+        base44Summary:
+          type: string
+        viralReelSummary:
+          type: string
+        status:
+          type: string
+          enum: [draft, cleared]
+        clearanceNote:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        clearedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - eventTitle
+        - division
+        - winnerName
+        - winnerHandle
+        - runnerUpName
+        - winnerVotes
+        - runnerUpVotes
+        - coreScore
+        - base44Summary
+        - viralReelSummary
+        - status
+        - clearanceNote
+        - createdAt
+        - clearedAt
+    ContestResultInput:
+      type: object
+      properties:
+        eventTitle:
+          type: string
+          minLength: 1
+          maxLength: 100
+        division:
+          type: string
+          minLength: 1
+          maxLength: 80
+        winnerName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        winnerHandle:
+          type: string
+          maxLength: 50
+        runnerUpName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        winnerVotes:
+          type: integer
+          minimum: 0
+        runnerUpVotes:
+          type: integer
+          minimum: 0
+        coreScore:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 100
+        base44Summary:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        viralReelSummary:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required:
+        - eventTitle
+        - division
+        - winnerName
+        - winnerHandle
+        - runnerUpName
+        - winnerVotes
+        - runnerUpVotes
+        - base44Summary
+        - viralReelSummary
+    ContestResultClearanceInput:
+      type: object
+      properties:
+        confirm:
+          type: boolean
+          enum: [true]
+        clearanceNote:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required: [confirm, clearanceNote]
     StudioSession:
       type: object
       properties:

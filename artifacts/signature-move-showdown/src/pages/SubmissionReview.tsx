@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
-  ArrowLeft, Check, CircleAlert, Clock3, FileVideo, Film, LockKeyhole,
+  ArrowLeft, Check, CircleAlert, Clock3, FileVideo, Film, LockKeyhole, ClipboardCheck,
   LogOut, RefreshCw, ShieldCheck, X,
 } from "lucide-react";
 import {
@@ -113,7 +113,7 @@ export default function SubmissionReview() {
   return <main className="review-page">
     <header className="review-topbar">
       <Link href="/" className="review-brand"><span className="brand-mark"><Film size={16} /></span><span>SIGNATURE MOVE<small>COMMUNITY ARCHIVE</small></span></Link>
-      <Link href="/" className="review-back"><ArrowLeft size={14} /> Public archive</Link>
+      <div className="result-top-links"><Link href="/studio/results" className="review-back"><ClipboardCheck size={14} /> Final results</Link><Link href="/" className="review-back"><ArrowLeft size={14} /> Public archive</Link></div>
     </header>
 
     {session.isLoading ? <section className="review-auth-loading" aria-label="Checking owner session"><span /><span /><span /></section> : !authenticated ? <section className="review-login-wrap">

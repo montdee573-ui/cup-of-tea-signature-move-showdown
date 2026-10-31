@@ -31,6 +31,7 @@ import SubmissionBuilder from './pages/SubmissionBuilder';
 import SubmissionReview from './pages/SubmissionReview';
 import CommunityCardPage from './pages/CommunityCard';
 import Showdown from './pages/Showdown';
+import ContestResults from './pages/ContestResults';
 
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
@@ -493,6 +494,7 @@ export default function App() {
     <Route path="/launch" component={Launch} />
     <Route path="/submit" component={SubmissionBuilder} />
     <Route path="/review" component={SubmissionReview} />
+    <Route path="/studio/results" component={ContestResults} />
     <Route component={NotFound} />
   </Switch>;
 }
