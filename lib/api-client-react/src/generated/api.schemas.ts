@@ -94,6 +94,26 @@ export interface MerchMockupInput {
   artworkUrl: string;
 }
 
+export interface MerchMockupCombination {
+  /** @minimum 1 */
+  variantId: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  placement: string;
+}
+
+export interface MerchMockupRetryInput {
+  /**
+     * @minItems 1
+     * @maxItems 40
+     */
+  combinations: MerchMockupCombination[];
+  /** @maxLength 2048 */
+  artworkUrl: string;
+}
+
 export type MerchMockupTaskStartStatus = typeof MerchMockupTaskStartStatus[keyof typeof MerchMockupTaskStartStatus];
 
 
@@ -109,6 +129,13 @@ export interface MerchMockupTaskStart {
   productId: number;
   variantIds: number[];
   placements: string[];
+}
+
+export interface MerchMockupRetryResult {
+  tasks: MerchMockupTaskStart[];
+  failedCombinations: MerchMockupCombination[];
+  /** @nullable */
+  error: string | null;
 }
 
 export interface MerchMockupPreview {

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { useQueries, type Query } from "@tanstack/react-query";
 import { CircleAlert, Images, LoaderCircle, LockKeyhole, Shirt } from "lucide-react";
 import {
   getGetMerchMockupTaskQueryKey,
+  getGetMerchMockupTaskQueryOptions,
   getGetMerchProductDetailsQueryKey,
   useCreateMerchMockup,
-  useGetMerchMockupTask,
   useGetMerchProductDetails,
   useListMerchCatalog,
+  useRetryMerchMockups,
 } from "@workspace/api-client-react";
 import { groupMerchMockupPreviews } from "../lib/merch-mockup-previews";
 
@@ -22,8 +24,11 @@ export default function MerchMockupStudio() {
   const [placementIds, setPlacementIds] = useState<string[]>([]);
   const [artworkUrl, setArtworkUrl] = useState("");
   const [variantSearch, setVariantSearch] = useState("");
+  const [retrySelection, setRetrySelection] = useState<string[] | null>(null);
+  const [retryNotice, setRetryNotice] = useState("");
   const [batch, setBatch] = useState<{
-    taskKey: string;
+    productId: number;
+    taskKeys: string[];
     productTitle: string;
     variants: Array<{ id: number; name: string }>;
     placements: Array<{ id: string; title: string }>;
@@ -37,13 +42,16 @@ export default function MerchMockupStudio() {
     },
   });
   const startMockup = useCreateMerchMockup();
-  const mockupTask = useGetMerchMockupTask(batch?.taskKey ?? "", {
-    query: {
-      queryKey: getGetMerchMockupTaskQueryKey(batch?.taskKey ?? ""),
-      enabled: Boolean(batch?.taskKey),
+  const retryMockups = useRetryMerchMockups();
+  const mockupTasks = useQueries({
+    queries: (batch?.taskKeys ?? []).map((taskKey) => ({
+      ...getGetMerchMockupTaskQueryOptions(taskKey),
+      queryKey: getGetMerchMockupTaskQueryKey(taskKey),
+      enabled: Boolean(batch),
       retry: false,
-      refetchInterval: (query) => query.state.data?.status === "pending" ? 2500 : false,
-    },
+      refetchInterval: (query: Query) =>
+        (query.state.data as { status?: string } | undefined)?.status === "pending" ? 2500 : false,
+    })),
   });
 
   useEffect(() => {
@@ -107,7 +115,8 @@ export default function MerchMockupStudio() {
       },
     }, {
       onSuccess: (result) => setBatch({
-        taskKey: result.taskKey,
+        productId: result.productId,
+        taskKeys: [result.taskKey],
         productTitle: selectedProduct?.title ?? `Catalog item ${result.productId}`,
         variants: selectedVariants,
         placements: selectedPlacements,
@@ -115,15 +124,24 @@ export default function MerchMockupStudio() {
     });
   };
 
+  const taskResults = mockupTasks.flatMap((query) => query.data ? [query.data] : []);
+  const previews = taskResults.flatMap((result) => result.mockups);
+  const failedRetryTasks = taskResults.slice(1).filter((result) => result.status === "failed").length;
+  const initialTask = mockupTasks[0]?.data;
+  const initialTaskError = mockupTasks[0]?.isError ? mockupTasks[0].error : null;
+  const taskReadError = mockupTasks.find((query) => query.isError)?.error ?? null;
+  const tasksPending = mockupTasks.some((query) =>
+    query.isLoading || !query.data && !query.isError || query.data?.status === "pending");
+
   const previewGroups = useMemo(() => {
-    if (!batch || !mockupTask.data?.mockups.length) return [];
-    return groupMerchMockupPreviews(mockupTask.data.mockups, batch.variants, batch.placements);
-  }, [batch, mockupTask.data?.mockups]);
+    if (!batch || !previews.length) return [];
+    return groupMerchMockupPreviews(previews, batch.variants, batch.placements);
+  }, [batch, previews]);
 
   const missingCombinations = useMemo(() => {
-    if (!batch || (mockupTask.data?.status !== "completed" && mockupTask.data?.status !== "failed")) return [];
+    if (!batch || (initialTask?.status !== "completed" && initialTask?.status !== "failed")) return [];
     const returnedKeys = new Set(
-      mockupTask.data.mockups.flatMap((preview) =>
+      previews.flatMap((preview) =>
         preview.variantIds.map((variantId) => `${variantId}|${preview.placement}`)),
     );
     return batch.variants.flatMap((variant) =>
@@ -131,11 +149,45 @@ export default function MerchMockupStudio() {
         if (returnedKeys.has(`${variant.id}|${placement.id}`)) return [];
         return [{
           key: `${variant.id}|${placement.id}`,
+          variantId: variant.id,
+          placementId: placement.id,
           title: `${variant.name} · ${placement.title}`,
         }];
       }),
     );
-  }, [batch, mockupTask.data?.mockups, mockupTask.data?.status]);
+  }, [batch, initialTask?.status, previews]);
+
+  const selectedRetryKeys = retrySelection ?? missingCombinations.map(({ key }) => key);
+  const toggleRetrySelection = (key: string) => {
+    setRetrySelection((selected) => {
+      const current = selected ?? missingCombinations.map(({ key: missingKey }) => missingKey);
+      return current.includes(key) ? current.filter((value) => value !== key) : [...current, key];
+    });
+  };
+
+  const retryMissing = () => {
+    if (!batch || tasksPending || retryMockups.isPending) return;
+    const combinations = missingCombinations
+      .filter(({ key }) => selectedRetryKeys.includes(key))
+      .map(({ variantId, placementId }) => ({ variantId, placement: placementId }));
+    if (!combinations.length) return;
+    setRetryNotice("");
+    retryMockups.mutate({
+      id: batch.productId,
+      data: { combinations, artworkUrl: artworkUrl.trim() },
+    }, {
+      onSuccess: (result) => {
+        setBatch((current) => current ? {
+          ...current,
+          taskKeys: [...current.taskKeys, ...result.tasks.map((task) => task.taskKey)],
+        } : current);
+        setRetrySelection(null);
+        setRetryNotice(result.failedCombinations.length
+          ? `${result.failedCombinations.length} selected combination${result.failedCombinations.length === 1 ? " was" : "s were"} not started and remain missing.`
+          : "");
+      },
+    });
+  };
 
   return <section className="merch-studio" aria-labelledby="merch-studio-title">
     <div className="merch-studio-head">
@@ -205,22 +257,48 @@ export default function MerchMockupStudio() {
     </form>
     {startMockup.isError && <p className="merch-studio-error" role="alert"><CircleAlert size={15} /> {messageOf(startMockup.error, "The mockup request could not be started.")}</p>}
     {batch && <div className="merch-studio-result" aria-live="polite">
-      {mockupTask.isLoading || mockupTask.data?.status === "pending"
-        ? <p className="merch-studio-status"><LoaderCircle size={15} className="spin-icon" /> Printful is preparing {batch.variants.length * batch.placements.length} private comparisons for {batch.productTitle}…</p>
-        : mockupTask.isError
-          ? <p className="merch-studio-error" role="alert"><CircleAlert size={15} /> {messageOf(mockupTask.error, "The mockup status could not be checked.")}</p>
-          : mockupTask.data?.status === "completed" || mockupTask.data?.status === "failed"
-              ? <div className="merch-studio-comparison">
+      {!initialTask
+        ? initialTaskError
+          ? <p className="merch-studio-error" role="alert"><CircleAlert size={15} /> {messageOf(initialTaskError, "The mockup status could not be checked.")}</p>
+          : <p className="merch-studio-status"><LoaderCircle size={15} className="spin-icon" /> Printful is preparing {batch.variants.length * batch.placements.length} private comparisons for {batch.productTitle}…</p>
+        : initialTask.status === "pending"
+          ? <p className="merch-studio-status"><LoaderCircle size={15} className="spin-icon" /> Printful is preparing {batch.variants.length * batch.placements.length} private comparisons for {batch.productTitle}…</p>
+          : <div className="merch-studio-comparison">
                 <h3>{batch.productTitle} comparison</h3>
-                {mockupTask.data.status === "failed" && <p className="merch-studio-error" role="alert">
-                  <CircleAlert size={15} /> {mockupTask.data.error || "Printful could not generate every requested mockup."}
+                {taskReadError && <p className="merch-studio-error" role="alert"><CircleAlert size={15} /> {messageOf(taskReadError, "A mockup task status could not be checked.")}</p>}
+                {initialTask.status === "failed" && <p className="merch-studio-error" role="alert">
+                  <CircleAlert size={15} /> {initialTask.error || "Printful could not generate every requested mockup."}
                 </p>}
+                {failedRetryTasks > 0 && <p className="merch-studio-error" role="alert">
+                  <CircleAlert size={15} /> {failedRetryTasks} retry task{failedRetryTasks === 1 ? " could not" : "s could not"} generate all requested previews; remaining gaps are listed below.
+                </p>}
+                {tasksPending && batch.taskKeys.length > 1 && <p className="merch-studio-status"><LoaderCircle size={15} className="spin-icon" /> Printful is retrying selected missing combinations. Existing previews remain available below.</p>}
+                {retryNotice && <p className="merch-studio-error" role="status"><CircleAlert size={15} /> {retryNotice}</p>}
+                {retryMockups.isError && <p className="merch-studio-error" role="alert"><CircleAlert size={15} /> {messageOf(retryMockups.error, "The mockup retry could not be started.")}</p>}
                 {missingCombinations.length > 0 && <div className="merch-studio-incomplete" role="status">
                   <CircleAlert size={15} />
                   <div>
                     <strong>Previews returned for {batch.variants.length * batch.placements.length - missingCombinations.length} of {batch.variants.length * batch.placements.length} requested combinations.</strong>
-                    <p>No image was returned for:</p>
-                    <ul>{missingCombinations.map((combination) => <li key={combination.key}>{combination.title}</li>)}</ul>
+                    <p>{tasksPending ? "Still missing or being retried:" : "No image was returned for:"}</p>
+                    <ul>{missingCombinations.map((combination) => <li key={combination.key}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={selectedRetryKeys.includes(combination.key)}
+                          disabled={tasksPending || Boolean(taskReadError) || retryMockups.isPending}
+                          onChange={() => toggleRetrySelection(combination.key)}
+                        />
+                        {combination.title}
+                      </label>
+                    </li>)}</ul>
+                    <button
+                      className="merch-studio-generate"
+                      type="button"
+                      disabled={tasksPending || Boolean(taskReadError) || retryMockups.isPending || selectedRetryKeys.length === 0}
+                      onClick={retryMissing}
+                    >
+                      {retryMockups.isPending ? <><LoaderCircle size={15} className="spin-icon" /> Starting selected retries…</> : <><Images size={15} /> Retry selected missing combinations</>}
+                    </button>
                   </div>
                 </div>}
                 {previewGroups.length > 0
@@ -231,11 +309,10 @@ export default function MerchMockupStudio() {
                       <figcaption>{preview.title}</figcaption>
                     </figure>)}</div>
                   </section>)
-                  : mockupTask.data.status === "completed"
+                  : initialTask.status === "completed"
                     ? <p className="merch-studio-status">The task completed, but Printful returned no preview images.</p>
                     : null}
-              </div>
-              : null}
+              </div>}
     </div>}
     <p className="merch-studio-safety"><LockKeyhole size={14} /> Only the signed-in owner can start or view these previews. This creates no Printful product, sync product, order, checkout, or sale.</p>
   </section>;

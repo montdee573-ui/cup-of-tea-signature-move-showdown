@@ -13,6 +13,7 @@ const providerResponseOverrides = new Map<string, Response>();
 const app = express();
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
+let taskCounter = 0;
 const originalProxy = ReplitConnectors.prototype.proxy;
 
 function sessionCookie(role: string, exp: number): string {
@@ -55,7 +56,8 @@ function printfulResponse(path: string, method: string): Response {
     return Response.json({ result: { available_placements: { front: "Front", back: "Back" } } });
   }
   if (path === "/mockup-generator/create-task/42" && method === "POST") {
-    return Response.json({ result: { task_key: "task_123", status: "pending" } });
+    taskCounter += 1;
+    return Response.json({ result: { task_key: taskCounter === 1 ? "task_123" : `task_${taskCounter}`, status: "pending" } });
   }
   if (path === "/mockup-generator/task?task_key=task_123" && method === "GET") {
     return Response.json({
@@ -139,6 +141,7 @@ before(async () => {
 beforeEach(() => {
   calls.length = 0;
   providerResponseOverrides.clear();
+  taskCounter = 0;
 });
 
 after(async () => {
@@ -162,6 +165,13 @@ test("private product details, task creation, and task retrieval require owner a
       method: "POST",
       body: JSON.stringify({ variantIds: [7], placements: ["front"], artworkUrl: "https://images.example/art.png" }),
     }),
+    request("/merch/catalog/42/mockups/retry", {
+      method: "POST",
+      body: JSON.stringify({
+        combinations: [{ variantId: 7, placement: "front" }],
+        artworkUrl: "https://images.example/art.png",
+      }),
+    }),
     request("/merch/mockups/task_123"),
   ];
 
@@ -182,6 +192,16 @@ test("expired owner sessions are rejected before private mockup requests", async
         body: JSON.stringify({ variantIds: [7], placements: ["front"], artworkUrl: "https://images.example/art.png" }),
       },
     },
+      {
+        path: "/merch/catalog/42/mockups/retry",
+        init: {
+          method: "POST",
+          body: JSON.stringify({
+            combinations: [{ variantId: 7, placement: "front" }],
+            artworkUrl: "https://images.example/art.png",
+          }),
+        },
+      },
     { path: "/merch/mockups/task_123" },
   ];
 
@@ -208,6 +228,16 @@ test("modified signatures and non-owner sessions are rejected before private moc
         body: JSON.stringify({ variantIds: [7], placements: ["front"], artworkUrl: "https://images.example/art.png" }),
       },
     },
+      {
+        path: "/merch/catalog/42/mockups/retry",
+        init: {
+          method: "POST",
+          body: JSON.stringify({
+            combinations: [{ variantId: 7, placement: "front" }],
+            artworkUrl: "https://images.example/art.png",
+          }),
+        },
+      },
     { path: "/merch/mockups/task_123" },
   ];
 
@@ -447,6 +477,61 @@ test("successful generation creates only a temporary mockup task", async () => {
   assert.equal(calls.some(({ path, method }) => method === "POST" && /^\/products(?:\/|$)/.test(path)), false);
   assert.equal(calls.filter(({ method }) => method === "POST").length, 1);
   assert.equal(calls.find(({ method }) => method === "POST")?.path, "/mockup-generator/create-task/42");
+});
+
+test("retry creates tasks for only the selected variant-placement pairs", async () => {
+  const response = await request("/merch/catalog/42/mockups/retry", {
+    method: "POST",
+    body: JSON.stringify({
+      combinations: [
+        { variantId: 7, placement: "front" },
+        { variantId: 8, placement: "front" },
+        { variantId: 8, placement: "back" },
+      ],
+      artworkUrl: "https://images.example.test/art.png",
+    }),
+  }, true);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    tasks: [
+      { taskKey: "task_123", status: "pending", productId: 42, variantIds: [7, 8], placements: ["front"] },
+      { taskKey: "task_2", status: "pending", productId: 42, variantIds: [8], placements: ["back"] },
+    ],
+    failedCombinations: [],
+    error: null,
+  });
+  const createCalls = calls.filter(({ method, path }) => method === "POST" && path === "/mockup-generator/create-task/42");
+  assert.deepEqual(createCalls.map(({ body }) => JSON.parse(body ?? "{}")), [
+    {
+      variant_ids: [7, 8],
+      files: [{ placement: "front", image_url: "https://images.example.test/art.png" }],
+      format: "png",
+      width: 1200,
+    },
+    {
+      variant_ids: [8],
+      files: [{ placement: "back", image_url: "https://images.example.test/art.png" }],
+      format: "png",
+      width: 1200,
+    },
+  ]);
+});
+
+test("retry rejects duplicate or unavailable combinations without creating tasks", async () => {
+  const invalidCombinations = [
+    [{ variantId: 7, placement: "front" }, { variantId: 7, placement: "front" }],
+    [{ variantId: 999, placement: "front" }],
+    [{ variantId: 7, placement: "unknown" }],
+  ];
+  for (const combinations of invalidCombinations) {
+    const response = await request("/merch/catalog/42/mockups/retry", {
+      method: "POST",
+      body: JSON.stringify({ combinations, artworkUrl: "https://images.example.test/art.png" }),
+    }, true);
+    assert.equal(response.status, 400);
+  }
+  assert.equal(calls.some(({ method }) => method === "POST"), false);
 });
 
 test("task results preserve variant-placement combinations and only return safe preview fields", async () => {

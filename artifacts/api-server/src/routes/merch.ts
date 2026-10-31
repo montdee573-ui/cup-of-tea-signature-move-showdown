@@ -9,6 +9,9 @@ import {
   GetMerchProductDetailsParams,
   GetMerchProductDetailsResponse,
   ListMerchCatalogResponse,
+  RetryMerchMockupsBody,
+  RetryMerchMockupsParams,
+  RetryMerchMockupsResponse,
 } from "@workspace/api-zod";
 import { isStudioOwner } from "./studio";
 
@@ -249,6 +252,101 @@ router.post("/merch/catalog/:id/mockups", async (req, res): Promise<void> => {
   } catch (error) {
     req.log.error({ error, productId: params.data.id }, "Could not create Printful mockup");
     res.status(502).json({ error: "Printful could not start mockup generation." });
+  }
+});
+
+router.post("/merch/catalog/:id/mockups/retry", async (req, res): Promise<void> => {
+  if (!isStudioOwner(req)) {
+    res.status(401).json({ error: "Sign in as the studio owner to retry private mockups." });
+    return;
+  }
+  const params = RetryMerchMockupsParams.safeParse(req.params);
+  const parsed = RetryMerchMockupsBody.safeParse(req.body);
+  if (!params.success || !parsed.success || !safePublicHttpsUrl(parsed.data.artworkUrl)) {
+    res.status(400).json({ error: "Choose valid mockup combinations and a public HTTPS artwork URL." });
+    return;
+  }
+
+  const combinationKeys = parsed.data.combinations.map(({ variantId, placement }) => `${variantId}|${placement}`);
+  if (new Set(combinationKeys).size !== combinationKeys.length) {
+    res.status(400).json({ error: "Each mockup combination can be retried only once per request." });
+    return;
+  }
+
+  try {
+    const [productResult, placements] = await Promise.all([
+      readPrintfulProduct(params.data.id),
+      readPrintfulPlacements(params.data.id),
+    ]);
+    if (!productResult?.product) {
+      res.status(404).json({ error: "That catalog product was not found." });
+      return;
+    }
+
+    const availableVariantIds = new Set(
+      (productResult.variants ?? [])
+        .map((variant) => variant.id)
+        .filter((id): id is number => Number.isSafeInteger(id)),
+    );
+    if (parsed.data.combinations.some(({ variantId, placement }) =>
+      !availableVariantIds.has(variantId) || !Object.hasOwn(placements, placement))) {
+      res.status(400).json({ error: "Those variants or print placements are unavailable for this catalog product." });
+      return;
+    }
+
+    const byPlacement = new Map<string, number[]>();
+    for (const { variantId, placement } of parsed.data.combinations) {
+      const variantIds = byPlacement.get(placement) ?? [];
+      variantIds.push(variantId);
+      byPlacement.set(placement, variantIds);
+    }
+
+    const results = await Promise.all([...byPlacement].map(async ([placement, variantIds]) => {
+      try {
+        const response = await connectors.proxy(
+          "printful",
+          `/mockup-generator/create-task/${params.data.id}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              variant_ids: variantIds,
+              files: [{ placement, image_url: parsed.data.artworkUrl }],
+              format: "png",
+              width: 1200,
+            }),
+          },
+        );
+        const payload = await response.json() as { result?: { task_key?: string; status?: string } };
+        if (!response.ok || !payload.result?.task_key) {
+          req.log.warn({ status: response.status, placement }, "Printful mockup retry task could not be created");
+          return { tasks: [], failedCombinations: parsed.data.combinations.filter((item) => item.placement === placement) };
+        }
+        const task = CreateMerchMockupResponse.parse({
+          taskKey: payload.result.task_key,
+          status: payload.result.status === "completed" || payload.result.status === "failed"
+            ? payload.result.status
+            : "pending",
+          productId: params.data.id,
+          variantIds,
+          placements: [placement],
+        });
+        return { tasks: [task], failedCombinations: [] };
+      } catch (error) {
+        req.log.warn({ error, placement }, "Printful mockup retry task could not be created");
+        return { tasks: [], failedCombinations: parsed.data.combinations.filter((item) => item.placement === placement) };
+      }
+    }));
+    const tasks = results.flatMap((result) => result.tasks);
+    const failedCombinations = results.flatMap((result) => result.failedCombinations);
+    res.json(RetryMerchMockupsResponse.parse({
+      tasks,
+      failedCombinations,
+      error: failedCombinations.length ? "Printful could not start some mockup retries." : null,
+    }));
+  } catch (error) {
+    req.log.error({ error, productId: params.data.id }, "Could not start Printful mockup retries");
+    res.status(502).json({ error: "Printful could not start mockup retries." });
   }
 });
 

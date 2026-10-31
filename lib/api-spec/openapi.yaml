@@ -633,6 +633,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /merch/catalog/{id}/mockups/retry:
+    post:
+      operationId: retryMerchMockups
+      tags: [merch]
+      summary: Retry selected missing private mockups
+      description: Starts temporary Printful mockup-generation tasks only for the selected variant and print-area combinations.
+      security:
+        - studioOwnerCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MerchMockupRetryInput"
+      responses:
+        "200":
+          description: Retry tasks started, including any combinations that could not be started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchMockupRetryResult"
+        "400":
+          description: Invalid variants, print areas, or artwork URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Catalog product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /merch/mockups/{taskKey}:
     get:
       operationId: getMerchMockupTask
@@ -1393,6 +1439,31 @@ components:
           format: uri
           maxLength: 2048
       required: [variantIds, placements, artworkUrl]
+    MerchMockupCombination:
+      type: object
+      properties:
+        variantId:
+          type: integer
+          minimum: 1
+        placement:
+          type: string
+          minLength: 1
+          maxLength: 80
+      required: [variantId, placement]
+    MerchMockupRetryInput:
+      type: object
+      properties:
+        combinations:
+          type: array
+          items:
+            $ref: "#/components/schemas/MerchMockupCombination"
+          minItems: 1
+          maxItems: 40
+        artworkUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+      required: [combinations, artworkUrl]
     MerchMockupTaskStart:
       type: object
       properties:
@@ -1412,6 +1483,20 @@ components:
           items:
             type: string
       required: [taskKey, status, productId, variantIds, placements]
+    MerchMockupRetryResult:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/MerchMockupTaskStart"
+        failedCombinations:
+          type: array
+          items:
+            $ref: "#/components/schemas/MerchMockupCombination"
+        error:
+          type: ["string", "null"]
+      required: [tasks, failedCombinations, error]
     MerchMockupPreview:
       type: object
       properties:

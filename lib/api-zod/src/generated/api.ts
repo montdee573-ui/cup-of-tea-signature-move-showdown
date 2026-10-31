@@ -605,6 +605,55 @@ export const CreateMerchMockupResponse = zod.object({
 
 
 /**
+ * Starts temporary Printful mockup-generation tasks only for the selected variant and print-area combinations.
+ * @summary Retry selected missing private mockups
+ */
+
+
+
+export const RetryMerchMockupsParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+
+export const retryMerchMockupsBodyCombinationsItemPlacementMax = 80;
+
+export const retryMerchMockupsBodyCombinationsMax = 40;
+
+export const retryMerchMockupsBodyArtworkUrlMax = 2048;
+
+
+
+export const RetryMerchMockupsBody = zod.object({
+  "combinations": zod.array(zod.object({
+  "variantId": zod.number().int().min(1),
+  "placement": zod.string().min(1).max(retryMerchMockupsBodyCombinationsItemPlacementMax)
+})).min(1).max(retryMerchMockupsBodyCombinationsMax),
+  "artworkUrl": zod.string().url().max(retryMerchMockupsBodyArtworkUrlMax)
+})
+
+
+export const retryMerchMockupsResponseFailedCombinationsItemPlacementMax = 80;
+
+
+
+export const RetryMerchMockupsResponse = zod.object({
+  "tasks": zod.array(zod.object({
+  "taskKey": zod.string(),
+  "status": zod.enum(['pending', 'completed', 'failed']),
+  "productId": zod.number().int(),
+  "variantIds": zod.array(zod.number().int()),
+  "placements": zod.array(zod.string())
+})),
+  "failedCombinations": zod.array(zod.object({
+  "variantId": zod.number().int().min(1),
+  "placement": zod.string().min(1).max(retryMerchMockupsResponseFailedCombinationsItemPlacementMax)
+})),
+  "error": zod.string().nullable()
+})
+
+
+/**
  * @summary Check a private mockup task
  */
 export const getMerchMockupTaskPathTaskKeyMax = 100;
