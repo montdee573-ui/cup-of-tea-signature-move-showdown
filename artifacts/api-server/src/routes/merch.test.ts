@@ -60,48 +60,55 @@ function printfulResponse(path: string, method: string): Response {
     return Response.json({ result: { task_key: taskCounter === 1 ? "task_123" : `task_${taskCounter}`, status: "pending" } });
   }
   if (path === "/mockup-generator/task?task_key=task_123" && method === "GET") {
-    return Response.json({
-      result: {
-        status: "completed",
-        error: null,
-        mockups: [
-          {
-            display_name: "Front view",
-            placement: "front",
-            variant_ids: [7],
-            mockup_url: "https://images.example.test/front.png",
-            extra: [
-              { title: "Front detail", url: "https://images.example.test/front-detail.png" },
-              { title: "Local host", url: "https://localhost/private.png" },
-              { title: "Plain HTTP", url: "http://images.example.test/unsafe.png" },
-              { title: "IP address", url: "https://192.168.1.1/private.png" },
-              { title: "Credentials", url: "https://user:secret@images.example.test/private.png" },
-            ],
-            source_file: "private-artwork.png",
-          },
-          {
-            display_name: "Back view",
-            placement: "back",
-            variant_ids: [7],
-            mockup_url: "https://images.example.test/back.png",
-          },
-          {
-            display_name: "Front view",
-            placement: "front",
-            variant_ids: [8],
-            mockup_url: "https://images.example.test/white-front.png",
-          },
-          {
-            display_name: "Back view",
-            placement: "back",
-            variant_ids: [8],
-            mockup_url: "https://images.example.test/white-back.png",
-          },
-        ],
-      },
-    });
+    return printfulTaskResult();
+  }
+  if (path === "/mockup-generator/task?task_key=task_2" && method === "GET") {
+    return printfulTaskResult();
   }
   return Response.json({ error: `Unexpected Printful request: ${method} ${path}` }, { status: 500 });
+}
+
+function printfulTaskResult(): Response {
+  return Response.json({
+    result: {
+      status: "completed",
+      error: null,
+      mockups: [
+        {
+          display_name: "Front view",
+          placement: "front",
+          variant_ids: [7],
+          mockup_url: "https://images.example.test/front.png",
+          extra: [
+            { title: "Front detail", url: "https://images.example.test/front-detail.png" },
+            { title: "Local host", url: "https://localhost/private.png" },
+            { title: "Plain HTTP", url: "http://images.example.test/unsafe.png" },
+            { title: "IP address", url: "https://192.168.1.1/private.png" },
+            { title: "Credentials", url: "https://user:secret@images.example.test/private.png" },
+          ],
+          source_file: "private-artwork.png",
+        },
+        {
+          display_name: "Back view",
+          placement: "back",
+          variant_ids: [7],
+          mockup_url: "https://images.example.test/back.png",
+        },
+        {
+          display_name: "Front view",
+          placement: "front",
+          variant_ids: [8],
+          mockup_url: "https://images.example.test/white-front.png",
+        },
+        {
+          display_name: "Back view",
+          placement: "back",
+          variant_ids: [8],
+          mockup_url: "https://images.example.test/white-back.png",
+        },
+      ],
+    },
+  });
 }
 
 before(async () => {
@@ -156,6 +163,21 @@ async function request(path: string, init: RequestInit = {}, authenticated = fal
   if (authenticated) headers.set("Cookie", ownerCookie());
   if (init.body) headers.set("Content-Type", "application/json");
   return fetch(`${baseUrl}${path}`, { ...init, headers });
+}
+
+async function issueMockupTask(): Promise<string> {
+  const response = await request("/merch/catalog/42/mockups", {
+    method: "POST",
+    body: JSON.stringify({
+      variantIds: [7],
+      placements: ["front"],
+      artworkUrl: "https://images.example.test/art.png",
+    }),
+  }, true);
+  assert.equal(response.status, 200);
+  const body = await response.json() as { taskKey: string };
+  calls.length = 0;
+  return body.taskKey;
 }
 
 test("private product details, task creation, and task retrieval require owner access", async () => {
@@ -260,6 +282,16 @@ test("malformed product IDs and task keys are rejected before provider requests"
   assert.equal(invalidProduct.status, 400);
   assert.equal(invalidTaskKey.status, 400);
   assert.equal(overlongTaskKey.status, 400);
+  assert.deepEqual(calls, []);
+});
+
+test("unknown valid-looking task keys are rejected before provider requests", async () => {
+  const response = await request("/merch/mockups/unrelated_task_456", {}, true);
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), {
+    error: "That mockup task was not started by this studio.",
+  });
   assert.deepEqual(calls, []);
 });
 
@@ -389,13 +421,14 @@ test("task-creation provider errors never reach the API response", async () => {
 });
 
 test("task-polling provider errors return a safe API error", async () => {
+  const taskKey = await issueMockupTask();
   const privateProviderMessage = "private-artwork.png https://private.example/artwork";
-  providerResponseOverrides.set("GET /mockup-generator/task?task_key=task_123", Response.json(
+  providerResponseOverrides.set(`GET /mockup-generator/task?task_key=${taskKey}`, Response.json(
     { error: { message: privateProviderMessage } },
     { status: 503 },
   ));
 
-  const response = await request("/merch/mockups/task_123", {}, true);
+  const response = await request(`/merch/mockups/${taskKey}`, {}, true);
   assert.equal(response.status, 502);
   const body = await response.json();
   assert.deepEqual(body, { error: "Printful could not read the mockup task." });
@@ -403,8 +436,9 @@ test("task-polling provider errors return a safe API error", async () => {
 });
 
 test("malformed and unsupported task results are rejected without provider details", async () => {
+  const taskKey = await issueMockupTask();
   const unsupportedStatus = "processing-private-artwork.png";
-  providerResponseOverrides.set("GET /mockup-generator/task?task_key=task_123", Response.json({
+  providerResponseOverrides.set(`GET /mockup-generator/task?task_key=${taskKey}`, Response.json({
     result: {
       status: unsupportedStatus,
       error: "private-artwork.png https://private.example/artwork",
@@ -412,14 +446,14 @@ test("malformed and unsupported task results are rejected without provider detai
     },
   }));
 
-  const unsupported = await request("/merch/mockups/task_123", {}, true);
+  const unsupported = await request(`/merch/mockups/${taskKey}`, {}, true);
   assert.equal(unsupported.status, 502);
   let body = await unsupported.json();
   assert.deepEqual(body, { error: "Printful could not read the mockup task." });
   assert.equal(JSON.stringify(body).includes(unsupportedStatus), false);
 
   providerResponseOverrides.clear();
-  providerResponseOverrides.set("GET /mockup-generator/task?task_key=task_123", Response.json({
+  providerResponseOverrides.set(`GET /mockup-generator/task?task_key=${taskKey}`, Response.json({
     result: {
       status: "completed",
       error: "private-artwork.png https://private.example/artwork",
@@ -427,7 +461,7 @@ test("malformed and unsupported task results are rejected without provider detai
     },
   }));
 
-  const malformed = await request("/merch/mockups/task_123", {}, true);
+  const malformed = await request(`/merch/mockups/${taskKey}`, {}, true);
   assert.equal(malformed.status, 502);
   body = await malformed.json();
   assert.deepEqual(body, { error: "Printful could not read the mockup task." });
@@ -435,7 +469,8 @@ test("malformed and unsupported task results are rejected without provider detai
 });
 
 test("failed task results expose only a fixed safe error message", async () => {
-  providerResponseOverrides.set("GET /mockup-generator/task?task_key=task_123", Response.json({
+  const taskKey = await issueMockupTask();
+  providerResponseOverrides.set(`GET /mockup-generator/task?task_key=${taskKey}`, Response.json({
     result: {
       status: "failed",
       error: "private-artwork.png https://private.example/artwork",
@@ -443,7 +478,7 @@ test("failed task results expose only a fixed safe error message", async () => {
     },
   }));
 
-  const response = await request("/merch/mockups/task_123", {}, true);
+  const response = await request(`/merch/mockups/${taskKey}`, {}, true);
   assert.equal(response.status, 200);
   const body = await response.json() as Record<string, unknown>;
   assert.equal(body.error, "Printful could not generate these mockups.");
@@ -516,6 +551,22 @@ test("retry creates tasks for only the selected variant-placement pairs", async 
       width: 1200,
     },
   ]);
+  calls.length = 0;
+  for (const taskKey of ["task_123", "task_2"]) {
+    const taskResponse = await request(`/merch/mockups/${taskKey}`, {}, true);
+    assert.equal(taskResponse.status, 200);
+  }
+});
+
+test("studio-issued mockup tasks can be retrieved", async () => {
+  const taskKey = await issueMockupTask();
+  const response = await request(`/merch/mockups/${taskKey}`, {}, true);
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json() as { taskKey: string }).taskKey, taskKey);
+  assert.deepEqual(calls.map(({ method, path }) => [method, path]), [
+    ["GET", `/mockup-generator/task?task_key=${taskKey}`],
+  ]);
 });
 
 test("retry rejects duplicate or unavailable combinations without creating tasks", async () => {
@@ -535,7 +586,8 @@ test("retry rejects duplicate or unavailable combinations without creating tasks
 });
 
 test("task results preserve variant-placement combinations and only return safe preview fields", async () => {
-  const response = await request("/merch/mockups/task_123", {}, true);
+  const taskKey = await issueMockupTask();
+  const response = await request(`/merch/mockups/${taskKey}`, {}, true);
   assert.equal(response.status, 200);
   const body = await response.json() as Record<string, unknown>;
 
@@ -577,7 +629,7 @@ test("task results preserve variant-placement combinations and only return safe 
   assert.deepEqual([...new Set(returnedGroups)], ["7|front", "7|back", "8|front", "8|back"]);
   assert.equal(JSON.stringify(body).includes("private-artwork.png"), false);
   assert.deepEqual(calls.map(({ path, method }) => [method, path]), [
-    ["GET", "/mockup-generator/task?task_key=task_123"],
+    ["GET", `/mockup-generator/task?task_key=${taskKey}`],
   ]);
   assert.equal(calls.some(({ path }) => /^\/(?:products|orders|checkout|sales)(?:\/|$)/.test(path)), false);
 });

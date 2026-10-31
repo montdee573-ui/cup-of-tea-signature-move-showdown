@@ -17,6 +17,7 @@ import { isStudioOwner } from "./studio";
 
 const router: IRouter = Router();
 const connectors = new ReplitConnectors();
+const studioMockupTaskKeys = new Set<string>();
 
 type PrintfulProduct = {
   id: number;
@@ -242,13 +243,15 @@ router.post("/merch/catalog/:id/mockups", async (req, res): Promise<void> => {
       });
       return;
     }
-    res.json(CreateMerchMockupResponse.parse({
+    const task = CreateMerchMockupResponse.parse({
       taskKey: payload.result.task_key,
       status: payload.result.status ?? "pending",
       productId: params.data.id,
       variantIds: parsed.data.variantIds,
       placements: parsed.data.placements,
-    }));
+    });
+    studioMockupTaskKeys.add(task.taskKey);
+    res.json(task);
   } catch (error) {
     req.log.error({ error, productId: params.data.id }, "Could not create Printful mockup");
     res.status(502).json({ error: "Printful could not start mockup generation." });
@@ -331,6 +334,7 @@ router.post("/merch/catalog/:id/mockups/retry", async (req, res): Promise<void> 
           variantIds,
           placements: [placement],
         });
+        studioMockupTaskKeys.add(task.taskKey);
         return { tasks: [task], failedCombinations: [] };
       } catch (error) {
         req.log.warn({ error, placement }, "Printful mockup retry task could not be created");
@@ -358,6 +362,10 @@ router.get("/merch/mockups/:taskKey", async (req, res): Promise<void> => {
   const params = GetMerchMockupTaskParams.safeParse(req.params);
   if (!params.success || !/^[A-Za-z0-9_-]{1,100}$/.test(params.data.taskKey)) {
     res.status(400).json({ error: "The mockup task identifier is invalid." });
+    return;
+  }
+  if (!studioMockupTaskKeys.has(params.data.taskKey)) {
+    res.status(404).json({ error: "That mockup task was not started by this studio." });
     return;
   }
 
