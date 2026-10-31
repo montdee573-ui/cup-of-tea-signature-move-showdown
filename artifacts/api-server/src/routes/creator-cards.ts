@@ -108,9 +108,10 @@ async function whopPlanMatchesApprovedOffer(
   companyId: string,
   planId: string,
   priceUsd: number,
+  forceRefresh = false,
 ): Promise<boolean> {
   const key = `${companyId}:${planId}:${priceUsd.toFixed(2)}`;
-  if (approvedPlanCache?.key === key && Date.now() - approvedPlanCache.checkedAt < 30_000) {
+  if (!forceRefresh && approvedPlanCache?.key === key && Date.now() - approvedPlanCache.checkedAt < 30_000) {
     return approvedPlanCache.ready;
   }
   try {
@@ -325,7 +326,7 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
     res.status(503).json({ error: "The approved Whop checkout is not configured yet." });
     return;
   }
-  const planReady = await whopPlanMatchesApprovedOffer(config.companyId, config.planId, offer.priceUsd);
+  const planReady = await whopPlanMatchesApprovedOffer(config.companyId, config.planId, offer.priceUsd, true);
   if (!planReady) {
     res.status(503).json({ error: "The approved Whop plan could not be verified at the exact one-time USD price. No checkout was created." });
     return;
