@@ -218,7 +218,11 @@ export default function SubmissionReview() {
                     <h3>{request.moveName}</h3>
                     <p>{request.creatorName} · ${request.priceUsd.toFixed(2)} USD</p>
                     <small>Requested {new Date(request.requestedAt).toLocaleString()}</small>
-                    {request.refundRequestStatus === "processing" && <small>Whop status: refund processing</small>}
+                    {request.refundRequestStatus === "processing" && (
+                      request.statusCheckUnverified
+                        ? <small role="status">This refund is taking longer than expected, and its status could not be verified. Keep the request open and retry the status check later.</small>
+                        : <small>Refund processing. Check the status again later if it remains pending.</small>
+                    )}
                     {request.refundRequestStatus === "partial_review" && <small>Whop confirmed ${request.refundVerifiedAmountUsd?.toFixed(2) ?? "0.00"} refunded. This is not a full refund.</small>}
                     {request.refundRequestStatus === "completed" && <small>
                       {request.notificationStatus === "failed"
@@ -242,7 +246,9 @@ export default function SubmissionReview() {
                         {busy ? "Recording…" : "Record partial refund review"}
                       </button>
                       : <button type="button" className="refund-approve" onClick={() => resolveRefundRequest(request, "refund")} disabled={busy}>
-                        {busy ? "Processing…" : request.refundRequestStatus === "processing" ? "Check Whop status" : "Issue full refund through Whop"}
+                        {busy ? "Processing…" : request.refundRequestStatus === "processing"
+                          ? request.statusCheckUnverified ? "Retry status check" : "Check refund status"
+                          : "Issue full refund through Whop"}
                       </button>}
                       </>}
                   </div>

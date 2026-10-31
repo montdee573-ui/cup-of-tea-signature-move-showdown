@@ -999,8 +999,16 @@ test("stale refund claims stay protected when Whop cannot verify them", async ()
       headers: { Cookie: ownerCookie() },
     });
     assert.equal(queueResponse.status, 200);
-    const [request] = await queueResponse.json() as Array<{ refundRequestStatus: string }>;
+    const [request] = await queueResponse.json() as Array<{
+      refundRequestStatus: string;
+      statusCheckUnverified: boolean;
+      paymentId?: string;
+      providerStatus?: number;
+    }>;
     assert.equal(request.refundRequestStatus, "processing");
+    assert.equal(request.statusCheckUnverified, true);
+    assert.equal("paymentId" in request, false);
+    assert.equal("providerStatus" in request, false);
 
     const retryResponse = await ownerRefundDecision("refund");
     assert.equal(retryResponse.status, 503);

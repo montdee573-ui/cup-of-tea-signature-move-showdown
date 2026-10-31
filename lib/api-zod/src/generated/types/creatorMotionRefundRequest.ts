@@ -19,5 +19,6 @@ export interface CreatorMotionRefundRequest {
   refundVerifiedAmountUsd: number | null;
   /** @nullable */
   processingAt: Date | null;
+  statusCheckUnverified: boolean;
   notificationStatus: CreatorMotionRefundRequestNotificationStatus;
 }

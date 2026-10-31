@@ -1238,6 +1238,7 @@ export const ListCreatorMotionRefundRequestsResponseItem = zod.object({
   "refundRequestStatus": zod.enum(['requested', 'processing', 'partial_review', 'completed']),
   "refundVerifiedAmountUsd": zod.number().nullable(),
   "processingAt": zod.coerce.date().nullable(),
+  "statusCheckUnverified": zod.boolean(),
   "notificationStatus": zod.enum(['sent', 'failed', 'not_sent', 'sending'])
 })
 export const ListCreatorMotionRefundRequestsResponse = zod.array(ListCreatorMotionRefundRequestsResponseItem)

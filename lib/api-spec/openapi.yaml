@@ -2541,10 +2541,12 @@ components:
         processingAt:
           type: ["string", "null"]
           format: date-time
+        statusCheckUnverified:
+          type: boolean
         notificationStatus:
           type: string
           enum: [sent, failed, not_sent, sending]
-      required: [submissionId, creatorName, moveName, priceUsd, requestedAt, refundRequestStatus, refundVerifiedAmountUsd, processingAt, notificationStatus]
+      required: [submissionId, creatorName, moveName, priceUsd, requestedAt, refundRequestStatus, refundVerifiedAmountUsd, processingAt, statusCheckUnverified, notificationStatus]
     CreatorMotionRefundNotificationRetryResponse:
       type: object
       properties:

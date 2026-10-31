@@ -949,6 +949,7 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
   const requests = [];
   for (const order of orders) {
     let currentOrder = order;
+    let statusCheckUnverified = false;
     if (
       refundRequestStatus(order.refundRequestStatus) === "processing"
       && (order.refundProcessingAt?.getTime() ?? 0) <= Date.now() - staleRefundProcessingMs
@@ -957,15 +958,19 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
       if (config) {
         try {
           const reconciliation = await reconcileStalledRefund(order, config.companyId, req);
+          statusCheckUnverified = reconciliation.outcome === "unverified";
           currentOrder = reconciliation.outcome === "completed"
             ? (await readOrder(order.submissionId)) ?? reconciliation.order
             : reconciliation.order;
         } catch (error) {
+          statusCheckUnverified = true;
           req.log.warn(
             { submissionId: order.submissionId, providerStatus: (error as { status?: number }).status },
             "Unable to reconcile creator refund while loading the owner queue",
           );
         }
+      } else {
+        statusCheckUnverified = true;
       }
     }
     const status = refundRequestStatus(currentOrder.refundRequestStatus);
@@ -988,6 +993,7 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
       refundRequestStatus: status,
       refundVerifiedAmountUsd: currentOrder.refundVerifiedAmountUsd ?? null,
       processingAt: currentOrder.refundProcessingAt,
+      statusCheckUnverified,
       notificationStatus,
     });
   }

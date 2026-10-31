@@ -907,6 +907,7 @@ export interface CreatorMotionRefundRequest {
   refundVerifiedAmountUsd: number | null;
   /** @nullable */
   processingAt: string | null;
+  statusCheckUnverified: boolean;
   notificationStatus: CreatorMotionRefundRequestNotificationStatus;
 }
 
