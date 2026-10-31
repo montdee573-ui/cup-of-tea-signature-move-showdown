@@ -15,6 +15,8 @@ export * from './contestantInputCategory';
 export * from './contestantVerificationStatus';
 export * from './contestResult';
 export * from './contestResultClearanceInput';
+export * from './contestResultEmailDeliveryStatus';
+export * from './contestResultEmailInput';
 export * from './contestResultInput';
 export * from './contestResultStatus';
 export * from './contestSummary';

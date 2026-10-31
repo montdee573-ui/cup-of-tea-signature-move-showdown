@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ContestResultEmailDeliveryStatus } from './contestResultEmailDeliveryStatus';
 import type { ContestResultStatus } from './contestResultStatus';
 
 export interface ContestResult {
@@ -26,4 +27,9 @@ export interface ContestResult {
   createdAt: Date;
   /** @nullable */
   clearedAt: Date | null;
+  emailDeliveryStatus: ContestResultEmailDeliveryStatus;
+  /** @nullable */
+  emailSentAt: Date | null;
+  /** @nullable */
+  emailDeliveryError: string | null;
 }

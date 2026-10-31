@@ -4,8 +4,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "wouter";
 import {
-  ArrowLeft, BadgeCheck, CircleAlert, ClipboardCheck, LockKeyhole,
-  LogOut, ShieldCheck, Trophy,
+  ArrowLeft, BadgeCheck, CircleAlert, ClipboardCheck, LockKeyhole, Mail,
+  MailCheck, LogOut, ShieldCheck, Trophy,
 } from "lucide-react";
 import {
   getGetStudioSessionQueryKey,
@@ -14,6 +14,7 @@ import {
   useCreateStudioContestResult,
   useCreateStudioSession,
   useDeleteStudioSession,
+  useEmailStudioContestResult,
   useGetStudioSession,
   useListStudioContestResults,
 } from "@workspace/api-client-react";
@@ -57,11 +58,15 @@ const defaultValues: ResultFormValues = {
 function ResultRecord({
   result,
   onClear,
+  onEmail,
   busy,
+  emailBusy,
 }: {
   result: ContestResult;
   onClear: (id: number, clearanceNote: string) => void;
+  onEmail: (id: number) => void;
   busy: boolean;
+  emailBusy: boolean;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [clearanceNote, setClearanceNote] = useState("");
@@ -85,7 +90,25 @@ function ResultRecord({
       <div><span>CUP OF TEA / BASE44 NOTES</span><p>{result.base44Summary}</p></div>
       <div><span>VIRAL REEL / REPLIT NOTES</span><p>{result.viralReelSummary}</p></div>
     </div>
-    {isCleared ? <div className="result-clearance-note"><ShieldCheck size={15} /><p><strong>Owner clearance</strong>{result.clearanceNote}</p></div> :
+    {isCleared ? <>
+      <div className="result-clearance-note"><ShieldCheck size={15} /><p><strong>Owner clearance</strong>{result.clearanceNote}</p></div>
+      <div className={`result-email-delivery is-${result.emailDeliveryStatus}`} data-testid={`email-delivery-${result.id}`} role="status">
+        {result.emailDeliveryStatus === "sent" ? <MailCheck size={15} /> : <Mail size={15} />}
+        <p><strong>Email delivery: {result.emailDeliveryStatus === "not_sent" ? "not sent" : result.emailDeliveryStatus}</strong>
+          {result.emailSentAt && <span>Accepted by the email service {new Date(result.emailSentAt).toLocaleString()}.</span>}
+          {result.emailDeliveryError && <span>{result.emailDeliveryError}</span>}
+        </p>
+        {result.emailDeliveryStatus !== "sent" && result.emailDeliveryStatus !== "sending" && <button
+          type="button"
+          className="result-clear-button result-email-button"
+          disabled={emailBusy}
+          onClick={() => onEmail(result.id)}
+          data-testid={`button-email-result-${result.id}`}
+        >
+          <Mail size={14} /> {emailBusy ? "Sending email…" : result.emailDeliveryStatus === "failed" ? "Retry email delivery" : "Send final by email"}
+        </button>}
+      </div>
+    </> :
       <div className="result-clearance">
         <label className="result-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} data-testid={`checkbox-clear-result-${result.id}`} /><span>I verified both apps and confirm these are the final contest results.</span></label>
         <label className="result-clear-note">Clearance note<textarea value={clearanceNote} onChange={(event) => setClearanceNote(event.target.value)} maxLength={500} placeholder="Record how the result was checked." data-testid={`input-clearance-note-${result.id}`} /></label>
@@ -113,9 +136,11 @@ export default function ContestResults() {
   const deleteSession = useDeleteStudioSession();
   const createResult = useCreateStudioContestResult();
   const clearResult = useClearStudioContestResult();
+  const emailResult = useEmailStudioContestResult();
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [resultError, setResultError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const form = useForm<ResultFormValues>({
     resolver: zodResolver(resultSchema),
     defaultValues,
@@ -150,6 +175,16 @@ export default function ContestResults() {
       onError: (error) => setResultError(error instanceof Error ? error.message : "Could not clear this result."),
     });
   };
+  const emailClearedResult = (id: number) => {
+    setEmailError("");
+    emailResult.mutate({ id, data: { confirm: true } }, {
+      onSuccess: () => void queryClient.invalidateQueries({ queryKey: getListStudioContestResultsQueryKey() }),
+      onError: (error) => {
+        setEmailError(error instanceof Error ? error.message : "Email delivery failed. Check configuration and retry.");
+        void queryClient.invalidateQueries({ queryKey: getListStudioContestResultsQueryKey() });
+      },
+    });
+  };
   const signOut = () => {
     deleteSession.mutate(undefined, {
       onSuccess: () => {
@@ -178,14 +213,14 @@ export default function ContestResults() {
         <input id="result-owner-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter passphrase" disabled={createSession.isPending} data-testid="input-result-owner-password" />
         {loginError && <p className="review-form-error" role="alert">{loginError}</p>}
         <button className="review-login-button" type="submit" disabled={session.data?.configured === false || !password.trim() || createSession.isPending} data-testid="button-result-owner-login"><LockKeyhole size={15} /> {createSession.isPending ? "Verifying access…" : "Open result desk"}</button>
-        <div className="review-login-note"><ShieldCheck size={15} /><span>Results are private until you explicitly clear them. Nothing is emailed from this page.</span></div>
+        <div className="review-login-note"><ShieldCheck size={15} /><span>Drafts stay private. A cleared result is emailed only after you press its send button.</span></div>
       </form>
     </section> : <section className="review-workspace result-workspace">
       <div className="review-heading">
         <div><span className="launch-label"><ShieldCheck size={13} /> PRIVATE STUDIO / FINAL RESULTS</span><h1>Clear the<br /><em>final.</em></h1><p>Record what both apps show, save a private draft, then explicitly clear an actual result.</p></div>
         <div className="review-heading-side"><div className="review-session-state"><span /> OWNER SESSION ACTIVE</div><button className="review-signout" type="button" onClick={signOut} disabled={deleteSession.isPending}><LogOut size={14} /> Sign out</button></div>
       </div>
-      <div className="result-guardrail"><LockKeyhole size={17} /><p><strong>No live contest data is connected.</strong> Enter only verified results from both Cup of Tea/Base44 and Viral Reel/Replit. This saves a private record; it does not email or publish it.</p></div>
+      <div className="result-guardrail"><LockKeyhole size={17} /><p><strong>No live contest data is connected.</strong> Enter only verified results from both Cup of Tea/Base44 and Viral Reel/Replit. Drafts stay private; only an owner-cleared result can be emailed, and only after you press send. Email requires a configured recipient and sender with Resend connected.</p></div>
       <section className="result-entry-panel" aria-labelledby="result-entry-title">
         <div className="review-queue-heading"><div><span className="launch-label">OWNER ENTERED · NEVER FABRICATED</span><h2 id="result-entry-title">Record a final</h2></div></div>
         <Form {...form}>
@@ -214,8 +249,9 @@ export default function ContestResults() {
       <section className="result-history" aria-labelledby="result-history-title">
         <div className="review-queue-heading"><div><span className="launch-label">PRIVATE RECORDS</span><h2 id="result-history-title">Drafts and cleared results</h2></div><button className="showdown-refresh" type="button" onClick={() => void results.refetch()} disabled={results.isFetching}>Refresh</button></div>
         {clearResult.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{clearResult.error instanceof Error ? clearResult.error.message : "Could not clear this result."}</span></div>}
+        {emailError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{emailError}</span></div>}
         {results.isLoading ? <div className="showdown-loading" role="status">Loading private results…</div> : results.isError ? <div className="review-alert" role="alert"><CircleAlert size={16} /><span>Private results could not be loaded.</span><button type="button" onClick={() => void results.refetch()}>Retry</button></div> : !results.data?.length ? <div className="review-empty"><ClipboardCheck size={24} /><h2>No results recorded.</h2><p>There is no final outcome yet. Do not create a draft until both app results have been checked.</p></div> :
-          <div className="result-record-list">{results.data.map((result) => <ResultRecord key={result.id} result={result} onClear={clearDraft} busy={clearResult.isPending && clearResult.variables?.id === result.id} />)}</div>}
+          <div className="result-record-list">{results.data.map((result) => <ResultRecord key={result.id} result={result} onClear={clearDraft} onEmail={emailClearedResult} busy={clearResult.isPending && clearResult.variables?.id === result.id} emailBusy={emailResult.isPending && emailResult.variables?.id === result.id} />)}</div>}
       </section>
     </section>}
   </main>;

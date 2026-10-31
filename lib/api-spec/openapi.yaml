@@ -413,6 +413,67 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /studio/contest-results/{id}/email:
+    post:
+      operationId: emailStudioContestResult
+      tags: [studio]
+      summary: Email an owner-cleared contest result after explicit confirmation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContestResultEmailInput"
+      responses:
+        "200":
+          description: Result email accepted by the configured email service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContestResult"
+        "400":
+          description: Confirmation or result ID is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Contest result not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Result is not cleared or is already being delivered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Configured email service rejected or failed the request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Email recipient or sender is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /merch/catalog:
     get:
       operationId: listMerchCatalog
@@ -1455,6 +1516,14 @@ components:
         clearedAt:
           type: ["string", "null"]
           format: date-time
+        emailDeliveryStatus:
+          type: string
+          enum: [not_sent, sending, sent, failed]
+        emailSentAt:
+          type: ["string", "null"]
+          format: date-time
+        emailDeliveryError:
+          type: ["string", "null"]
       required:
         - id
         - eventTitle
@@ -1471,6 +1540,9 @@ components:
         - clearanceNote
         - createdAt
         - clearedAt
+        - emailDeliveryStatus
+        - emailSentAt
+        - emailDeliveryError
     ContestResultInput:
       type: object
       properties:
@@ -1532,6 +1604,13 @@ components:
           minLength: 1
           maxLength: 500
       required: [confirm, clearanceNote]
+    ContestResultEmailInput:
+      type: object
+      properties:
+        confirm:
+          type: boolean
+          enum: [true]
+      required: [confirm]
     StudioSession:
       type: object
       properties:

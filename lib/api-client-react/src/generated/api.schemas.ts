@@ -298,6 +298,16 @@ export const ContestResultStatus = {
   cleared: 'cleared',
 } as const;
 
+export type ContestResultEmailDeliveryStatus = typeof ContestResultEmailDeliveryStatus[keyof typeof ContestResultEmailDeliveryStatus];
+
+
+export const ContestResultEmailDeliveryStatus = {
+  not_sent: 'not_sent',
+  sending: 'sending',
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
 export interface ContestResult {
   id: number;
   eventTitle: string;
@@ -317,6 +327,11 @@ export interface ContestResult {
   createdAt: string;
   /** @nullable */
   clearedAt: string | null;
+  emailDeliveryStatus: ContestResultEmailDeliveryStatus;
+  /** @nullable */
+  emailSentAt: string | null;
+  /** @nullable */
+  emailDeliveryError: string | null;
 }
 
 export interface ContestResultInput {
@@ -371,6 +386,10 @@ export interface ContestResultClearanceInput {
      * @maxLength 500
      */
   clearanceNote: string;
+}
+
+export interface ContestResultEmailInput {
+  confirm: true;
 }
 
 export interface StudioSession {

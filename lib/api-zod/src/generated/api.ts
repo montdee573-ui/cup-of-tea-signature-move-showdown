@@ -357,7 +357,10 @@ export const ListStudioContestResultsResponseItem = zod.object({
   "status": zod.enum(['draft', 'cleared']),
   "clearanceNote": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "clearedAt": zod.coerce.date().nullable()
+  "clearedAt": zod.coerce.date().nullable(),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed']),
+  "emailSentAt": zod.coerce.date().nullable(),
+  "emailDeliveryError": zod.string().nullable()
 })
 export const ListStudioContestResultsResponse = zod.array(ListStudioContestResultsResponseItem)
 
@@ -416,7 +419,10 @@ export const CreateStudioContestResultResponse = zod.object({
   "status": zod.enum(['draft', 'cleared']),
   "clearanceNote": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "clearedAt": zod.coerce.date().nullable()
+  "clearedAt": zod.coerce.date().nullable(),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed']),
+  "emailSentAt": zod.coerce.date().nullable(),
+  "emailDeliveryError": zod.string().nullable()
 })
 
 
@@ -454,7 +460,46 @@ export const ClearStudioContestResultResponse = zod.object({
   "status": zod.enum(['draft', 'cleared']),
   "clearanceNote": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "clearedAt": zod.coerce.date().nullable()
+  "clearedAt": zod.coerce.date().nullable(),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed']),
+  "emailSentAt": zod.coerce.date().nullable(),
+  "emailDeliveryError": zod.string().nullable()
+})
+
+
+/**
+ * @summary Email an owner-cleared contest result after explicit confirmation
+ */
+
+
+
+export const EmailStudioContestResultParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const EmailStudioContestResultBody = zod.object({
+  "confirm": zod.literal(true)
+})
+
+export const EmailStudioContestResultResponse = zod.object({
+  "id": zod.number().int(),
+  "eventTitle": zod.string(),
+  "division": zod.string(),
+  "winnerName": zod.string(),
+  "winnerHandle": zod.string(),
+  "runnerUpName": zod.string(),
+  "winnerVotes": zod.number().int(),
+  "runnerUpVotes": zod.number().int(),
+  "coreScore": zod.number().int().nullable(),
+  "base44Summary": zod.string(),
+  "viralReelSummary": zod.string(),
+  "status": zod.enum(['draft', 'cleared']),
+  "clearanceNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().nullable(),
+  "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed']),
+  "emailSentAt": zod.coerce.date().nullable(),
+  "emailDeliveryError": zod.string().nullable()
 })
 
 

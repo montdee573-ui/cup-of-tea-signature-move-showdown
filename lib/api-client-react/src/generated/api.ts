@@ -23,6 +23,7 @@ import type {
   CommunityCard,
   ContestResult,
   ContestResultClearanceInput,
+  ContestResultEmailInput,
   ContestResultInput,
   ContestSummary,
   Contestant,
@@ -1377,6 +1378,95 @@ export const useClearStudioContestResult = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getClearStudioContestResultMutationOptions(options));
+    }
+
+export const getEmailStudioContestResultUrl = (id: number,) => {
+
+
+
+
+  return `/api/studio/contest-results/${id}/email`
+}
+
+/**
+ * @summary Email an owner-cleared contest result after explicit confirmation
+ */
+export const emailStudioContestResult = async (id: number,
+    contestResultEmailInput: ContestResultEmailInput, options?: Parameters<typeof customFetch>[1]): Promise<ContestResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ContestResult>(getEmailStudioContestResultUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(contestResultEmailInput)
+  }
+);}
+
+
+
+
+
+export const getEmailStudioContestResultMutationKey = () => ['emailStudioContestResult'] as const;
+
+export const getEmailStudioContestResultMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emailStudioContestResult>>, TError,EmailStudioContestResultMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof emailStudioContestResult>>, TError,EmailStudioContestResultMutationVariables, TContext> => {
+
+const mutationKey = getEmailStudioContestResultMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof emailStudioContestResult>>, EmailStudioContestResultMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  emailStudioContestResult(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EmailStudioContestResultMutationResult = NonNullable<Awaited<ReturnType<typeof emailStudioContestResult>>>
+    export type EmailStudioContestResultMutationBody = BodyType<ContestResultEmailInput>
+    export type EmailStudioContestResultMutationError = ErrorType<ErrorResponse>
+    export type EmailStudioContestResultMutationVariables = {id: number;data: BodyType<ContestResultEmailInput>}
+
+    /**
+ * @summary Email an owner-cleared contest result after explicit confirmation
+ */
+export const useEmailStudioContestResult = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emailStudioContestResult>>, TError,EmailStudioContestResultMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof emailStudioContestResult>>,
+        TError,
+        EmailStudioContestResultMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEmailStudioContestResultMutationOptions(options));
     }
 
 export const getListMerchCatalogUrl = () => {

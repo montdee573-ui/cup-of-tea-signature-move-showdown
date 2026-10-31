@@ -24,6 +24,9 @@ export function resetContestResultRows(seed: Array<Partial<ContestResultRow>> = 
     clearanceNote: null,
     createdAt: new Date("2026-10-01T12:00:00.000Z"),
     clearedAt: null,
+    emailDeliveryStatus: "not_sent",
+    emailSentAt: null,
+    emailDeliveryError: null,
     ...row,
   }));
 }
@@ -54,6 +57,9 @@ export const db = {
           clearanceNote: null,
           createdAt: new Date(),
           clearedAt: null,
+          emailDeliveryStatus: "not_sent",
+          emailSentAt: null,
+          emailDeliveryError: null,
           ...values,
         } as ContestResultRow;
         rows.push(row);
@@ -65,10 +71,16 @@ export const db = {
     set: (changes: Partial<ContestResultRow>) => ({
       where: () => ({
         returning: async () => {
-          const draft = rows.find((row) => row.status === "draft");
-          if (!draft) return [];
-          Object.assign(draft, changes);
-          return [draft];
+          const target = rows[0];
+          if (!target) return [];
+          if (changes.status === "cleared" && target.status !== "draft") return [];
+          if (changes.emailDeliveryStatus === "sending" &&
+            (target.status !== "cleared" || !["not_sent", "failed"].includes(target.emailDeliveryStatus))) return [];
+          if (changes.emailDeliveryStatus === "sent" && target.emailDeliveryStatus !== "sending") return [];
+          if (changes.emailDeliveryStatus === "failed" &&
+            (target.status !== "cleared" || !["not_sent", "failed", "sending"].includes(target.emailDeliveryStatus))) return [];
+          Object.assign(target, changes);
+          return [target];
         },
       }),
     }),
