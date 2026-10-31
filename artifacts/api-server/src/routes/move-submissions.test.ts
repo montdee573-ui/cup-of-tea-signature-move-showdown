@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { request as httpRequest } from "node:http";
 import { after, before, beforeEach, test } from "node:test";
 import express, { type Request } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
@@ -232,6 +233,34 @@ test("invalid merchandise IDs return the existing validation error before persis
     });
   }
 
+  assert.equal(moveSubmissionStorageState().saveCalls, 0);
+  assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
+});
+
+test("invalid metadata is rejected before reading an oversized declared video body", async () => {
+  requestNumber += 1;
+  const response = await new Promise<import("node:http").IncomingMessage>((resolve, reject) => {
+    const request = httpRequest(`${baseUrl}/move-submissions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "video/mp4",
+        "Content-Length": String(100 * 1024 * 1024 + 1),
+        "X-Submission-Metadata": metadataHeader({ ...metadataBase, consent: false }),
+        "X-Forwarded-For": `192.0.2.${requestNumber}`,
+      },
+    }, resolve);
+    request.once("error", reject);
+    request.end();
+  });
+
+  let responseBody = "";
+  response.setEncoding("utf8");
+  for await (const chunk of response) responseBody += chunk;
+
+  assert.equal(response.statusCode, 400);
+  assert.deepEqual(JSON.parse(responseBody), {
+    error: "Submission details or consent are missing or invalid.",
+  });
   assert.equal(moveSubmissionStorageState().saveCalls, 0);
   assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
 });

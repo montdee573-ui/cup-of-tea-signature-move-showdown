@@ -92,6 +92,15 @@ const videoBodyParser = express.raw({
   limit: MAX_VIDEO_BYTES,
 });
 
+function validateSubmissionMetadata(req: Request, res: Response, next: NextFunction): void {
+  const metadata = parseSubmissionMetadataHeader(req.get("X-Submission-Metadata"));
+  if (!metadata) {
+    res.status(400).json({ error: "Submission details or consent are missing or invalid." });
+    return;
+  }
+  next();
+}
+
 function parseVideoBody(req: Request, res: Response, next: NextFunction): void {
   videoBodyParser(req, res, (error?: unknown) => {
     if (!error) {
@@ -108,7 +117,7 @@ function parseVideoBody(req: Request, res: Response, next: NextFunction): void {
   });
 }
 
-router.post("/move-submissions", submissionRateLimit, parseVideoBody, async (req, res): Promise<void> => {
+router.post("/move-submissions", submissionRateLimit, validateSubmissionMetadata, parseVideoBody, async (req, res): Promise<void> => {
   const metadata = parseSubmissionMetadataHeader(req.get("X-Submission-Metadata"));
   if (!metadata) {
     res.status(400).json({ error: "Submission details or consent are missing or invalid." });
