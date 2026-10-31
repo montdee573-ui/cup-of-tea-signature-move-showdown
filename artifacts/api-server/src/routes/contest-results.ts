@@ -32,7 +32,13 @@ router.get("/studio/contest-results", async (req, res): Promise<void> => {
   }
   const rows = await db.select().from(contestResultsTable)
     .orderBy(desc(contestResultsTable.createdAt));
-  res.json(ListStudioContestResultsResponse.parse(rows.map(encodeResult)));
+  const emailRecipient = process.env.CONTEST_RESULTS_EMAIL_TO?.trim() || null;
+  const emailSenderConfigured = Boolean(process.env.CONTEST_RESULTS_EMAIL_FROM?.trim());
+  res.json(ListStudioContestResultsResponse.parse({
+    emailRecipient,
+    emailSenderConfigured,
+    results: rows.map(encodeResult),
+  }));
 });
 
 router.post("/studio/contest-results", async (req, res): Promise<void> => {
@@ -149,21 +155,12 @@ router.post("/studio/contest-results/:id/email", async (req, res): Promise<void>
 
   const recipient = process.env.CONTEST_RESULTS_EMAIL_TO?.trim();
   const sender = process.env.CONTEST_RESULTS_EMAIL_FROM?.trim();
-  if (!recipient || !sender) {
-    const [failed] = await db.update(contestResultsTable).set({
-      emailDeliveryStatus: "failed",
-      emailSentAt: null,
-      emailDeliveryError: "Email recipient or sender is not configured.",
-    }).where(and(
-      eq(contestResultsTable.id, params.data.id),
-      eq(contestResultsTable.status, "cleared"),
-      inArray(contestResultsTable.emailDeliveryStatus, ["not_sent", "failed"]),
-    )).returning();
-    if (!failed) {
-      res.status(409).json({ error: "This final is already being emailed or has already been sent." });
-      return;
-    }
-    res.status(503).json({ error: "Configure the results email recipient and sender before sending." });
+  if (!recipient) {
+    res.status(503).json({ error: "The results email recipient is not configured. No email was sent." });
+    return;
+  }
+  if (!sender) {
+    res.status(503).json({ error: "The results email sender is not configured. No email was sent." });
     return;
   }
 

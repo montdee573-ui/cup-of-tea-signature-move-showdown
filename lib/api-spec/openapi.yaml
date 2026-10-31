@@ -326,9 +326,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ContestResult"
+                $ref: "#/components/schemas/StudioContestResults"
         "401":
           description: Owner session required
           content:
@@ -464,6 +462,12 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "502":
           description: Configured email service rejected or failed the request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Recipient or sender configuration is missing; no email was attempted
           content:
             application/json:
               schema:
@@ -1704,6 +1708,23 @@ components:
         - emailDeliveryStatus
         - emailSentAt
         - emailDeliveryError
+    StudioContestResults:
+      type: object
+      properties:
+        emailRecipient:
+          type: ["string", "null"]
+          description: Configured email destination for owner-cleared results; null when not configured.
+        emailSenderConfigured:
+          type: boolean
+          description: Whether an email sender is configured.
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContestResult"
+      required:
+        - emailRecipient
+        - emailSenderConfigured
+        - results
     ResendEmailWebhookEvent:
       type: object
       properties:

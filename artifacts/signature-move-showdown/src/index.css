@@ -1043,6 +1043,8 @@ button { cursor: pointer; }
 .result-email-delivery { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); color: #aab4c2; }
 .result-email-delivery.is-sent { color: #8bd4bd; }
 .result-email-delivery.is-failed { color: #f0a59b; }
+.result-email-delivery.is-configured { color: #8bd4bd; }
+.result-email-delivery.is-config-missing { color: #edc77a; }
 .result-email-delivery p { display: grid; flex: 1; gap: 4px; min-width: 160px; margin: 0; font-size: 10px; line-height: 1.5; }
 .result-email-delivery p strong { font: 8px var(--font-mono); text-transform: uppercase; }
 .result-email-delivery p span { color: #b8b6c7; overflow-wrap: anywhere; }

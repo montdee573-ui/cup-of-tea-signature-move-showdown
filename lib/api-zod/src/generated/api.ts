@@ -342,7 +342,10 @@ export const VoteOnShowdownResponse = zod.object({
 /**
  * @summary List owner-only draft and cleared contest results
  */
-export const ListStudioContestResultsResponseItem = zod.object({
+export const ListStudioContestResultsResponse = zod.object({
+  "emailRecipient": zod.string().nullable().describe('Configured email destination for owner-cleared results; null when not configured.'),
+  "emailSenderConfigured": zod.boolean().describe('Whether an email sender is configured.'),
+  "results": zod.array(zod.object({
   "id": zod.number().int(),
   "eventTitle": zod.string(),
   "division": zod.string(),
@@ -361,8 +364,8 @@ export const ListStudioContestResultsResponseItem = zod.object({
   "emailDeliveryStatus": zod.enum(['not_sent', 'sending', 'sent', 'failed', 'delivered', 'bounced', 'complained']),
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable()
+}))
 })
-export const ListStudioContestResultsResponse = zod.array(ListStudioContestResultsResponseItem)
 
 
 /**

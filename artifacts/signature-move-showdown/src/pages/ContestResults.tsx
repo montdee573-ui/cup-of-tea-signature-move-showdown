@@ -57,16 +57,20 @@ const defaultValues: ResultFormValues = {
 
 function ResultRecord({
   result,
+  emailRecipient,
   onClear,
   onEmail,
   busy,
   emailBusy,
+  canEmail,
 }: {
   result: ContestResult;
+  emailRecipient: string | null;
   onClear: (id: number, clearanceNote: string) => void;
   onEmail: (id: number) => void;
   busy: boolean;
   emailBusy: boolean;
+  canEmail: boolean;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [clearanceNote, setClearanceNote] = useState("");
@@ -99,12 +103,13 @@ function ResultRecord({
           {result.emailDeliveryStatus === "delivered" && <span>Resend confirmed delivery to the recipient.</span>}
           {result.emailDeliveryStatus === "bounced" && <span>Resend reported that delivery failed.</span>}
           {result.emailDeliveryStatus === "complained" && <span>The recipient marked the email as spam.</span>}
+          {emailRecipient && <span>Final email destination: {emailRecipient}</span>}
           {result.emailDeliveryError && <span>{result.emailDeliveryError}</span>}
         </p>
         {!["sent", "sending", "delivered", "bounced", "complained"].includes(result.emailDeliveryStatus) && <button
           type="button"
           className="result-clear-button result-email-button"
-          disabled={emailBusy}
+          disabled={emailBusy || !canEmail}
           onClick={() => onEmail(result.id)}
           data-testid={`button-email-result-${result.id}`}
         >
@@ -140,6 +145,7 @@ export default function ContestResults() {
   const createResult = useCreateStudioContestResult();
   const clearResult = useClearStudioContestResult();
   const emailResult = useEmailStudioContestResult();
+  const canEmail = Boolean(results.data?.emailRecipient && results.data.emailSenderConfigured);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [resultError, setResultError] = useState("");
@@ -251,10 +257,19 @@ export default function ContestResults() {
       </section>
       <section className="result-history" aria-labelledby="result-history-title">
         <div className="review-queue-heading"><div><span className="launch-label">PRIVATE RECORDS</span><h2 id="result-history-title">Drafts and cleared results</h2></div><button className="showdown-refresh" type="button" onClick={() => void results.refetch()} disabled={results.isFetching}>Refresh</button></div>
+        {results.data && <div className={`result-email-delivery ${canEmail ? "is-configured" : "is-config-missing"}`} data-testid="result-email-destination" role="status">
+          <Mail size={15} />
+          <p><strong>Final email destination</strong>
+            {results.data.emailRecipient
+              ? <span>{results.data.emailRecipient}</span>
+              : <span>No recipient is configured. Sending is disabled; no email has been attempted.</span>}
+            {results.data.emailRecipient && !results.data.emailSenderConfigured && <span>The sender address is not configured. Sending is disabled; no email has been attempted.</span>}
+          </p>
+        </div>}
         {clearResult.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{clearResult.error instanceof Error ? clearResult.error.message : "Could not clear this result."}</span></div>}
         {emailError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{emailError}</span></div>}
-        {results.isLoading ? <div className="showdown-loading" role="status">Loading private results…</div> : results.isError ? <div className="review-alert" role="alert"><CircleAlert size={16} /><span>Private results could not be loaded.</span><button type="button" onClick={() => void results.refetch()}>Retry</button></div> : !results.data?.length ? <div className="review-empty"><ClipboardCheck size={24} /><h2>No results recorded.</h2><p>There is no final outcome yet. Do not create a draft until both app results have been checked.</p></div> :
-          <div className="result-record-list">{results.data.map((result) => <ResultRecord key={result.id} result={result} onClear={clearDraft} onEmail={emailClearedResult} busy={clearResult.isPending && clearResult.variables?.id === result.id} emailBusy={emailResult.isPending && emailResult.variables?.id === result.id} />)}</div>}
+        {results.isLoading ? <div className="showdown-loading" role="status">Loading private results…</div> : results.isError ? <div className="review-alert" role="alert"><CircleAlert size={16} /><span>Private results could not be loaded.</span><button type="button" onClick={() => void results.refetch()}>Retry</button></div> : !results.data?.results.length ? <div className="review-empty"><ClipboardCheck size={24} /><h2>No results recorded.</h2><p>There is no final outcome yet. Do not create a draft until both app results have been checked.</p></div> :
+          <div className="result-record-list">{results.data.results.map((result) => <ResultRecord key={result.id} result={result} emailRecipient={results.data.emailRecipient} onClear={clearDraft} onEmail={emailClearedResult} busy={clearResult.isPending && clearResult.variables?.id === result.id} emailBusy={emailResult.isPending && emailResult.variables?.id === result.id} canEmail={canEmail} />)}</div>}
       </section>
     </section>}
   </main>;

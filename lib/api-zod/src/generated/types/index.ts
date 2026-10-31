@@ -78,6 +78,7 @@ export * from './showdownInputMode';
 export * from './showdownMode';
 export * from './showdownResults';
 export * from './showdownVoteInput';
+export * from './studioContestResults';
 export * from './studioLoginInput';
 export * from './studioReel';
 export * from './studioReelsResponse';

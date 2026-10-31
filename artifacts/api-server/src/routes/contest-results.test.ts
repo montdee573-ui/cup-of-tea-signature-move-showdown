@@ -100,7 +100,31 @@ test("unauthenticated requests cannot list, create, clear, or email contest resu
 
   assert.deepEqual([list.status, create.status, clearResult.status, emailResult.status], [401, 401, 401, 401]);
   const results = await request("/studio/contest-results", {}, true);
-  assert.deepEqual(await results.json(), []);
+  assert.deepEqual((await results.json() as { results: unknown[] }).results, []);
+});
+
+test("only the authenticated owner receives the configured email destination", async () => {
+  resetContestResultRows();
+  process.env.CONTEST_RESULTS_EMAIL_TO = "results@example.test";
+  process.env.CONTEST_RESULTS_EMAIL_FROM = "contest@example.test";
+  try {
+    const unauthorized = await request("/studio/contest-results");
+    assert.equal(unauthorized.status, 401);
+    assert.doesNotMatch(JSON.stringify(await unauthorized.json()), /results@example\.test/);
+
+    const response = await request("/studio/contest-results", {}, true);
+    const body = await response.json() as {
+      emailRecipient: string | null;
+      emailSenderConfigured: boolean;
+      results: unknown[];
+    };
+    assert.equal(body.emailRecipient, "results@example.test");
+    assert.equal(body.emailSenderConfigured, true);
+    assert.deepEqual(body.results, []);
+  } finally {
+    delete process.env.CONTEST_RESULTS_EMAIL_TO;
+    delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+  }
 });
 
 test("a tied or trailing vote count cannot be cleared", async () => {
@@ -130,7 +154,9 @@ test("invalid clearance requests leave the result in draft", async () => {
 
     assert.equal(response.status, 400);
     const results = await request("/studio/contest-results", {}, true);
-    const [result] = await results.json() as Array<{ status: string; clearanceNote: string | null }>;
+    const [result] = (await results.json() as {
+      results: Array<{ status: string; clearanceNote: string | null }>;
+    }).results;
     assert.equal(result.status, "draft");
     assert.equal(result.clearanceNote, null);
   }
@@ -178,11 +204,11 @@ test("simultaneous clear requests produce one clearance using the winning reques
   assert.match(conflictBody.error, /already been cleared|another session/);
 
   const results = await request("/studio/contest-results", {}, true);
-  const [stored] = await results.json() as Array<{
+  const [stored] = (await results.json() as { results: Array<{
     status: string;
     clearanceNote: string | null;
     clearedAt: string | null;
-  }>;
+  }> }).results;
   assert.equal(stored.status, "cleared");
   assert.equal(stored.clearanceNote, successfulBody.clearanceNote);
   assert.equal(stored.clearedAt, successfulBody.clearedAt);
@@ -199,7 +225,7 @@ test("a draft cannot be emailed, even when the owner confirms", async () => {
   assert.equal(response.status, 409);
   assert.match((await response.json() as { error: string }).error, /Only an owner-cleared final/);
   const results = await request("/studio/contest-results", {}, true);
-  assert.equal((await results.json() as Array<{ emailDeliveryStatus: string }>)[0].emailDeliveryStatus, "not_sent");
+  assert.equal((await results.json() as { results: Array<{ emailDeliveryStatus: string }> }).results[0].emailDeliveryStatus, "not_sent");
 });
 
 test("an uncleared email configuration is reported without sending", async () => {
@@ -217,11 +243,38 @@ test("an uncleared email configuration is reported without sending", async () =>
   }, true);
 
   assert.equal(response.status, 503);
-  assert.match((await response.json() as { error: string }).error, /recipient and sender/);
+  assert.match((await response.json() as { error: string }).error, /recipient is not configured/);
   const results = await request("/studio/contest-results", {}, true);
-  const [result] = await results.json() as Array<{ emailDeliveryStatus: string; emailDeliveryError: string | null }>;
-  assert.equal(result.emailDeliveryStatus, "failed");
-  assert.match(result.emailDeliveryError ?? "", /not configured/);
+  const body = await results.json() as {
+    emailRecipient: string | null;
+    results: Array<{ emailDeliveryStatus: string }>;
+  };
+  assert.equal(body.emailRecipient, null);
+  assert.equal(body.results[0].emailDeliveryStatus, "not_sent");
+});
+
+test("a missing sender is distinguished from provider delivery failure", async () => {
+  resetContestResultRows([{
+    status: "cleared",
+    clearanceNote: "Verified against both apps.",
+    clearedAt: new Date("2026-10-02T12:00:00.000Z"),
+  }]);
+  process.env.CONTEST_RESULTS_EMAIL_TO = "results@example.test";
+  delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+  try {
+    const response = await request("/studio/contest-results/1/email", {
+      method: "POST",
+      body: JSON.stringify({ confirm: true }),
+    }, true);
+    assert.equal(response.status, 503);
+    assert.match((await response.json() as { error: string }).error, /sender is not configured/);
+    const results = await request("/studio/contest-results", {}, true);
+    const body = await results.json() as { results: Array<{ emailDeliveryStatus: string }> };
+    assert.equal(body.results[0].emailDeliveryStatus, "not_sent");
+  } finally {
+    delete process.env.CONTEST_RESULTS_EMAIL_TO;
+    delete process.env.CONTEST_RESULTS_EMAIL_FROM;
+  }
 });
 
 test("an owner can email a cleared result once and sees the saved delivery status", async () => {
@@ -313,7 +366,7 @@ test("verified Resend events update owner-visible delivery status and ignore old
     const deliveredResponse = await signedWebhookRequest(delivered, { eventId: "evt_delivered" });
     assert.equal(deliveredResponse.status, 204);
     const deliveredResults = await request("/studio/contest-results", {}, true);
-    const [deliveredOwnerView] = await deliveredResults.json() as Array<{ emailDeliveryStatus: string }>;
+    const [deliveredOwnerView] = (await deliveredResults.json() as { results: Array<{ emailDeliveryStatus: string }> }).results;
     assert.equal(deliveredOwnerView.emailDeliveryStatus, "delivered");
 
     const newer = { type: "email.bounced", created_at: "2026-10-31T12:00:02.000Z", data: { email_id: "email_tracking_1" } };
@@ -325,7 +378,7 @@ test("verified Resend events update owner-visible delivery status and ignore old
     assert.equal(olderResponse.status, 204);
 
     const results = await request("/studio/contest-results", {}, true);
-    const [ownerVisible] = await results.json() as Array<{ emailDeliveryStatus: string }>;
+    const [ownerVisible] = (await results.json() as { results: Array<{ emailDeliveryStatus: string }> }).results;
     const stored = getContestResultRowsForTest()[0];
     assert.equal(ownerVisible.emailDeliveryStatus, "bounced");
     assert.equal(stored.emailDeliveryStatus, "bounced");
@@ -334,7 +387,7 @@ test("verified Resend events update owner-visible delivery status and ignore old
     const complainedResponse = await signedWebhookRequest(complained, { eventId: "evt_complained" });
     assert.equal(complainedResponse.status, 204);
     const finalResults = await request("/studio/contest-results", {}, true);
-    const [finalOwnerView] = await finalResults.json() as Array<{ emailDeliveryStatus: string }>;
+    const [finalOwnerView] = (await finalResults.json() as { results: Array<{ emailDeliveryStatus: string }> }).results;
     const finalStored = getContestResultRowsForTest()[0];
     assert.equal(finalOwnerView.emailDeliveryStatus, "complained");
     assert.equal(finalStored.emailLastWebhookEventId, "evt_complained");
@@ -365,7 +418,7 @@ test("forged, stale, and unknown-message webhook events cannot change delivery s
     assert.equal(unknown.status, 404);
 
     const results = await request("/studio/contest-results", {}, true);
-    const [stored] = await results.json() as Array<{ emailDeliveryStatus: string }>;
+    const [stored] = (await results.json() as { results: Array<{ emailDeliveryStatus: string }> }).results;
     assert.equal(stored.emailDeliveryStatus, "delivered");
   } finally {
     delete process.env.RESEND_WEBHOOK_SECRET;
@@ -395,7 +448,7 @@ test("a provider rejection is visible and can be retried", async () => {
     assert.equal(response.status, 502);
     assert.match((await response.json() as { error: string }).error, /email service rejected/);
     const results = await request("/studio/contest-results", {}, true);
-    const [result] = await results.json() as Array<{ emailDeliveryStatus: string; emailDeliveryError: string | null }>;
+    const [result] = (await results.json() as { results: Array<{ emailDeliveryStatus: string; emailDeliveryError: string | null }> }).results;
     assert.equal(result.emailDeliveryStatus, "failed");
     assert.match(result.emailDeliveryError ?? "", /email service rejected/);
     assert.doesNotMatch(result.emailDeliveryError ?? "", /Provider detail/);

@@ -53,6 +53,7 @@ import type {
   ShowdownInput,
   ShowdownResults,
   ShowdownVoteInput,
+  StudioContestResults,
   StudioLoginInput,
   StudioReel,
   StudioReelsResponse,
@@ -1141,9 +1142,9 @@ export const getListStudioContestResultsUrl = () => {
 /**
  * @summary List owner-only draft and cleared contest results
  */
-export const listStudioContestResults = async ( options?: Parameters<typeof customFetch>[1]): Promise<ContestResult[]> => {
+export const listStudioContestResults = async ( options?: Parameters<typeof customFetch>[1]): Promise<StudioContestResults> => {
 
-  return customFetch<ContestResult[]>(getListStudioContestResultsUrl(),
+  return customFetch<StudioContestResults>(getListStudioContestResultsUrl(),
   {
     ...options,
     method: 'GET'

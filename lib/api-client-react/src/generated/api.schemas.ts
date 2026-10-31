@@ -337,6 +337,17 @@ export interface ContestResult {
   emailDeliveryError: string | null;
 }
 
+export interface StudioContestResults {
+  /**
+     * Configured email destination for owner-cleared results; null when not configured.
+     * @nullable
+     */
+  emailRecipient: string | null;
+  /** Whether an email sender is configured. */
+  emailSenderConfigured: boolean;
+  results: ContestResult[];
+}
+
 export type ResendEmailWebhookEventType = typeof ResendEmailWebhookEventType[keyof typeof ResendEmailWebhookEventType];
 
 
