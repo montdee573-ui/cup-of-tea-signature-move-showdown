@@ -1227,7 +1227,7 @@ export const RequestCreatorMotionRefundResponse = zod.object({
 
 
 /**
- * @summary List creator refund requests for the owner
+ * @summary List refund requests and failed notifications for the owner
  */
 export const ListCreatorMotionRefundRequestsResponseItem = zod.object({
   "submissionId": zod.string().uuid(),
@@ -1235,9 +1235,10 @@ export const ListCreatorMotionRefundRequestsResponseItem = zod.object({
   "moveName": zod.string(),
   "priceUsd": zod.number(),
   "requestedAt": zod.coerce.date(),
-  "refundRequestStatus": zod.enum(['requested', 'processing', 'partial_review']),
+  "refundRequestStatus": zod.enum(['requested', 'processing', 'partial_review', 'completed']),
   "refundVerifiedAmountUsd": zod.number().nullable(),
-  "processingAt": zod.coerce.date().nullable()
+  "processingAt": zod.coerce.date().nullable(),
+  "notificationStatus": zod.enum(['sent', 'failed', 'not_sent', 'sending'])
 })
 export const ListCreatorMotionRefundRequestsResponse = zod.array(ListCreatorMotionRefundRequestsResponseItem)
 
@@ -1258,6 +1259,18 @@ export const ResolveCreatorMotionRefundRequestResponse = zod.object({
   "refundVerifiedAmountUsd": zod.number().nullable(),
   "refundRequestedAt": zod.coerce.date().nullable(),
   "notificationStatus": zod.enum(['sent', 'failed', 'not_sent']).optional().describe('Owner decision notification result; omitted for creator-submitted requests.')
+})
+
+
+/**
+ * @summary Retry a failed creator refund notification
+ */
+export const RetryCreatorMotionRefundNotificationParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const RetryCreatorMotionRefundNotificationResponse = zod.object({
+  "notificationStatus": zod.enum(['sent', 'failed', 'not_sent'])
 })
 
 

@@ -19,6 +19,7 @@ export const creatorMotionOrdersTable = pgTable("creator_motion_orders", {
   generationRetryCount: integer("generation_retry_count").notNull().default(0),
   refundRequestStatus: text("refund_request_status").notNull().default("none"),
   refundVerifiedAmountUsd: doublePrecision("refund_verified_amount_usd"),
+  refundNotificationStatus: text("refund_notification_status").notNull().default("not_sent"),
   refundRequestedAt: timestamp("refund_requested_at", { withTimezone: true }),
   refundProcessingAt: timestamp("refund_processing_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

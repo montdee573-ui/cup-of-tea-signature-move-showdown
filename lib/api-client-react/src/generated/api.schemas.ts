@@ -883,6 +883,17 @@ export const CreatorMotionRefundRequestRefundRequestStatus = {
   requested: 'requested',
   processing: 'processing',
   partial_review: 'partial_review',
+  completed: 'completed',
+} as const;
+
+export type CreatorMotionRefundRequestNotificationStatus = typeof CreatorMotionRefundRequestNotificationStatus[keyof typeof CreatorMotionRefundRequestNotificationStatus];
+
+
+export const CreatorMotionRefundRequestNotificationStatus = {
+  sent: 'sent',
+  failed: 'failed',
+  not_sent: 'not_sent',
+  sending: 'sending',
 } as const;
 
 export interface CreatorMotionRefundRequest {
@@ -896,6 +907,20 @@ export interface CreatorMotionRefundRequest {
   refundVerifiedAmountUsd: number | null;
   /** @nullable */
   processingAt: string | null;
+  notificationStatus: CreatorMotionRefundRequestNotificationStatus;
+}
+
+export type CreatorMotionRefundNotificationRetryResponseNotificationStatus = typeof CreatorMotionRefundNotificationRetryResponseNotificationStatus[keyof typeof CreatorMotionRefundNotificationRetryResponseNotificationStatus];
+
+
+export const CreatorMotionRefundNotificationRetryResponseNotificationStatus = {
+  sent: 'sent',
+  failed: 'failed',
+  not_sent: 'not_sent',
+} as const;
+
+export interface CreatorMotionRefundNotificationRetryResponse {
+  notificationStatus: CreatorMotionRefundNotificationRetryResponseNotificationStatus;
 }
 
 export type CreatorMotionRefundDecisionInputDecision = typeof CreatorMotionRefundDecisionInputDecision[keyof typeof CreatorMotionRefundDecisionInputDecision];

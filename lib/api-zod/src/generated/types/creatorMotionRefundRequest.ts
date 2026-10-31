@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CreatorMotionRefundRequestNotificationStatus } from './creatorMotionRefundRequestNotificationStatus';
 import type { CreatorMotionRefundRequestRefundRequestStatus } from './creatorMotionRefundRequestRefundRequestStatus';
 
 export interface CreatorMotionRefundRequest {
@@ -18,4 +19,5 @@ export interface CreatorMotionRefundRequest {
   refundVerifiedAmountUsd: number | null;
   /** @nullable */
   processingAt: Date | null;
+  notificationStatus: CreatorMotionRefundRequestNotificationStatus;
 }

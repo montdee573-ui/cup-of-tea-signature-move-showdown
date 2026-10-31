@@ -12,6 +12,7 @@ import {
   getListMoveSubmissionsForReviewQueryKey,
   useListCreatorMotionRefundRequests,
   useResolveCreatorMotionRefundRequest,
+  useRetryCreatorMotionRefundNotification,
   useCreateStudioSession,
   useDeleteStudioSession,
   useGetStudioSession,
@@ -90,6 +91,7 @@ export default function SubmissionReview() {
   const deleteSession = useDeleteStudioSession();
   const reviewSubmission = useReviewMoveSubmission();
   const resolveRefund = useResolveCreatorMotionRefundRequest();
+  const retryRefundNotification = useRetryCreatorMotionRefundNotification();
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [refundDecisionNotice, setRefundDecisionNotice] = useState("");
@@ -137,6 +139,18 @@ export default function SubmissionReview() {
               : result.notificationStatus === "failed"
                 ? `Request ${result.refundRequestStatus}. The decision was saved, but the creator notification could not be sent.`
                 : `Request ${result.refundRequestStatus}. The decision was saved, but no creator notification was sent.`);
+        void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() });
+      },
+    });
+  };
+  const retryRefundEmail = (request: CreatorMotionRefundRequest) => {
+    retryRefundNotification.mutate({ id: request.submissionId }, {
+      onSuccess: (result) => {
+        setRefundDecisionNotice(result.notificationStatus === "sent"
+          ? `Creator email sent for ${request.creatorName}.`
+          : result.notificationStatus === "failed"
+            ? `The refund is complete, but the creator email still could not be sent for ${request.creatorName}.`
+            : `No creator email was sent for ${request.creatorName}.`);
         void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() });
       },
     });
@@ -190,12 +204,14 @@ export default function SubmissionReview() {
         </div>
         <p className="refund-review-intro">Review failed creator-reel retries. Full refunds are issued through Whop and do not change contest entries or results.</p>
         {resolveRefund.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{resolveRefund.error instanceof Error ? resolveRefund.error.message : "The refund decision could not be saved. Refresh the queue and try again."}</span></div>}
+        {retryRefundNotification.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{retryRefundNotification.error instanceof Error ? retryRefundNotification.error.message : "The creator email could not be retried. The refund was not changed."}</span></div>}
         {refundDecisionNotice && <p className="refund-review-state" role="status">{refundDecisionNotice}</p>}
         {refundQueue.isLoading ? <p className="refund-review-state" role="status">Loading refund requests…</p> :
           refundQueue.isError ? <div className="refund-review-state error" role="alert">Refund requests are unavailable. Confirm your owner session and try again.</div> :
-            !refundQueue.data?.length ? <p className="refund-review-state">No refund requests are waiting for review.</p> :
+            !refundQueue.data?.length ? <p className="refund-review-state">No refund requests are waiting for review or email follow-up.</p> :
               <div className="refund-review-list">{refundQueue.data.map((request) => {
-                const busy = resolveRefund.isPending && resolveRefund.variables?.id === request.submissionId;
+                const busy = (resolveRefund.isPending && resolveRefund.variables?.id === request.submissionId)
+                  || (retryRefundNotification.isPending && retryRefundNotification.variables?.id === request.submissionId);
                 return <article className="refund-review-card" key={request.submissionId} data-testid={`refund-request-${request.submissionId}`}>
                   <div>
                     <span className="review-number">SUBMISSION / {request.submissionId.slice(0, 8).toUpperCase()}</span>
@@ -204,8 +220,22 @@ export default function SubmissionReview() {
                     <small>Requested {new Date(request.requestedAt).toLocaleString()}</small>
                     {request.refundRequestStatus === "processing" && <small>Whop status: refund processing</small>}
                     {request.refundRequestStatus === "partial_review" && <small>Whop confirmed ${request.refundVerifiedAmountUsd?.toFixed(2) ?? "0.00"} refunded. This is not a full refund.</small>}
+                    {request.refundRequestStatus === "completed" && <small>
+                      {request.notificationStatus === "failed"
+                        ? "Refund completed. Creator notification failed."
+                        : request.notificationStatus === "sending"
+                          ? "Refund completed. Creator notification is being sent."
+                          : "Refund completed. Creator notification was not sent."}
+                    </small>}
                   </div>
                   <div className="refund-review-actions">
+                    {request.refundRequestStatus === "completed"
+                      ? request.notificationStatus === "failed"
+                        ? <button type="button" className="refund-approve" onClick={() => retryRefundEmail(request)} disabled={busy} data-testid={`button-retry-refund-email-${request.submissionId}`}>
+                          {busy ? "Retrying email…" : "Retry creator email"}
+                        </button>
+                        : null
+                      : <>
                     {request.refundRequestStatus === "requested" && <button type="button" className="refund-decline" onClick={() => resolveRefundRequest(request, "decline")} disabled={busy}>Decline</button>}
                     {request.refundRequestStatus === "partial_review"
                       ? <button type="button" className="refund-approve" onClick={() => resolveRefundRequest(request, "resolve_partial")} disabled={busy} data-testid={`button-resolve-partial-${request.submissionId}`}>
@@ -214,6 +244,7 @@ export default function SubmissionReview() {
                       : <button type="button" className="refund-approve" onClick={() => resolveRefundRequest(request, "refund")} disabled={busy}>
                         {busy ? "Processing…" : request.refundRequestStatus === "processing" ? "Check Whop status" : "Issue full refund through Whop"}
                       </button>}
+                      </>}
                   </div>
                 </article>;
               })}</div>}

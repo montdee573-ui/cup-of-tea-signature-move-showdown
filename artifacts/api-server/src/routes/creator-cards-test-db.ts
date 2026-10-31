@@ -66,6 +66,7 @@ export function seedCreatorMotionOrder(overrides: Partial<MotionOrderRow> = {}):
     generationRetryCount: 1,
     refundRequestStatus: "none",
     refundVerifiedAmountUsd: null,
+    refundNotificationStatus: "not_sent",
     refundRequestedAt: null,
     refundProcessingAt: null,
     createdAt: new Date("2026-10-01T12:00:00.000Z"),
@@ -114,6 +115,7 @@ export const db: any = {
             generationRetryCount: 0,
             refundRequestStatus: "none",
             refundVerifiedAmountUsd: null,
+            refundNotificationStatus: "not_sent",
             refundRequestedAt: null,
             refundProcessingAt: null,
             createdAt: new Date(),
@@ -133,6 +135,11 @@ export const db: any = {
           recordWrite(table);
           if (table !== creatorMotionOrdersTable) return [];
           const order = orders.find((candidate) => {
+            if (changes.refundRequestStatus === "completed") return candidate.refundRequestStatus === "processing";
+            if (changes.refundNotificationStatus === "sending") {
+              return candidate.refundRequestStatus === "completed"
+                && candidate.refundNotificationStatus === "failed";
+            }
             if (changes.status === "creating") return candidate.status === "failed";
             if (changes.status === "pending") return candidate.status === "creating";
             if (changes.status === "failed") return candidate.status === "creating";
@@ -146,7 +153,6 @@ export const db: any = {
                 : candidate.refundRequestStatus === "processing";
             }
             if (changes.refundRequestStatus === "processing") return candidate.refundRequestStatus === "requested";
-            if (changes.refundRequestStatus === "completed") return candidate.refundRequestStatus === "processing";
             if (changes.refundRequestStatus === "declined") return candidate.refundRequestStatus === "requested";
             if (changes.refundRequestStatus === "partial_review") return candidate.refundRequestStatus === "processing";
             if (changes.refundRequestStatus === "partial_resolved") return candidate.refundRequestStatus === "partial_review";

@@ -36,6 +36,7 @@ import type {
   CreatorMotionCheckoutInput,
   CreatorMotionCheckoutResponse,
   CreatorMotionRefundDecisionInput,
+  CreatorMotionRefundNotificationRetryResponse,
   CreatorMotionRefundRequest,
   CreatorMotionRefundRequestResponse,
   ErrorResponse,
@@ -3257,7 +3258,7 @@ export const getListCreatorMotionRefundRequestsUrl = () => {
 }
 
 /**
- * @summary List creator refund requests for the owner
+ * @summary List refund requests and failed notifications for the owner
  */
 export const listCreatorMotionRefundRequests = async ( options?: Parameters<typeof customFetch>[1]): Promise<CreatorMotionRefundRequest[]> => {
 
@@ -3304,7 +3305,7 @@ export type ListCreatorMotionRefundRequestsQueryError = ErrorType<ErrorResponse>
 
 
 /**
- * @summary List creator refund requests for the owner
+ * @summary List refund requests and failed notifications for the owner
  */
 
 export function useListCreatorMotionRefundRequests<TData = Awaited<ReturnType<typeof listCreatorMotionRefundRequests>>, TError = ErrorType<ErrorResponse>>(
@@ -3412,6 +3413,80 @@ export const useResolveCreatorMotionRefundRequest = <TError = ErrorType<ErrorRes
         TContext
       > => {
       return useMutation(getResolveCreatorMotionRefundRequestMutationOptions(options));
+    }
+
+export const getRetryCreatorMotionRefundNotificationUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/creator-refunds/${id}/notification-retry`
+}
+
+/**
+ * @summary Retry a failed creator refund notification
+ */
+export const retryCreatorMotionRefundNotification = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<CreatorMotionRefundNotificationRetryResponse> => {
+
+  return customFetch<CreatorMotionRefundNotificationRetryResponse>(getRetryCreatorMotionRefundNotificationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryCreatorMotionRefundNotificationMutationKey = () => ['retryCreatorMotionRefundNotification'] as const;
+
+export const getRetryCreatorMotionRefundNotificationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryCreatorMotionRefundNotification>>, TError,RetryCreatorMotionRefundNotificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryCreatorMotionRefundNotification>>, TError,RetryCreatorMotionRefundNotificationMutationVariables, TContext> => {
+
+const mutationKey = getRetryCreatorMotionRefundNotificationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryCreatorMotionRefundNotification>>, RetryCreatorMotionRefundNotificationMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryCreatorMotionRefundNotification(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryCreatorMotionRefundNotificationMutationResult = NonNullable<Awaited<ReturnType<typeof retryCreatorMotionRefundNotification>>>
+
+    export type RetryCreatorMotionRefundNotificationMutationError = ErrorType<ErrorResponse>
+    export type RetryCreatorMotionRefundNotificationMutationVariables = {id: string}
+
+    /**
+ * @summary Retry a failed creator refund notification
+ */
+export const useRetryCreatorMotionRefundNotification = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryCreatorMotionRefundNotification>>, TError,RetryCreatorMotionRefundNotificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryCreatorMotionRefundNotification>>,
+        TError,
+        RetryCreatorMotionRefundNotificationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryCreatorMotionRefundNotificationMutationOptions(options));
     }
 
 export const getListMoveSubmissionsForReviewUrl = () => {

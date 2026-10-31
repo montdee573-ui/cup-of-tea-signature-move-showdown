@@ -18,6 +18,8 @@ import {
   RequestCreatorMotionRefundBody,
   RequestCreatorMotionRefundParams,
   RequestCreatorMotionRefundResponse,
+  RetryCreatorMotionRefundNotificationParams,
+  RetryCreatorMotionRefundNotificationResponse,
   ResolveCreatorMotionRefundRequestBody,
   ResolveCreatorMotionRefundRequestParams,
   ResolveCreatorMotionRefundRequestResponse,
@@ -305,6 +307,7 @@ async function readCurrentlyPaidStoredPayment(
 }
 
 type RefundNotificationStatus = "sent" | "failed" | "not_sent";
+type StoredRefundNotificationStatus = RefundNotificationStatus | "sending";
 
 async function notifyCreatorRefundResolution(
   req: Request,
@@ -353,6 +356,32 @@ async function notifyCreatorRefundResolution(
     }, "Creator refund notification could not be sent");
     return "failed";
   }
+}
+
+async function sendClaimedCompletedRefundNotification(
+  req: Request,
+  order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
+  companyId: string,
+  verifiedPayment?: WhopPayment,
+): Promise<RefundNotificationStatus> {
+  const notificationStatus = await notifyCreatorRefundResolution(
+    req,
+    order,
+    "completed",
+    companyId,
+    verifiedPayment,
+  );
+  try {
+    await db.update(creatorMotionOrdersTable)
+      .set({ refundNotificationStatus: notificationStatus })
+      .where(eq(creatorMotionOrdersTable.submissionId, order.submissionId));
+  } catch (error) {
+    req.log.warn({
+      submissionId: order.submissionId,
+      providerStatus: (error as { status?: number }).status,
+    }, "Unable to save creator refund notification status");
+  }
+  return notificationStatus;
 }
 
 function refundRequestStatus(
@@ -416,17 +445,20 @@ async function reconcileStalledRefund(
   const refunded = Number(payment.refunded_amount ?? 0);
   if (Math.round(refunded * 100) >= Math.round(Number(payment.total) * 100)) {
     const [completed] = await db.update(creatorMotionOrdersTable)
-      .set({ refundRequestStatus: "completed", refundProcessingAt: null })
+      .set({
+        refundRequestStatus: "completed",
+        refundProcessingAt: null,
+        refundNotificationStatus: "sending",
+      })
       .where(and(
         eq(creatorMotionOrdersTable.submissionId, order.submissionId),
         eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
       ))
       .returning();
     if (!completed) return { outcome: "changed", order: (await readOrder(order.submissionId)) ?? order };
-    const notificationStatus = await notifyCreatorRefundResolution(
+    const notificationStatus = await sendClaimedCompletedRefundNotification(
       req,
       completed,
-      "completed",
       companyId,
       payment,
     );
@@ -913,7 +945,7 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
     return;
   }
   const orders = await db.select().from(creatorMotionOrdersTable)
-    .where(inArray(creatorMotionOrdersTable.refundRequestStatus, ["requested", "processing", "partial_review"]));
+    .where(inArray(creatorMotionOrdersTable.refundRequestStatus, ["requested", "processing", "partial_review", "completed"]));
   const requests = [];
   for (const order of orders) {
     let currentOrder = order;
@@ -924,7 +956,10 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
       const config = whopConfiguration();
       if (config) {
         try {
-          currentOrder = (await reconcileStalledRefund(order, config.companyId, req)).order;
+          const reconciliation = await reconcileStalledRefund(order, config.companyId, req);
+          currentOrder = reconciliation.outcome === "completed"
+            ? (await readOrder(order.submissionId)) ?? reconciliation.order
+            : reconciliation.order;
         } catch (error) {
           req.log.warn(
             { submissionId: order.submissionId, providerStatus: (error as { status?: number }).status },
@@ -934,7 +969,13 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
       }
     }
     const status = refundRequestStatus(currentOrder.refundRequestStatus);
-    if (status !== "requested" && status !== "processing" && status !== "partial_review") continue;
+    const notificationStatus = currentOrder.refundNotificationStatus as StoredRefundNotificationStatus;
+    if (
+      status !== "requested"
+      && status !== "processing"
+      && status !== "partial_review"
+      && !(status === "completed" && notificationStatus !== "sent")
+    ) continue;
     const [submission] = await db.select().from(moveSubmissionsTable)
       .where(eq(moveSubmissionsTable.id, currentOrder.submissionId));
     if (!submission || currentOrder.priceUsd === null || !currentOrder.refundRequestedAt) continue;
@@ -947,11 +988,87 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
       refundRequestStatus: status,
       refundVerifiedAmountUsd: currentOrder.refundVerifiedAmountUsd ?? null,
       processingAt: currentOrder.refundProcessingAt,
+      notificationStatus,
     });
   }
   requests.sort((a, b) => b.requestedAt.getTime() - a.requestedAt.getTime());
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   res.json(ListCreatorMotionRefundRequestsResponse.parse(requests));
+});
+
+router.post("/studio/creator-refunds/:id/notification-retry", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  if (!isStudioOwner(req)) {
+    res.status(401).json({ error: "Owner session required." });
+    return;
+  }
+  const params = RetryCreatorMotionRefundNotificationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "A valid completed refund is required." });
+    return;
+  }
+
+  const order = await readOrder(params.data.id);
+  if (!order || refundRequestStatus(order.refundRequestStatus) !== "completed") {
+    res.status(404).json({ error: "Completed refund not found." });
+    return;
+  }
+  if (order.refundNotificationStatus === "sent") {
+    res.json(RetryCreatorMotionRefundNotificationResponse.parse({ notificationStatus: "sent" }));
+    return;
+  }
+  if (order.refundNotificationStatus !== "failed") {
+    res.status(409).json({ error: "This creator notification is not eligible for retry." });
+    return;
+  }
+
+  const [claimed] = await db.update(creatorMotionOrdersTable)
+    .set({ refundNotificationStatus: "sending" })
+    .where(and(
+      eq(creatorMotionOrdersTable.submissionId, params.data.id),
+      eq(creatorMotionOrdersTable.refundRequestStatus, "completed"),
+      eq(creatorMotionOrdersTable.refundNotificationStatus, "failed"),
+    ))
+    .returning();
+  if (!claimed) {
+    const latest = await readOrder(params.data.id);
+    if (latest?.refundRequestStatus === "completed" && latest.refundNotificationStatus === "sent") {
+      res.json(RetryCreatorMotionRefundNotificationResponse.parse({ notificationStatus: "sent" }));
+      return;
+    }
+    res.status(409).json({ error: "This creator notification is already being retried or is no longer eligible." });
+    return;
+  }
+
+  const config = whopConfiguration();
+  if (!config) {
+    await db.update(creatorMotionOrdersTable)
+      .set({ refundNotificationStatus: "failed" })
+      .where(eq(creatorMotionOrdersTable.submissionId, params.data.id));
+    res.status(503).json({ error: "Whop could not verify the creator payment details." });
+    return;
+  }
+  try {
+    const payment = await readVerifiedStoredPayment(claimed, config.companyId);
+    if (!payment) {
+      await db.update(creatorMotionOrdersTable)
+        .set({ refundNotificationStatus: "failed" })
+        .where(eq(creatorMotionOrdersTable.submissionId, params.data.id));
+      res.status(503).json({ error: "Whop could not verify the creator payment details." });
+      return;
+    }
+    const notificationStatus = await sendClaimedCompletedRefundNotification(req, claimed, config.companyId, payment);
+    res.json(RetryCreatorMotionRefundNotificationResponse.parse({ notificationStatus }));
+  } catch (error) {
+    await db.update(creatorMotionOrdersTable)
+      .set({ refundNotificationStatus: "failed" })
+      .where(eq(creatorMotionOrdersTable.submissionId, params.data.id));
+    req.log.warn({
+      submissionId: params.data.id,
+      providerStatus: (error as { status?: number }).status,
+    }, "Unable to verify creator refund notification recipient");
+    res.status(503).json({ error: "Whop could not verify the creator payment details." });
+  }
 });
 
 router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<void> => {
@@ -1180,14 +1297,18 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
       throw new Error("Whop did not confirm the full refund.");
     }
     const [completed] = await db.update(creatorMotionOrdersTable)
-      .set({ refundRequestStatus: "completed", refundProcessingAt: null })
+      .set({
+        refundRequestStatus: "completed",
+        refundProcessingAt: null,
+        refundNotificationStatus: "sending",
+      })
       .where(and(
         eq(creatorMotionOrdersTable.submissionId, params.data.id),
         eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
       ))
       .returning();
     if (!completed) throw new Error("The refund result could not be recorded.");
-    const notificationStatus = await notifyCreatorRefundResolution(req, order, "completed", config.companyId, finalPayment);
+    const notificationStatus = await sendClaimedCompletedRefundNotification(req, completed, config.companyId, finalPayment);
     res.json(ResolveCreatorMotionRefundRequestResponse.parse({
       refundRequestStatus: "completed",
       refundVerifiedAmountUsd: completed.refundVerifiedAmountUsd ?? null,

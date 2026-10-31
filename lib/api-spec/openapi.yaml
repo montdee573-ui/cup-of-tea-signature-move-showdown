@@ -1233,7 +1233,7 @@ paths:
     get:
       operationId: listCreatorMotionRefundRequests
       tags: [studio]
-      summary: List creator refund requests for the owner
+      summary: List refund requests and failed notifications for the owner
       responses:
         "200":
           description: Requests awaiting owner review
@@ -1294,6 +1294,55 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "503":
           description: Whop could not complete or verify the refund
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/creator-refunds/{id}/notification-retry:
+    post:
+      operationId: retryCreatorMotionRefundNotification
+      tags: [studio]
+      summary: Retry a failed creator refund notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Creator notification delivery result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorMotionRefundNotificationRetryResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid refund identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Completed refund not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Notification is not currently eligible for retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Creator payment details could not be verified
           content:
             application/json:
               schema:
@@ -2486,13 +2535,23 @@ components:
           format: date-time
         refundRequestStatus:
           type: string
-          enum: [requested, processing, partial_review]
+          enum: [requested, processing, partial_review, completed]
         refundVerifiedAmountUsd:
           type: ["number", "null"]
         processingAt:
           type: ["string", "null"]
           format: date-time
-      required: [submissionId, creatorName, moveName, priceUsd, requestedAt, refundRequestStatus, refundVerifiedAmountUsd, processingAt]
+        notificationStatus:
+          type: string
+          enum: [sent, failed, not_sent, sending]
+      required: [submissionId, creatorName, moveName, priceUsd, requestedAt, refundRequestStatus, refundVerifiedAmountUsd, processingAt, notificationStatus]
+    CreatorMotionRefundNotificationRetryResponse:
+      type: object
+      properties:
+        notificationStatus:
+          type: string
+          enum: [sent, failed, not_sent]
+      required: [notificationStatus]
     CreatorMotionRefundDecisionInput:
       type: object
       properties:

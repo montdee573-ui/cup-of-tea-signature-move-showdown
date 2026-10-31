@@ -48,7 +48,7 @@ const app = express();
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
 let requestId = 0;
-type SentEmail = { path: string; body: Record<string, unknown> };
+type SentEmail = { path: string; idempotencyKey?: string; body: Record<string, unknown> };
 let sentEmails: SentEmail[] = [];
 
 function configureOwner(planId = "plan_test"): void {
@@ -124,6 +124,7 @@ type WhopMockOptions = {
   timeoutAfterCheckoutCreated?: boolean;
   refundAmount?: number;
   failEmail?: boolean;
+  emailFailures?: number;
   throwEmail?: boolean;
   checkoutConfigurations?: Array<{ id: string; metadata?: Record<string, unknown> | null }>;
 };
@@ -138,6 +139,7 @@ async function withWhop(
   const calls: WhopCall[] = [];
   const checkoutSessions = new Map<string, { id: string; purchase_url: string }>();
   let checkoutCreationCount = 0;
+  let emailFailureCount = 0;
   let timedOutAfterCheckoutCreation = false;
   sentEmails = [];
   let refundedAmount = 0;
@@ -145,9 +147,16 @@ async function withWhop(
   ReplitConnectors.prototype.proxy = async function (connectorName, path, options) {
     if (connectorName === "resend") {
       if (mockOptions.throwEmail) throw new Error("Resend is unavailable.");
-      sentEmails.push({ path, body: (options?.body ?? {}) as Record<string, unknown> });
+      sentEmails.push({
+        path,
+        idempotencyKey: (options?.headers as Record<string, string> | undefined)?.["Idempotency-Key"],
+        body: (options?.body ?? {}) as Record<string, unknown>,
+      });
+      const failEmail = mockOptions.emailFailures !== undefined
+        ? emailFailureCount++ < mockOptions.emailFailures
+        : mockOptions.failEmail;
       return new Response(JSON.stringify({ id: "email_test" }), {
-        status: mockOptions.failEmail ? 503 : 200,
+        status: failEmail ? 503 : 200,
         headers: { "Content-Type": "application/json" },
       });
     }
@@ -322,6 +331,13 @@ async function ownerRefundDecision(
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: cookie },
     body: JSON.stringify({ decision }),
+  });
+}
+
+async function ownerRefundNotificationRetry(cookie = ownerCookie()): Promise<Response> {
+  return fetch(`${baseUrl}/studio/creator-refunds/${submissionId}/notification-retry`, {
+    method: "POST",
+    headers: { Cookie: cookie },
   });
 }
 
@@ -1130,7 +1146,80 @@ test("email delivery failure does not undo the completed refund", async () => {
   }, undefined, {}, { failEmail: true });
 
   assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
+  assert.equal(creatorCardState().orders[0].refundNotificationStatus, "failed");
   assert.equal(sentEmails.length, 1);
+});
+
+test("owner can retry only a failed completed-refund email without refunding twice", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({ refundRequestStatus: "requested", refundRequestedAt: new Date() });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const initial = await ownerRefundDecision("refund");
+    assert.equal(initial.status, 200);
+    assert.deepEqual(await initial.json(), {
+      refundRequestStatus: "completed",
+      refundVerifiedAmountUsd: null,
+      refundRequestedAt: creatorCardState().orders[0].refundRequestedAt?.toISOString(),
+      notificationStatus: "failed",
+    });
+    assert.equal(creatorCardState().orders[0].refundNotificationStatus, "failed");
+    assert.equal(sentEmails.length, 1);
+
+    const queueResponse = await fetch(`${baseUrl}/studio/creator-refunds`, {
+      headers: { Cookie: ownerCookie() },
+    });
+    assert.equal(queueResponse.status, 200);
+    const [request] = await queueResponse.json() as Array<{
+      refundRequestStatus: string;
+      notificationStatus: string;
+    }>;
+    assert.equal(request.refundRequestStatus, "completed");
+    assert.equal(request.notificationStatus, "failed");
+
+    const anonymousRetry = await ownerRefundNotificationRetry("");
+    assert.equal(anonymousRetry.status, 401);
+
+    const retry = await ownerRefundNotificationRetry();
+    assert.equal(retry.status, 200);
+    assert.deepEqual(await retry.json(), { notificationStatus: "sent" });
+    assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
+    assert.equal(creatorCardState().orders[0].refundNotificationStatus, "sent");
+    assert.equal(sentEmails.length, 2);
+    assert.equal(sentEmails[1].body.text, sentEmails[0].body.text);
+    assert.equal(sentEmails[1].idempotencyKey, sentEmails[0].idempotencyKey);
+    assert.deepEqual(calls.map((call) => call.method), ["GET", "POST", "GET", "GET"]);
+    assert.equal(calls.filter((call) => call.path.endsWith("/refund")).length, 1);
+
+    const repeatedRetry = await ownerRefundNotificationRetry();
+    assert.equal(repeatedRetry.status, 200);
+    assert.deepEqual(await repeatedRetry.json(), { notificationStatus: "sent" });
+    assert.equal(sentEmails.length, 2);
+    assert.deepEqual(calls.map((call) => call.method), ["GET", "POST", "GET", "GET"]);
+  }, undefined, {}, { emailFailures: 1 });
+});
+
+test("overlapping refund email retries send one creator notification", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "completed",
+    refundNotificationStatus: "failed",
+    refundRequestedAt: new Date(),
+  });
+
+  await withWhop(approvedPlan(), async (calls) => {
+    const responses = await Promise.all([
+      ownerRefundNotificationRetry(),
+      ownerRefundNotificationRetry(),
+    ]);
+    assert(responses.every((response) => response.status === 200 || response.status === 409));
+    assert(responses.some((response) => response.status === 200));
+    assert.equal(sentEmails.length, 1);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].method, "GET");
+    assert.equal(calls.some((call) => call.path.endsWith("/refund")), false);
+  });
+  assert.equal(creatorCardState().orders[0].refundNotificationStatus, "sent");
 });
 
 test("an email connector failure does not undo the completed refund", async () => {
