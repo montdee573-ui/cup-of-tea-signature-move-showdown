@@ -17,7 +17,7 @@ tags:
   - name: studio
     description: Owner-protected AI reel production studio
   - name: merch
-    description: Read-only Printful catalog for merchandise planning
+    description: Printful catalog and owner-only merchandise mockup previews
   - name: submissions
     description: Account-free move video submissions and owner moderation
 paths:
@@ -332,6 +332,125 @@ paths:
                   $ref: "#/components/schemas/MerchCatalogItem"
         "502":
           description: Printful catalog is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /merch/catalog/{id}/details:
+    get:
+      operationId: getMerchProductDetails
+      tags: [merch]
+      summary: Get catalog variants and print placements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Catalog product details for private mockup planning
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchProductDetails"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Catalog product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Printful product details are unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /merch/catalog/{id}/mockups:
+    post:
+      operationId: createMerchMockup
+      tags: [merch]
+      summary: Generate a private mockup from artwork
+      description: Creates only a temporary Printful mockup-generation task. Does not create a product, order, or checkout.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MerchMockupInput"
+      responses:
+        "200":
+          description: Printful mockup-generation task started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchMockupTaskStart"
+        "400":
+          description: Invalid variant, placement, or artwork URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Catalog product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Printful could not start mockup generation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /merch/mockups/{taskKey}:
+    get:
+      operationId: getMerchMockupTask
+      tags: [merch]
+      summary: Check a private mockup task
+      parameters:
+        - name: taskKey
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        "200":
+          description: Mockup task state and any generated previews
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchMockupTask"
+        "401":
+          description: Owner session required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Printful could not read the mockup task
           content:
             application/json:
               schema:
@@ -719,6 +838,100 @@ components:
         imageUrl:
           type: ["string", "null"]
       required: [id, title, type, variantCount, imageUrl]
+    MerchProductVariant:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: ["string", "null"]
+        size:
+          type: ["string", "null"]
+      required: [id, name, color, size]
+    MerchPrintPlacement:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+      required: [id, title]
+    MerchProductDetails:
+      type: object
+      properties:
+        productId:
+          type: integer
+        title:
+          type: string
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/MerchProductVariant"
+        placements:
+          type: array
+          items:
+            $ref: "#/components/schemas/MerchPrintPlacement"
+      required: [productId, title, variants, placements]
+    MerchMockupInput:
+      type: object
+      properties:
+        variantId:
+          type: integer
+          minimum: 1
+        placement:
+          type: string
+          minLength: 1
+          maxLength: 80
+        artworkUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+      required: [variantId, placement, artworkUrl]
+    MerchMockupTaskStart:
+      type: object
+      properties:
+        taskKey:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        productId:
+          type: integer
+        variantId:
+          type: integer
+      required: [taskKey, status, productId, variantId]
+    MerchMockupPreview:
+      type: object
+      properties:
+        title:
+          type: string
+        placement:
+          type: string
+        variantIds:
+          type: array
+          items:
+            type: integer
+        imageUrl:
+          type: string
+          format: uri
+      required: [title, placement, variantIds, imageUrl]
+    MerchMockupTask:
+      type: object
+      properties:
+        taskKey:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        error:
+          type: ["string", "null"]
+        mockups:
+          type: array
+          items:
+            $ref: "#/components/schemas/MerchMockupPreview"
+      required: [taskKey, status, error, mockups]
     Contestant:
       type: object
       properties:

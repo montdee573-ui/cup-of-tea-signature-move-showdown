@@ -284,6 +284,28 @@ button { cursor: pointer; }
 .review-error { color: #e9969f; }
 .review-privacy-foot { display: flex; align-items: center; gap: 8px; margin-top: 20px; color: #7f8d9c; font: 8px var(--font-mono); }
 .review-privacy-foot svg { color: #85c9c3; }
+.merch-studio { margin-top: 42px; padding: 24px; border: 1px solid rgba(88,221,236,.2); border-radius: 6px; background: linear-gradient(145deg,rgba(25,71,83,.15),rgba(16,16,26,.94)); }
+.merch-studio-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.merch-studio-head h2 { margin: 9px 0 0; color: #e5e3ee; font: 600 clamp(22px,4vw,31px)/1.1 var(--font-display); letter-spacing: -.055em; }
+.merch-studio-lock { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid rgba(88,221,236,.2); border-radius: 3px; color: var(--cyan); font: 8px var(--font-mono); white-space: nowrap; }
+.merch-studio-intro { max-width: 700px; margin: 12px 0 21px; color: #9c9aab; font-size: 10px; line-height: 1.7; }
+.merch-studio-permissions { max-width: 850px; margin: 0 0 18px; padding: 10px 12px; border-left: 2px solid rgba(168,139,255,.55); color: #aaa7ba; background: rgba(168,139,255,.055); font-size: 9px; line-height: 1.7; }
+.merch-studio-permissions code { color: #d5c7ff; font: 9px var(--font-mono); }
+.merch-studio-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px; }
+.merch-studio-form label { display: grid; gap: 7px; color: #aaa7ba; font: 9px var(--font-mono); }
+.merch-studio-form input,.merch-studio-form select { width: 100%; min-width: 0; min-height: 39px; padding: 9px 10px; border: 1px solid rgba(221,218,244,.15); border-radius: 3px; outline: none; color: #e6e3ed; background: #11111b; font: 10px var(--font-body); }
+.merch-studio-form input:focus,.merch-studio-form select:focus { border-color: rgba(88,221,236,.6); }
+.merch-studio-form button { grid-column: 1 / -1; justify-self: start; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 39px; padding: 0 13px; border: 0; border-radius: 3px; color: #090911; background: linear-gradient(100deg,var(--cyan),#a4afff); font: 700 10px var(--font-body); }
+.merch-studio-form button:disabled { cursor: not-allowed; opacity: .52; }
+.merch-studio-status,.merch-studio-error { display: flex; align-items: center; gap: 7px; margin: 0; color: #9a9aac; font-size: 10px; line-height: 1.55; }
+.merch-studio-error { color: #f08d9a; }
+.merch-studio-result { margin-top: 18px; }
+.merch-studio-previews { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 12px; }
+.merch-studio-previews figure { overflow: hidden; margin: 0; border: 1px solid rgba(221,218,244,.13); border-radius: 4px; background: #0c0c14; }
+.merch-studio-previews img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: contain; background: #12121b; }
+.merch-studio-previews figcaption { padding: 9px; color: #aaa7ba; font: 8px/1.5 var(--font-mono); }
+.merch-studio-safety { display: flex; align-items: flex-start; gap: 8px; margin: 18px 0 0; padding-top: 12px; border-top: 1px solid rgba(221,218,244,.1); color: #858397; font-size: 9px; line-height: 1.6; }
+.merch-studio-safety svg { flex: 0 0 auto; color: #85c9c3; }
 .review-decision-error { margin-bottom: 13px; }
 .review-list-skeleton { display: grid; gap: 12px; }
 .review-list-skeleton > div { height: 290px; border: 1px solid var(--line); border-radius: 6px; background: linear-gradient(100deg,#111923,#1b2630 50%,#111923); background-size: 200% 100%; animation: shimmer 1.5s ease infinite; }
@@ -331,6 +353,10 @@ button { cursor: pointer; }
   .review-workspace { width: calc(100% - 34px); padding-top: 37px; }
   .review-heading { align-items: flex-start; flex-direction: column; }
   .review-heading-side { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+  .merch-studio { padding: 17px; }
+  .merch-studio-head { align-items: flex-start; flex-direction: column; }
+  .merch-studio-form { grid-template-columns: 1fr; }
+  .merch-studio-form button { grid-column: auto; }
   .review-card { grid-template-columns: 1fr; gap: 20px; padding: 17px; }
   .review-media video { max-height: 330px; aspect-ratio: 16/9; }
   .review-login-wrap { width: min(100% - 34px,540px); min-height: auto; display: grid; grid-template-columns: 1fr; gap: 27px; padding: 28px 0 55px; }

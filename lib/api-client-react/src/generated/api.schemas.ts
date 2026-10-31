@@ -55,6 +55,79 @@ export interface MerchCatalogItem {
   imageUrl: string | null;
 }
 
+export interface MerchProductVariant {
+  id: number;
+  name: string;
+  /** @nullable */
+  color: string | null;
+  /** @nullable */
+  size: string | null;
+}
+
+export interface MerchPrintPlacement {
+  id: string;
+  title: string;
+}
+
+export interface MerchProductDetails {
+  productId: number;
+  title: string;
+  variants: MerchProductVariant[];
+  placements: MerchPrintPlacement[];
+}
+
+export interface MerchMockupInput {
+  /** @minimum 1 */
+  variantId: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  placement: string;
+  /** @maxLength 2048 */
+  artworkUrl: string;
+}
+
+export type MerchMockupTaskStartStatus = typeof MerchMockupTaskStartStatus[keyof typeof MerchMockupTaskStartStatus];
+
+
+export const MerchMockupTaskStartStatus = {
+  pending: 'pending',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface MerchMockupTaskStart {
+  taskKey: string;
+  status: MerchMockupTaskStartStatus;
+  productId: number;
+  variantId: number;
+}
+
+export interface MerchMockupPreview {
+  title: string;
+  placement: string;
+  variantIds: number[];
+  imageUrl: string;
+}
+
+export type MerchMockupTaskStatus = typeof MerchMockupTaskStatus[keyof typeof MerchMockupTaskStatus];
+
+
+export const MerchMockupTaskStatus = {
+  pending: 'pending',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface MerchMockupTask {
+  taskKey: string;
+  status: MerchMockupTaskStatus;
+  /** @nullable */
+  error: string | null;
+  mockups: MerchMockupPreview[];
+}
+
 export type ContestantVerificationStatus = typeof ContestantVerificationStatus[keyof typeof ContestantVerificationStatus];
 
 

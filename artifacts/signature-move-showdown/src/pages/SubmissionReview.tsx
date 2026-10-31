@@ -16,6 +16,7 @@ import {
   useReviewMoveSubmission,
 } from "@workspace/api-client-react";
 import type { MoveSubmission } from "@workspace/api-client-react";
+import MerchMockupStudio from "./MerchMockupStudio";
 
 function readableSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -140,6 +141,7 @@ export default function SubmissionReview() {
         queue.isError ? <div className="review-empty review-error"><CircleAlert size={22} /><h2>Queue unavailable</h2><p>We could not load private submissions. The public archive is unchanged.</p><button type="button" onClick={() => void queue.refetch()}><RefreshCw size={14} /> Try again</button></div> :
           !queue.data?.length ? <div className="review-empty"><ShieldCheck size={24} /><span className="launch-label">ALL CAUGHT UP</span><h2>No moves waiting.</h2><p>New submissions will appear here after they are sent for review.</p><button type="button" onClick={() => void queue.refetch()}><RefreshCw size={14} /> Check again</button></div> :
             <div className="review-list">{queue.data.map((submission) => <SubmissionCard key={submission.id} submission={submission} busy={reviewSubmission.isPending && reviewSubmission.variables?.id === submission.id} onReview={decide} />)}</div>}
+      <MerchMockupStudio />
       <div className="review-privacy-foot"><LockKeyhole size={14} /><span>Private submissions stay out of all public archive views until moderation is complete.</span></div>
     </section>}
   </main>;

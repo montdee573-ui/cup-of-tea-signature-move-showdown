@@ -350,6 +350,88 @@ export const ListMerchCatalogResponse = zod.array(ListMerchCatalogResponseItem)
 
 
 /**
+ * @summary Get catalog variants and print placements
+ */
+
+
+
+export const GetMerchProductDetailsParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const GetMerchProductDetailsResponse = zod.object({
+  "productId": zod.number().int(),
+  "title": zod.string(),
+  "variants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "color": zod.string().nullable(),
+  "size": zod.string().nullable()
+})),
+  "placements": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string()
+}))
+})
+
+
+/**
+ * Creates only a temporary Printful mockup-generation task. Does not create a product, order, or checkout.
+ * @summary Generate a private mockup from artwork
+ */
+
+
+
+export const CreateMerchMockupParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+
+export const createMerchMockupBodyPlacementMax = 80;
+
+export const createMerchMockupBodyArtworkUrlMax = 2048;
+
+
+
+export const CreateMerchMockupBody = zod.object({
+  "variantId": zod.number().int().min(1),
+  "placement": zod.string().min(1).max(createMerchMockupBodyPlacementMax),
+  "artworkUrl": zod.string().url().max(createMerchMockupBodyArtworkUrlMax)
+})
+
+export const CreateMerchMockupResponse = zod.object({
+  "taskKey": zod.string(),
+  "status": zod.enum(['pending', 'completed', 'failed']),
+  "productId": zod.number().int(),
+  "variantId": zod.number().int()
+})
+
+
+/**
+ * @summary Check a private mockup task
+ */
+export const getMerchMockupTaskPathTaskKeyMax = 100;
+
+
+
+export const GetMerchMockupTaskParams = zod.object({
+  "taskKey": zod.coerce.string().min(1).max(getMerchMockupTaskPathTaskKeyMax)
+})
+
+export const GetMerchMockupTaskResponse = zod.object({
+  "taskKey": zod.string(),
+  "status": zod.enum(['pending', 'completed', 'failed']),
+  "error": zod.string().nullable(),
+  "mockups": zod.array(zod.object({
+  "title": zod.string(),
+  "placement": zod.string(),
+  "variantIds": zod.array(zod.number().int()),
+  "imageUrl": zod.string().url()
+}))
+})
+
+
+/**
  * @summary Check studio owner session
  */
 export const GetStudioSessionResponse = zod.object({

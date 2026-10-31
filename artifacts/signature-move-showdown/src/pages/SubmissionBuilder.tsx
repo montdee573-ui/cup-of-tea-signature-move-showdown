@@ -244,7 +244,7 @@ export default function SubmissionBuilder() {
         </div></section>
 
         <section className="builder-step"><span className="builder-step-num">04</span><div className="builder-step-content"><h2>Plan a merch match</h2>
-          <p className="merch-helper">Browse the live Printful catalog and attach a product idea to this private card draft.</p>
+          <p className="merch-helper">Browse the live Printful catalog and save a product idea with this private card draft.</p>
           {merchCatalog.isLoading ? <p className="merch-status">Loading Printful catalog…</p> :
             merchCatalog.isError ? <p className="merch-status" role="status">Printful catalog is temporarily unavailable. Your card draft still works.</p> :
               <><label>Search merchandise<input value={merchSearch} onChange={(event) => setMerchSearch(event.target.value)} placeholder="Search shirts, hats, jerseys…" /></label>
@@ -254,7 +254,7 @@ export default function SubmissionBuilder() {
                 </select></label>
                 {selectedMerch && <p className="merch-status">Selected: <strong>{selectedMerch.title}</strong>. This is a planning link only.</p>}
               </>}
-          <p className="merch-safety">No Printful product, mockup, order, checkout, or sale is created from this page.</p>
+          <p className="merch-safety">This public form only saves a planning link in your local draft. Owners can prepare private mockups in the Review desk.</p>
         </div></section>
 
         <section className="submission-consent">
