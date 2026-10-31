@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { after, before, test } from "node:test";
 import cookieParser from "cookie-parser";
-import express, { type Request } from "express";
+import express, { type Express, type Request } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import contestResultsRouter from "./contest-results";
 import resendWebhookRouter from "./resend-webhook";
@@ -20,6 +20,9 @@ const ADMIN_PASSWORD = "contest-results-test-owner-password";
 const app = express();
 let server: ReturnType<typeof app.listen>;
 let baseUrl: string;
+let publicApiApp: Express;
+let publicApiServer: ReturnType<Express["listen"]>;
+let publicApiBaseUrl: string;
 let observedClientIp = "";
 
 function ownerCookie(): string {
@@ -37,6 +40,15 @@ before(async () => {
   process.env.SESSION_SECRET = SESSION_SECRET;
   process.env.REEL_STUDIO_ADMIN_PASSWORD = ADMIN_PASSWORD;
   app.set("trust proxy", true);
+
+  const originalNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
+  ({ default: publicApiApp } = await import("../app"));
+  if (originalNodeEnv === undefined) {
+    delete process.env.NODE_ENV;
+  } else {
+    process.env.NODE_ENV = originalNodeEnv;
+  }
 
   app.use("/webhooks/resend", express.raw({ type: "application/json", limit: "64kb" }));
   app.use(express.json());
@@ -57,12 +69,23 @@ before(async () => {
   const address = server.address();
   assert(address && typeof address !== "string");
   baseUrl = `http://127.0.0.1:${address.port}`;
+
+  publicApiServer = publicApiApp.listen(0);
+  await new Promise<void>((resolve) => publicApiServer.once("listening", resolve));
+  const publicApiAddress = publicApiServer.address();
+  assert(publicApiAddress && typeof publicApiAddress !== "string");
+  publicApiBaseUrl = `http://127.0.0.1:${publicApiAddress.port}`;
 });
 
 after(async () => {
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => error ? reject(error) : resolve());
-  });
+  await Promise.all([
+    new Promise<void>((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    }),
+    new Promise<void>((resolve, reject) => {
+      publicApiServer.close((error) => error ? reject(error) : resolve());
+    }),
+  ]);
 });
 
 async function request(path: string, init: RequestInit = {}, authenticated = false): Promise<Response> {
@@ -688,6 +711,68 @@ function signedWebhookRequest(body: unknown, options: {
     body: rawBody,
   });
 }
+
+test("the public Resend webhook verifies exact raw request bytes", async () => {
+  resetContestResultRows([{
+    status: "cleared",
+    emailDeliveryStatus: "sent",
+    emailProviderId: "email_public_route",
+  }]);
+  const testSecret = `whsec_${Buffer.from("test webhook signing secret with enough bytes").toString("base64")}`;
+  process.env.RESEND_WEBHOOK_SECRET = testSecret;
+
+  try {
+    const eventId = "evt_public_exact_bytes";
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const rawBody = [
+      "{",
+      '  "type": "email.delivered",',
+      '  "created_at": "2026-10-31T12:00:01.000Z",',
+      '  "data": { "email_id": "email_public_route" },',
+      '  "note": "café 🏀"',
+      "}",
+    ].join("\n");
+    const signature = createHmac(
+      "sha256",
+      Buffer.from(testSecret.slice("whsec_".length), "base64"),
+    )
+      .update(`${eventId}.${timestamp}.${rawBody}`)
+      .digest("base64");
+    const headers = {
+      "Content-Type": "application/json",
+      "svix-id": eventId,
+      "svix-timestamp": timestamp,
+      "svix-signature": `v1,${signature}`,
+    };
+
+    const verified = await fetch(`${publicApiBaseUrl}/api/webhooks/resend`, {
+      method: "POST",
+      headers,
+      body: Buffer.from(rawBody, "utf8"),
+    });
+    assert.equal(verified.status, 204);
+    assert.equal(getContestResultRowsForTest()[0].emailDeliveryStatus, "delivered");
+    assert.equal(getContestResultRowsForTest()[0].emailLastWebhookEventId, eventId);
+
+    const changedBody = rawBody.replace("email.delivered", "email.bounced");
+    const changed = await fetch(`${publicApiBaseUrl}/api/webhooks/resend`, {
+      method: "POST",
+      headers,
+      body: Buffer.from(changedBody, "utf8"),
+    });
+    assert.equal(changed.status, 401);
+
+    const invalidSignature = await fetch(`${publicApiBaseUrl}/api/webhooks/resend`, {
+      method: "POST",
+      headers: { ...headers, "svix-signature": "v1,Zm9yZ2Vk" },
+      body: Buffer.from(rawBody, "utf8"),
+    });
+    assert.equal(invalidSignature.status, 401);
+    assert.equal(getContestResultRowsForTest()[0].emailDeliveryStatus, "delivered");
+  } finally {
+    delete process.env.RESEND_WEBHOOK_SECRET;
+  }
+});
 
 test("verified Resend events update owner-visible delivery status and ignore old duplicates", async () => {
   resetContestResultRows([{

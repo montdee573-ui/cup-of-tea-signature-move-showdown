@@ -1,7 +1,21 @@
 import { contestResultsTable } from "../../../../lib/db/src/schema/contest-results";
 import { contestResultHistoryTable } from "../../../../lib/db/src/schema/contest-result-history";
+import { contestantsTable } from "../../../../lib/db/src/schema/contestants";
+import { creatorMotionOrdersTable } from "../../../../lib/db/src/schema/creator-motion-orders";
+import { moveCardsTable } from "../../../../lib/db/src/schema/move-cards";
+import { moveSubmissionsTable } from "../../../../lib/db/src/schema/move-submissions";
+import { showdownVotesTable, showdownsTable } from "../../../../lib/db/src/schema/showdowns";
 import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
 import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
+
+export {
+  contestantsTable,
+  creatorMotionOrdersTable,
+  moveCardsTable,
+  moveSubmissionsTable,
+  showdownVotesTable,
+  showdownsTable,
+};
 
 type ContestResultRow = typeof contestResultsTable.$inferSelect;
 type ContestResultHistoryRow = typeof contestResultHistoryTable.$inferSelect;
