@@ -1035,7 +1035,7 @@ test("stale refund claims stay protected when Whop cannot verify them", async ()
   assert.equal(creatorCardState().orders[0].refundRequestStatus, "processing");
 });
 
-test("fresh processing refunds show no recorded check and do not contact Whop", async () => {
+test("fresh processing refunds are not unverified, show no recorded check, and do not contact Whop", async () => {
   resetTestState();
   seedCreatorMotionOrder({
     refundRequestStatus: "processing",
@@ -1047,7 +1047,13 @@ test("fresh processing refunds show no recorded check and do not contact Whop", 
       headers: { Cookie: ownerCookie() },
     });
     assert.equal(response.status, 200);
-    const [request] = await response.json() as Array<{ statusCheckedAt: string | null }>;
+    const [request] = await response.json() as Array<{
+      refundRequestStatus: string;
+      statusCheckUnverified: boolean;
+      statusCheckedAt: string | null;
+    }>;
+    assert.equal(request.refundRequestStatus, "processing");
+    assert.equal(request.statusCheckUnverified, false);
     assert.equal(request.statusCheckedAt, null);
     assert.equal(calls.length, 0);
   });

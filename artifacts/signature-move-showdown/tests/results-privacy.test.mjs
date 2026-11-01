@@ -152,6 +152,46 @@ async function expectPrivateResultsHidden(page) {
   assert.doesNotMatch(visibleText, /PRIVATE OWNER-ONLY FINAL|PRIVATE OWNER-ONLY WINNER|Private Base44 notes|Private Viral Reel notes|private-results@example\.test/);
 }
 
+test("owner refund queue distinguishes normal processing from an unverified stale check", { timeout: 60_000 }, async () => {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await setupPage(page, true);
+    await page.route("**/api/studio/creator-refunds", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([false, true].map((statusCheckUnverified) => ({
+        submissionId: statusCheckUnverified ? "stale-refund" : "recent-refund",
+        creatorName: "Test Creator",
+        moveName: "Test Move",
+        priceUsd: 2,
+        requestedAt: new Date().toISOString(),
+        refundRequestStatus: "processing",
+        statusCheckUnverified,
+        statusCheckedAt: statusCheckUnverified ? new Date().toISOString() : null,
+        notificationStatus: "not_sent",
+      }))),
+    }));
+    await page.goto(`${baseUrl}/review`);
+    const recent = page.getByTestId("refund-request-recent-refund");
+    const stale = page.getByTestId("refund-request-stale-refund");
+    await recent.waitFor();
+    await stale.waitFor();
+    const normalMessage = "Refund processing. Check the status again later if it remains pending.";
+    const warningMessage = "This refund is taking longer than expected, and its status could not be verified. Keep the request open and retry the status check later.";
+    assert.ok((await recent.innerText()).includes(normalMessage));
+    assert.ok(!(await recent.innerText()).includes(warningMessage));
+    assert.equal(await recent.getByRole("button", { name: "Check refund status", exact: true }).count(), 1);
+    assert.equal(await recent.getByRole("button", { name: "Retry status check", exact: true }).count(), 0);
+    assert.equal(await stale.getByRole("status").innerText(), warningMessage);
+    assert.ok(!(await stale.innerText()).includes(normalMessage));
+    assert.equal(await stale.getByRole("button", { name: "Retry status check", exact: true }).count(), 1);
+    assert.equal(await stale.getByRole("button", { name: "Check refund status", exact: true }).count(), 0);
+  } finally {
+    await context.close();
+  }
+});
+
 test("signing out hides and removes the cached recipient and private results", { timeout: 60_000 }, async () => {
   const context = await browser.newContext();
   try {
