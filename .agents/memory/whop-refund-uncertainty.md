@@ -22,3 +22,9 @@ Keep queue response deadlines separate from provider operation lifetimes. A queu
 **Why:** The original provider request may still save a result; releasing its slot on the response deadline allows repeated refreshes to start overlapping checks and defeat the concurrency bound.
 
 **How to apply:** Retain active-check ownership until the operation settles, show unresolved stale rows as unverified, and read saved results on subsequent refreshes.
+
+Automatic verification cooldowns must not suppress an explicit owner retry after the previous check has settled; all entry points must still exclude overlapping checks.
+
+**Why:** A failed manual check triggers a queue refetch, which must not silently repeat the provider call. Owners still need a deliberate way to retry without waiting for automatic polling.
+
+**How to apply:** Separate automatic cooldown eligibility from active-check ownership. Keep attempt writes committed even when provider work fails, and bound lock-holding operations so they leave database connections available for those writes.

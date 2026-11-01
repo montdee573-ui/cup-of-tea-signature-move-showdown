@@ -3,10 +3,12 @@ import { createHash, createHmac } from "node:crypto";
 import { after, before, test } from "node:test";
 import cookieParser from "cookie-parser";
 import express, { type Request } from "express";
+import { sql } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import creatorCardsRouter from "./creator-cards";
 import {
   creatorCardState,
+  db,
   resetCreatorCardState,
   seedCreatorMotionOrder,
 } from "./creator-cards-test-db";
@@ -1049,6 +1051,9 @@ test("slow queue checks return the attempt and safe warning, then refresh saved 
       assert.equal(request.statusCheckUnverified, true);
       assert.equal(request.statusCheckedAt, creatorCardState().orders[0].refundStatusCheckedAt?.toISOString());
       await fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } });
+      const competingManual = await ownerRefundDecision("refund");
+      assert.equal(competingManual.status, 409);
+      assert.equal(creatorCardState().orders[0].refundStatusCheckedAt?.toISOString(), request.statusCheckedAt);
       assert.equal(calls.filter((call) => call.path.endsWith("/payments/pay_test")).length, 1);
       release();
       for (let i = 0; i < 50 && creatorCardState().orders[0].refundRequestStatus === "processing"; i++) {
@@ -1128,6 +1133,68 @@ test("fresh processing refunds are not unverified, show no recorded check, and d
     assert.equal(request.statusCheckUnverified, false);
     assert.equal(request.statusCheckedAt, null);
     assert.equal(calls.length, 0);
+  });
+});
+
+test("automatic refreshes share a cooldown, while explicit retries can check again", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+  const queue = () => fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } });
+  await withWhop(approvedPlan(), async (calls) => {
+    await Promise.all(Array.from({ length: 8 }, queue));
+    const firstAttempt = creatorCardState().orders[0].refundStatusCheckedAt!.getTime();
+    await Promise.all(Array.from({ length: 8 }, queue));
+    assert.equal(calls.filter((call) => call.path.endsWith("/payments/pay_test")).length, 1);
+    assert.equal(creatorCardState().orders[0].refundStatusCheckedAt!.getTime(), firstAttempt);
+
+    assert.equal((await ownerRefundDecision("refund")).status, 503);
+    const manualAttempt = creatorCardState().orders[0].refundStatusCheckedAt!.getTime();
+    assert.ok(manualAttempt >= firstAttempt);
+    await queue(); // UI refetch after the failed manual check must not check again.
+    assert.equal(calls.filter((call) => call.path.endsWith("/payments/pay_test")).length, 2);
+    assert.equal(creatorCardState().orders[0].refundStatusCheckedAt!.getTime(), manualAttempt);
+
+    seedCreatorMotionOrder({
+      ...creatorCardState().orders[0],
+      refundStatusCheckedAt: new Date(Date.now() - 31_000),
+    });
+    await queue();
+    assert.equal(calls.filter((call) => call.path.endsWith("/payments/pay_test")).length, 3);
+    assert.equal(creatorCardState().orders[0].refundRequestStatus, "processing");
+    assert.equal(calls.some((call) => call.method === "POST"), false);
+  }, undefined, {}, {
+    failRequest: { method: "GET", pathSuffix: "/payments/pay_test", status: 504 },
+  });
+});
+
+test("a shared check lock blocks other sessions without inventing attempt times", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+  await withWhop(approvedPlan(), async (calls) => {
+    // Simulate another API instance: no process-local queue slot is occupied.
+    await db.transaction(async (tx: any) => {
+      await tx.execute(sql`SELECT pg_try_advisory_xact_lock(hashtextextended(${`refund-check:${submissionId}`}, 0)) AS acquired`);
+      await Promise.all([
+        fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } }),
+        ownerRefundDecision("refund").then((response) => assert.equal(response.status, 409)),
+      ]);
+      assert.equal(calls.length, 0);
+      assert.equal(creatorCardState().orders[0].refundStatusCheckedAt, null);
+      assert.equal(creatorCardState().orders[0].refundRequestStatus, "processing");
+    });
+    await ownerRefundDecision("refund");
+    assert.equal(calls.filter((call) => call.path.endsWith("/payments/pay_test")).length, 1);
+    assert.equal(calls.some((call) => call.method === "POST"), false);
+  }, undefined, {}, {
+    failRequest: { method: "GET", pathSuffix: "/payments/pay_test", status: 504 },
   });
 });
 

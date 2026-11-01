@@ -2,6 +2,8 @@ import { creatorMotionOrdersTable } from "../../../../lib/db/src/schema/creator-
 import { moveSubmissionsTable } from "../../../../lib/db/src/schema/move-submissions";
 import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
 import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
+import { PgDialect } from "drizzle-orm/pg-core";
+import type { SQL } from "drizzle-orm";
 
 type SubmissionRow = typeof moveSubmissionsTable.$inferSelect;
 type MotionOrderRow = typeof creatorMotionOrdersTable.$inferSelect;
@@ -11,6 +13,7 @@ let submission: SubmissionRow;
 let orders: MotionOrderRow[] = [];
 let nextOrderId = 1;
 let writes: string[] = [];
+const checkLocks = new Set<string>();
 
 function recordWrite(table: unknown): void {
   const tableName = table === creatorMotionOrdersTable
@@ -85,6 +88,26 @@ export function creatorCardState() {
 }
 
 export const db: any = {
+  transaction: async (callback: (tx: unknown) => Promise<unknown>) => {
+    const owned = new Set<string>();
+    try {
+      return await callback({
+        execute: async (query: SQL) => {
+          const compiled = new PgDialect().sqlToQuery(query);
+          if (!compiled.sql.includes("pg_try_advisory_xact_lock")) throw new Error("Unexpected transaction query");
+          const key = String(compiled.params[0]);
+          const acquired = !checkLocks.has(key);
+          if (acquired) {
+            checkLocks.add(key);
+            owned.add(key);
+          }
+          return { rows: [{ acquired }] };
+        },
+      });
+    } finally {
+      for (const key of owned) checkLocks.delete(key);
+    }
+  },
   select: () => ({
     from: (table: unknown) => ({
       where: async () => table === moveSubmissionsTable

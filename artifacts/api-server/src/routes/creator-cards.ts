@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import {
@@ -81,6 +81,11 @@ type WhopVariant = {
 
 const staleCheckoutReservationMs = 5 * 60_000;
 const staleRefundProcessingMs = 120_000;
+const refundCheckCooldownMs = 30_000;
+// Include manual/private-access checks in the local bound, leaving pool
+// connections available for the committed writes made under advisory locks.
+let activeRefundChecks = 0;
+const maxActiveRefundChecks = 3;
 const refundQueueChecks = new RefundQueueChecks();
 
 function withinRateLimit(req: Request, res: Response, limit: number): boolean {
@@ -434,12 +439,55 @@ async function reconcileStalledRefund(
   order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
   companyId: string,
   req: Request,
+  manual = false,
+): Promise<StalledRefundReconciliation> {
+  if (activeRefundChecks >= maxActiveRefundChecks) return { outcome: "unverified", order };
+  activeRefundChecks += 1;
+  try {
+    return await withRefundCheckLock(order, companyId, req, manual);
+  } finally {
+    activeRefundChecks -= 1;
+  }
+}
+
+async function withRefundCheckLock(
+  order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
+  companyId: string,
+  req: Request,
+  manual: boolean,
+): Promise<StalledRefundReconciliation> {
+  // This transaction owns only an advisory lock. Attempt/result writes use the
+  // normal connection so a failed provider call cannot roll back the timestamp.
+  // Unlike a timed lease, the lock remains held until the provider work settles.
+  return db.transaction(async (tx) => {
+    const lock = await tx.execute(sql`
+      SELECT pg_try_advisory_xact_lock(hashtextextended(${`refund-check:${order.submissionId}`}, 0)) AS acquired
+    `);
+    if (!lock.rows[0]?.acquired) {
+      return { outcome: "unverified", order };
+    }
+    const current = await readOrder(order.submissionId);
+    if (!current) return { outcome: "changed", order };
+    if (!manual && current.refundStatusCheckedAt
+      && current.refundStatusCheckedAt.getTime() > Date.now() - refundCheckCooldownMs) {
+      return { outcome: "unverified", order: current };
+    }
+    return reconcileClaimedStalledRefund(current, companyId, req);
+  });
+}
+
+async function reconcileClaimedStalledRefund(
+  order: NonNullable<Awaited<ReturnType<typeof readOrder>>>,
+  companyId: string,
+  req: Request,
 ): Promise<StalledRefundReconciliation> {
   const processingAt = order.refundProcessingAt?.getTime() ?? 0;
   if (
     refundRequestStatus(order.refundRequestStatus) !== "processing"
     || Date.now() - processingAt < staleRefundProcessingMs
     || order.priceUsd === null
+    || !order.paymentId
+    || !order.checkoutConfigurationId
   ) return { outcome: "not_stale", order };
 
   // Persist the attempt before contacting Whop so failures still have a timestamp.
@@ -962,6 +1010,7 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
       refundRequestStatus(order.refundRequestStatus) === "processing"
       && order.priceUsd !== null
       && (order.refundProcessingAt?.getTime() ?? 0) <= Date.now() - staleRefundProcessingMs
+      && (order.refundStatusCheckedAt?.getTime() ?? 0) <= Date.now() - refundCheckCooldownMs
   );
   const config = whopConfiguration();
   if (config && staleOrders.length) {
@@ -1213,7 +1262,7 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
       return;
     }
     try {
-      const reconciliation = await reconcileStalledRefund(order, config.companyId, req);
+      const reconciliation = await reconcileStalledRefund(order, config.companyId, req, true);
       if (reconciliation.outcome === "unverified") {
         res.status(409).json({ error: "Whop could not verify the original payment. The request remains open." });
         return;
