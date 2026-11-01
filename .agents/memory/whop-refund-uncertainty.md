@@ -16,3 +16,9 @@ Treat the last-check time as an attempted verification, not proof of a successfu
 **Why:** Owners need to distinguish recent failed attempts from checks that never ran, without interpreting a timestamp as refund confirmation.
 
 **How to apply:** Keep attempt timestamps independent of refund processing age and verification outcomes.
+
+Keep queue response deadlines separate from provider operation lifetimes. A queue wait expiring must not release an active check's concurrency slot or imply that verification failed or succeeded.
+
+**Why:** The original provider request may still save a result; releasing its slot on the response deadline allows repeated refreshes to start overlapping checks and defeat the concurrency bound.
+
+**How to apply:** Retain active-check ownership until the operation settles, show unresolved stale rows as unverified, and read saved results on subsequent refreshes.

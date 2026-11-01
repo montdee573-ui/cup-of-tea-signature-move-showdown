@@ -85,6 +85,9 @@ export default function SubmissionReview() {
       enabled: authenticated,
       retry: false,
       refetchOnMount: "always",
+      refetchInterval: (query) => query.state.data?.some(
+        (request) => request.refundRequestStatus === "processing",
+      ) ? 10_000 : false,
     },
   });
   const createSession = useCreateStudioSession();

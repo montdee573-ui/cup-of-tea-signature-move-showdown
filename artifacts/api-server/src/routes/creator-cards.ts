@@ -28,6 +28,7 @@ import {
   RetryCreatorMotionGenerationResponse,
 } from "@workspace/api-zod";
 import { getWhopClient } from "../lib/whop-client";
+import { RefundQueueChecks } from "../lib/refund-queue-checks";
 import { paymentMatchesBasePrice } from "../lib/whop-payment-amounts";
 import { isStudioOwner } from "./studio";
 import {
@@ -80,6 +81,7 @@ type WhopVariant = {
 
 const staleCheckoutReservationMs = 5 * 60_000;
 const staleRefundProcessingMs = 120_000;
+const refundQueueChecks = new RefundQueueChecks();
 
 function withinRateLimit(req: Request, res: Response, limit: number): boolean {
   const now = Date.now();
@@ -954,36 +956,40 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Owner session required." });
     return;
   }
-  const orders = await db.select().from(creatorMotionOrdersTable)
+  let orders = await db.select().from(creatorMotionOrdersTable)
     .where(inArray(creatorMotionOrdersTable.refundRequestStatus, ["requested", "processing", "partial_review", "completed"]));
-  const requests = [];
-  for (const order of orders) {
-    let currentOrder = order;
-    let statusCheckUnverified = false;
-    if (
+  const staleOrders = orders.filter((order) =>
       refundRequestStatus(order.refundRequestStatus) === "processing"
+      && order.priceUsd !== null
       && (order.refundProcessingAt?.getTime() ?? 0) <= Date.now() - staleRefundProcessingMs
-    ) {
-      const config = whopConfiguration();
-      if (config) {
+  );
+  const config = whopConfiguration();
+  if (config && staleOrders.length) {
+    // Oldest attempted checks go first so a repeatedly unverified row cannot
+    // starve the rest of a large queue. Never hold the response for all checks.
+    staleOrders.sort((a, b) =>
+      (a.refundStatusCheckedAt?.getTime() ?? 0) - (b.refundStatusCheckedAt?.getTime() ?? 0));
+    await refundQueueChecks.run(staleOrders.map((order) => ({
+      id: order.submissionId,
+      check: async () => {
         try {
-          const reconciliation = await reconcileStalledRefund(order, config.companyId, req);
-          statusCheckUnverified = reconciliation.outcome === "unverified";
-          currentOrder = reconciliation.outcome === "completed"
-            ? (await readOrder(order.submissionId)) ?? reconciliation.order
-            : reconciliation.order;
+          await reconcileStalledRefund(order, config.companyId, req);
         } catch (error) {
-          statusCheckUnverified = true;
-          currentOrder = (await readOrder(order.submissionId)) ?? order;
           req.log.warn(
             { submissionId: order.submissionId, providerStatus: (error as { status?: number }).status },
             "Unable to reconcile creator refund while loading the owner queue",
           );
         }
-      } else {
-        statusCheckUnverified = true;
-      }
-    }
+      },
+    })));
+    // Includes attempts still in flight and results saved by earlier requests.
+    orders = await db.select().from(creatorMotionOrdersTable)
+      .where(inArray(creatorMotionOrdersTable.refundRequestStatus, ["requested", "processing", "partial_review", "completed"]));
+  }
+  const requests = [];
+  for (const currentOrder of orders) {
+    const statusCheckUnverified = refundRequestStatus(currentOrder.refundRequestStatus) === "processing"
+      && (currentOrder.refundProcessingAt?.getTime() ?? 0) <= Date.now() - staleRefundProcessingMs;
     const status = refundRequestStatus(currentOrder.refundRequestStatus);
     const notificationStatus = currentOrder.refundNotificationStatus as StoredRefundNotificationStatus;
     if (

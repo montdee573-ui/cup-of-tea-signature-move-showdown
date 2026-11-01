@@ -12,6 +12,7 @@ import {
 } from "./creator-cards-test-db";
 import { creatorMotionVideoUrl } from "../lib/creator-motion-generation";
 import { paymentMatchesBasePrice } from "../lib/whop-payment-amounts";
+import { RefundQueueChecks } from "../lib/refund-queue-checks";
 import { creatorMotionVideoState, resetCreatorMotionVideo } from "./creator-cards-test-storage";
 
 const CREATOR_TOKEN = "creator-link-token-for-checkout-regression-tests";
@@ -119,6 +120,7 @@ function approvedPlan(overrides: Record<string, unknown> = {}) {
 type WhopCall = { path: string; method?: string; idempotencyKey?: string };
 
 type WhopMockOptions = {
+  beforePayment?: () => Promise<void>;
   beforeRefund?: () => Promise<void>;
   failRequest?: { method: string; pathSuffix: string; status: number };
   timeoutAfterCheckoutCreated?: boolean;
@@ -185,6 +187,7 @@ async function withWhop(
       }
     }
     const paymentPath = path.includes("/api/v1/payments/pay_test");
+    if (paymentPath && options?.method === "GET") await mockOptions.beforePayment?.();
     const isRefundRequest = paymentPath && options?.method === "POST" && path.endsWith("/refund");
     if (isRefundRequest) {
       await mockOptions.beforeRefund?.();
@@ -993,6 +996,75 @@ test("creator card access reconciles a full refund confirmed after a restart", a
   }, undefined, { status: "refunded", refunded_amount: PRICE_USD });
 
   assert.equal(creatorCardState().orders[0].refundRequestStatus, "completed");
+});
+
+test("multiple slow queue checks have a shared bound, deduplicate, and eventually drain", async () => {
+  const checks = new RefundQueueChecks(3, 20);
+  const started: string[] = [];
+  const finished = new Set<string>();
+  const releases: Array<() => void> = [];
+  const candidates = Array.from({ length: 8 }, (_, i) => ({
+    id: String(i),
+    check: async () => {
+      started.push(String(i));
+      await new Promise<void>((resolve) => releases.push(resolve));
+      finished.add(String(i));
+      if (i === 1) throw new Error("Provider unavailable");
+    },
+  }));
+  const start = Date.now();
+  await Promise.all([checks.run(candidates), checks.run(candidates)]);
+  assert.ok(Date.now() - start < 500, "queue waits must not wait for provider completion");
+  assert.deepEqual(started, ["0", "1", "2"]);
+  assert.equal(finished.size, 0);
+  while (finished.size < candidates.length) {
+    releases.splice(0).forEach((release) => release());
+    await new Promise((resolve) => setImmediate(resolve));
+    await checks.run(candidates.filter(({ id }) => !finished.has(id)));
+  }
+  assert.equal(started.length, 8, "no duplicate checks, even across overlapping refreshes");
+});
+
+test("slow queue checks return the attempt and safe warning, then refresh saved results", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(Date.now() - 121_000),
+  });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  await withWhop(approvedPlan(), async (calls) => {
+    try {
+      const start = Date.now();
+      const response = await fetch(`${baseUrl}/studio/creator-refunds`, {
+        headers: { Cookie: ownerCookie() }, signal: AbortSignal.timeout(2000),
+      });
+      assert.equal(response.status, 200);
+      assert.ok(Date.now() - start < 1500);
+      const [request] = await response.json() as Array<{
+        refundRequestStatus: string; statusCheckUnverified: boolean; statusCheckedAt: string;
+      }>;
+      assert.equal(request.refundRequestStatus, "processing");
+      assert.equal(request.statusCheckUnverified, true);
+      assert.equal(request.statusCheckedAt, creatorCardState().orders[0].refundStatusCheckedAt?.toISOString());
+      await fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } });
+      assert.equal(calls.filter((call) => call.path.endsWith("/payments/pay_test")).length, 1);
+      release();
+      for (let i = 0; i < 50 && creatorCardState().orders[0].refundRequestStatus === "processing"; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      const refreshed = await fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } });
+      const [updated] = await refreshed.json() as typeof request[];
+      assert.equal(updated.refundRequestStatus, "requested");
+      assert.equal(updated.statusCheckUnverified, false);
+      assert.equal(updated.statusCheckedAt, request.statusCheckedAt);
+      assert.equal(calls.some((call) => call.method === "POST"), false);
+    } finally {
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }, undefined, {}, { beforePayment: () => gate });
 });
 
 test("stale refund claims stay protected when Whop cannot verify them", async () => {
