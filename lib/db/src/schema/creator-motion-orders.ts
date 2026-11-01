@@ -22,6 +22,7 @@ export const creatorMotionOrdersTable = pgTable("creator_motion_orders", {
   refundNotificationStatus: text("refund_notification_status").notNull().default("not_sent"),
   refundRequestedAt: timestamp("refund_requested_at", { withTimezone: true }),
   refundProcessingAt: timestamp("refund_processing_at", { withTimezone: true }),
+  refundStatusCheckedAt: timestamp("refund_status_checked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   paidAt: timestamp("paid_at", { withTimezone: true }),
 }, (table) => [

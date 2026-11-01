@@ -20,5 +20,10 @@ export interface CreatorMotionRefundRequest {
   /** @nullable */
   processingAt: Date | null;
   statusCheckUnverified: boolean;
+  /**
+     * Time the latest refund status verification was attempted, including unsuccessful checks. Null when no check has been recorded.
+     * @nullable
+     */
+  statusCheckedAt: Date | null;
   notificationStatus: CreatorMotionRefundRequestNotificationStatus;
 }

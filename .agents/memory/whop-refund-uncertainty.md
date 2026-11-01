@@ -10,3 +10,9 @@ For owner-facing stalled-refund warnings, derive the warning from the latest que
 **Why:** Provider errors can leave the outcome unknown; reopening immediately can allow another owner action to issue the same refund again or tell the creator the refund is no longer being handled.
 
 **How to apply:** For Whop refund calls and reconciliation, distinguish definitive mismatches from ambiguous provider outcomes and condition every state transition on the expected current status. In owner queues, show a safe warning for an unverified stale check without exposing provider or payment data.
+
+Treat the last-check time as an attempted verification, not proof of a successful verification. Record it before contacting the provider; do not invent a time for legacy rows or when configuration prevents a check from starting.
+
+**Why:** Owners need to distinguish recent failed attempts from checks that never ran, without interpreting a timestamp as refund confirmation.
+
+**How to apply:** Keep attempt timestamps independent of refund processing age and verification outcomes.

@@ -440,6 +440,16 @@ async function reconcileStalledRefund(
     || order.priceUsd === null
   ) return { outcome: "not_stale", order };
 
+  // Persist the attempt before contacting Whop so failures still have a timestamp.
+  const [checkedOrder] = await db.update(creatorMotionOrdersTable)
+    .set({ refundStatusCheckedAt: new Date() })
+    .where(and(
+      eq(creatorMotionOrdersTable.submissionId, order.submissionId),
+      eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
+    ))
+    .returning();
+  if (!checkedOrder) return { outcome: "changed", order: (await readOrder(order.submissionId)) ?? order };
+  order = checkedOrder;
   const payment = await readVerifiedStoredPayment(order, companyId);
   if (!payment) return { outcome: "unverified", order };
   const refunded = Number(payment.refunded_amount ?? 0);
@@ -964,6 +974,7 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
             : reconciliation.order;
         } catch (error) {
           statusCheckUnverified = true;
+          currentOrder = (await readOrder(order.submissionId)) ?? order;
           req.log.warn(
             { submissionId: order.submissionId, providerStatus: (error as { status?: number }).status },
             "Unable to reconcile creator refund while loading the owner queue",
@@ -994,6 +1005,7 @@ router.get("/studio/creator-refunds", async (req, res): Promise<void> => {
       refundVerifiedAmountUsd: currentOrder.refundVerifiedAmountUsd ?? null,
       processingAt: currentOrder.refundProcessingAt,
       statusCheckUnverified,
+      statusCheckedAt: currentOrder.refundStatusCheckedAt ?? null,
       notificationStatus,
     });
   }
@@ -1233,7 +1245,7 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
   }
   if (status === "requested") {
     const [claimed] = await db.update(creatorMotionOrdersTable)
-      .set({ refundRequestStatus: "processing", refundProcessingAt: new Date() })
+      .set({ refundRequestStatus: "processing", refundProcessingAt: new Date(), refundStatusCheckedAt: new Date() })
       .where(and(
         eq(creatorMotionOrdersTable.submissionId, params.data.id),
         eq(creatorMotionOrdersTable.refundRequestStatus, "requested"),
@@ -1272,6 +1284,12 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) },
       );
     }
+    await db.update(creatorMotionOrdersTable)
+      .set({ refundStatusCheckedAt: new Date() })
+      .where(and(
+        eq(creatorMotionOrdersTable.submissionId, order.submissionId),
+        eq(creatorMotionOrdersTable.refundRequestStatus, "processing"),
+      ));
     const finalPayment = await whopJson<WhopPayment>(
       `/api/v1/payments/${encodeURIComponent(order.paymentId)}`,
       { method: "GET" },

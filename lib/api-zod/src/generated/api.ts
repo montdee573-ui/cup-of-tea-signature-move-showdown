@@ -1239,6 +1239,7 @@ export const ListCreatorMotionRefundRequestsResponseItem = zod.object({
   "refundVerifiedAmountUsd": zod.number().nullable(),
   "processingAt": zod.coerce.date().nullable(),
   "statusCheckUnverified": zod.boolean(),
+  "statusCheckedAt": zod.coerce.date().nullable().describe('Time the latest refund status verification was attempted, including unsuccessful checks. Null when no check has been recorded.'),
   "notificationStatus": zod.enum(['sent', 'failed', 'not_sent', 'sending'])
 })
 export const ListCreatorMotionRefundRequestsResponse = zod.array(ListCreatorMotionRefundRequestsResponseItem)

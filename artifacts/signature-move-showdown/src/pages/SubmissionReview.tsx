@@ -141,6 +141,10 @@ export default function SubmissionReview() {
                 : `Request ${result.refundRequestStatus}. The decision was saved, but no creator notification was sent.`);
         void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() });
       },
+      onError: () => {
+        // An unsuccessful provider check still records an attempted check.
+        void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() });
+      },
     });
   };
   const retryRefundEmail = (request: CreatorMotionRefundRequest) => {
@@ -218,6 +222,9 @@ export default function SubmissionReview() {
                     <h3>{request.moveName}</h3>
                     <p>{request.creatorName} · ${request.priceUsd.toFixed(2)} USD</p>
                     <small>Requested {new Date(request.requestedAt).toLocaleString()}</small>
+                    <small>Last status check attempted: {request.statusCheckedAt
+                      ? <time dateTime={request.statusCheckedAt}>{new Date(request.statusCheckedAt).toLocaleString()}</time>
+                      : "No check recorded"}</small>
                     {request.refundRequestStatus === "processing" && (
                       request.statusCheckUnverified
                         ? <small role="status">This refund is taking longer than expected, and its status could not be verified. Keep the request open and retry the status check later.</small>

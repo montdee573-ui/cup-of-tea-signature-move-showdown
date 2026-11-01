@@ -2543,10 +2543,14 @@ components:
           format: date-time
         statusCheckUnverified:
           type: boolean
+        statusCheckedAt:
+          type: ["string", "null"]
+          format: date-time
+          description: Time the latest refund status verification was attempted, including unsuccessful checks. Null when no check has been recorded.
         notificationStatus:
           type: string
           enum: [sent, failed, not_sent, sending]
-      required: [submissionId, creatorName, moveName, priceUsd, requestedAt, refundRequestStatus, refundVerifiedAmountUsd, processingAt, statusCheckUnverified, notificationStatus]
+      required: [submissionId, creatorName, moveName, priceUsd, requestedAt, refundRequestStatus, refundVerifiedAmountUsd, processingAt, statusCheckUnverified, statusCheckedAt, notificationStatus]
     CreatorMotionRefundNotificationRetryResponse:
       type: object
       properties:

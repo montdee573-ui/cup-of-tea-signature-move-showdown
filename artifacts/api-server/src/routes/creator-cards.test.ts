@@ -889,6 +889,10 @@ test("a pre-existing partial refund is recorded without issuing another Whop ref
     assert.equal(result.refundRequestStatus, "partial_review");
     assert.equal(result.refundVerifiedAmountUsd, 1.25);
     assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+    const queue = await fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } });
+    const [request] = await queue.json() as Array<{ statusCheckedAt: string }>;
+    assert.equal(request.statusCheckedAt, creatorCardState().orders[0].refundStatusCheckedAt?.toISOString());
+    assert.ok(Date.now() - Date.parse(request.statusCheckedAt) < 5000);
   }, undefined, { refunded_amount: 1.25 });
 
   const [order] = creatorCardState().orders;
@@ -903,6 +907,11 @@ test("Whop provider failures leave the refund in processing until it can be reco
     const response = await ownerRefundDecision("refund");
     assert.equal(response.status, 503);
     assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+
+    const queue = await fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } });
+    const [request] = await queue.json() as Array<{ statusCheckedAt: string }>;
+    assert.equal(request.statusCheckedAt, creatorCardState().orders[0].refundStatusCheckedAt?.toISOString());
+    assert.ok(Date.now() - Date.parse(request.statusCheckedAt) < 5000);
 
     const creatorResponse = await creatorCardAccess();
     assert.equal(creatorResponse.status, 503);
@@ -1002,22 +1011,46 @@ test("stale refund claims stay protected when Whop cannot verify them", async ()
     const [request] = await queueResponse.json() as Array<{
       refundRequestStatus: string;
       statusCheckUnverified: boolean;
+      statusCheckedAt: string;
       paymentId?: string;
       providerStatus?: number;
     }>;
     assert.equal(request.refundRequestStatus, "processing");
     assert.equal(request.statusCheckUnverified, true);
+    assert.equal(request.statusCheckedAt, creatorCardState().orders[0].refundStatusCheckedAt?.toISOString());
+    assert.ok(Date.now() - Date.parse(request.statusCheckedAt) < 5000);
     assert.equal("paymentId" in request, false);
     assert.equal("providerStatus" in request, false);
 
+    const previousCheck = new Date("2026-01-01T00:00:00Z");
+    seedCreatorMotionOrder({ ...creatorCardState().orders[0], refundStatusCheckedAt: previousCheck });
     const retryResponse = await ownerRefundDecision("refund");
     assert.equal(retryResponse.status, 503);
+    assert.ok(creatorCardState().orders[0].refundStatusCheckedAt!.getTime() > previousCheck.getTime());
     assert.equal(calls.some((call) => call.path.endsWith("/refund")), false);
   }, undefined, {}, {
     failRequest: { method: "GET", pathSuffix: "/payments/pay_test", status: 504 },
   });
 
   assert.equal(creatorCardState().orders[0].refundRequestStatus, "processing");
+});
+
+test("fresh processing refunds show no recorded check and do not contact Whop", async () => {
+  resetTestState();
+  seedCreatorMotionOrder({
+    refundRequestStatus: "processing",
+    refundRequestedAt: new Date(),
+    refundProcessingAt: new Date(),
+  });
+  await withWhop(approvedPlan(), async (calls) => {
+    const response = await fetch(`${baseUrl}/studio/creator-refunds`, {
+      headers: { Cookie: ownerCookie() },
+    });
+    assert.equal(response.status, 200);
+    const [request] = await response.json() as Array<{ statusCheckedAt: string | null }>;
+    assert.equal(request.statusCheckedAt, null);
+    assert.equal(calls.length, 0);
+  });
 });
 
 test("an unchanged verified payment safely reopens a stale claim without refunding", async () => {
