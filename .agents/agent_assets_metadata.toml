@@ -14,3 +14,31 @@ mtime_ms = 1793481538831
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:aef9b04a-e5e5-4b78-95e3-af7f8d2b98ef/a7d4c179-d062-460f-b97f-963fa9d9a938/14d7e459-6968-4d3f-a5f0-6814966e1a4d"
 storage_version_token = "1793906619202120"
 content_type = "video/mp4"
+
+[[outputs]]
+id = "6pMF1dFkoz2o8HW4eVksq"
+uri = "file://generated-artifacts/cup-of-tea-reel2_audio_review.mp4"
+type = "video"
+title = "Cards & Brackets — Soundtrack Review"
+description = "45-second MP4 with original music, synchronized effects and synthesized crowd cheers. H.264 video with AAC audio; 1080×1920 upscaled review copy. Does not replace the approved original."
+logical_id = "34ca4d7e-9808-4627-9d6a-a70b10b1d986"
+content_hash = "sha256:3166774979bfea8bd49dd55c45e08fbf0d4aa1d0a256eecfca9bdeaf8f1af4e1"
+size = 17737049
+mtime_ms = 1793908235653
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:aef9b04a-e5e5-4b78-95e3-af7f8d2b98ef/34ca4d7e-9808-4627-9d6a-a70b10b1d986/33bd95a8-1c9f-4040-9d2d-36936f258740"
+storage_version_token = "1793908310451297"
+content_type = "video/mp4"
+
+[[outputs]]
+id = "KajC_uwHIU9WENO-B4vS6"
+uri = "file://generated-artifacts/cup-of-tea-reel2_silent_backup.mp4"
+type = "video"
+title = "Cards & Brackets — Silent Backup"
+description = "Preserved 45-second silent video, separate from the soundtrack review copy."
+logical_id = "74a3704e-aa73-4aae-9f89-b152872ff34e"
+content_hash = "sha256:db091e1307f062bb85eb28b6827823bbe8300ee4b61396e06351f2b2f4db5535"
+size = 16597913
+mtime_ms = 1793908226361
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:aef9b04a-e5e5-4b78-95e3-af7f8d2b98ef/74a3704e-aa73-4aae-9f89-b152872ff34e/ba4285cc-8a37-4203-9ae7-efafbedf0b3d"
+storage_version_token = "1793908311413228"
+content_type = "video/mp4"

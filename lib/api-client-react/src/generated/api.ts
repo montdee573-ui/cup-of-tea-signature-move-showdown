@@ -94,6 +94,83 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
+export const getGetCardsBracketsCampaignVideoUrl = () => {
+
+
+
+
+  return `/api/campaign-media/cards-brackets.mp4`
+}
+
+/**
+ * @summary Public promotional reel, separate from participant videos
+ */
+export const getCardsBracketsCampaignVideo = async ( options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetCardsBracketsCampaignVideoUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCardsBracketsCampaignVideoQueryKey = () => {
+    return [
+    `/api/campaign-media/cards-brackets.mp4`
+    ] as const;
+    }
+
+
+export const getGetCardsBracketsCampaignVideoQueryOptions = <TData = Awaited<ReturnType<typeof getCardsBracketsCampaignVideo>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCardsBracketsCampaignVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCardsBracketsCampaignVideoQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCardsBracketsCampaignVideo>>> = ({ signal }) => getCardsBracketsCampaignVideo({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCardsBracketsCampaignVideo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCardsBracketsCampaignVideoQueryResult = NonNullable<Awaited<ReturnType<typeof getCardsBracketsCampaignVideo>>>
+export type GetCardsBracketsCampaignVideoQueryError = ErrorType<void>
+
+
+/**
+ * @summary Public promotional reel, separate from participant videos
+ */
+
+export function useGetCardsBracketsCampaignVideo<TData = Awaited<ReturnType<typeof getCardsBracketsCampaignVideo>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCardsBracketsCampaignVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCardsBracketsCampaignVideoQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getHealthCheckUrl = () => {
 
 

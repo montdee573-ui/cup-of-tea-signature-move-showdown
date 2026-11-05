@@ -40,6 +40,12 @@ export function reelVideoFile(id: number): File {
   return storage.bucket(bucketName).file(objectName);
 }
 
+// Fixed promotional asset only: never expose private participant paths.
+export function cardsBracketsCampaignFile(): File {
+  const { bucketName, objectName } = parsePrivatePath("campaign-media/cards-brackets-audio-review.mp4");
+  return storage.bucket(bucketName).file(objectName);
+}
+
 export function moveSubmissionVideoFile(id: string): File {
   const { bucketName, objectName } = parsePrivatePath(`move-submissions/${id}`);
   return storage.bucket(bucketName).file(objectName);

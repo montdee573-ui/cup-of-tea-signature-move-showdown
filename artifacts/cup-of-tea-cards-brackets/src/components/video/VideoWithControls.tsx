@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Pause, Play, Repeat } from 'lucide-react';
+import { ChevronDown, ChevronUp, Pause, Play, Repeat, Volume2, VolumeX } from 'lucide-react';
 import VideoTemplate, { SCENE_DURATIONS } from './VideoTemplate';
 import { useSceneControls } from './useSceneControls';
 
@@ -62,6 +62,7 @@ export default function VideoWithControls() {
     frozen.forEach((a) => a.pause());
     return () => frozen.forEach((a) => a.play());
   }, [paused]);
+  const [muted, setMuted] = useState(false);
   const sensorRef = useRef<HTMLDivElement | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [hovering, setHovering] = useState(false);
@@ -78,7 +79,7 @@ export default function VideoWithControls() {
   const btn = 'w-14 h-14 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors rounded-lg shrink-0';
   return (
     <div className="relative w-full h-screen">
-      <VideoTemplate key={mountKey} durations={durations} loop paused={paused} onSceneChange={onSceneChange} />
+      <VideoTemplate key={mountKey} durations={durations} loop paused={paused} muted={muted} onSceneChange={onSceneChange} />
       <div ref={sensorRef} className="absolute bottom-0 left-0 right-0 z-50 flex flex-col justify-end" style={{ height: '25%' }}
         onPointerEnter={(e) => e.pointerType === 'mouse' && setHovering(true)}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setHovering(false)}
@@ -87,6 +88,7 @@ export default function VideoWithControls() {
         <div className={'flex items-center gap-3 bg-black/50 backdrop-blur-sm px-5 py-4 transition-all duration-200 ease-out ' + (visible ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full opacity-0 pointer-events-none')}>
           <button onClick={togglePause} className={btn} aria-label={paused ? 'Play' : 'Pause'}>{paused ? <Play className="w-8 h-8" /> : <Pause className="w-8 h-8" />}</button>
           <button onClick={toggleLock} className={btn + (locked ? ' !text-white bg-white/15' : '')} aria-pressed={locked} aria-label="Loop current scene"><Repeat className="w-8 h-8" /></button>
+          <button onClick={() => setMuted((m) => !m)} className={btn} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'}>{muted ? <VolumeX className="w-8 h-8" /> : <Volume2 className="w-8 h-8" />}</button>
           <div className="w-px self-stretch bg-white/15" />
           <PlaybackStatus sceneKeys={sceneKeys} activeIndex={activeIndex} activeDuration={activeDuration} activeStartTime={activeStartTime} totalDuration={totalDuration} tick={tick} paused={paused} onJumpTo={handleJumpTo} />
           <button onClick={() => setCollapsed((c) => { if (!c) { setHovering(false); setTapPinned(false); } return !c; })} className={btn} aria-label={collapsed ? 'Show controls' : 'Hide controls'}>

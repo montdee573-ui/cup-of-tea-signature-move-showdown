@@ -9,6 +9,16 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Public promotional reel, separate from participant videos
+ */
+export const GetCardsBracketsCampaignVideoHeader = zod.object({
+  "Range": zod.string().optional()
+})
+
+export const GetCardsBracketsCampaignVideoResponse = zod.unknown()
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

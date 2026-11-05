@@ -15,8 +15,13 @@ Data rule: no verified official bracket or approved contender roster was supplie
 | 7 | 40–45 s | Lockup | Hearts collapse into the cup key art; logo + "CUP OF TEA" + "Cards. Brackets. Bragging rights." + "Free to enter · Free to vote". Fade toward hook frame for loop. |
 
 ## Audio spec
-- Runtime: 45 s. Requested: licensed energetic music with verifiable commercial-use license + retained evidence.
-- Status: BLOCKED. No licensed track or license evidence was supplied, and no paid service is approved. A generated bed is not a licensed track, so none was added. Preview is silent. Once a licensed MP3 + license file are provided, place them at public/audio/bg_music.mp3 and public/audio/LICENSE.txt and wire playback per audio.md.
+- Runtime: 45 s (SCENE_DURATIONS total). Playback file: public/audio/composite_audio.mp3 (MP3 192k, 45.0 s, -14 LUFS integrated, -3.0 dBTP).
+- Source: ORIGINAL, locally synthesized in code (public/audio/synth.mjs, `node public/audio/synth.mjs` then loudnorm to MP3). No samples, no licensed library, no paid generation.
+- Music: hip-hop/arcade instrumental, 120 BPM (bar = 2 s): sine-drop kick, snare+clap on 2/4, 8th hats (16ths in the climax), square/sine bass A-A-C-G, square-wave arcade arp, detuned saw chord stab every bar. Lighter intro 0-4 s, 1.2 s fade-out at 44-45 s.
+- SFX cue map (absolute s, from usePhase tables): hook impact 0.0, whoosh+hit 0.4, slam 1.0, sparkle 2.4; deal whoosh+flip 5.0/5.35/5.7/6.05, hero flip+thud 8.5, sparkle 9.3; moves whoosh 12.0/14.3/16.6 + word punch +0.35, riser 18.4; VS split whoosh 19.0, VS slam + crowd-like burst 20.2, matchup swap 23.0, riser 25.4; bracket slot blips 26.0+i*0.12, line risers 27.6/29.0/30.4, "?" pulse ticks every 1.2 s, riser 33.4; vote climax impact + 6 s crowd-like swell 34.0, heart pops every 0.4 s, FREE punch 36.6, riser 39.4; lockup whoosh 40.0, logo impact + crowd-like burst 40.9, sparkle 41.7.
+- Crowd: synthesized crowd-like texture (filtered, amplitude-jittered noise), NOT a recorded crowd.
 
-## Export
-Not performed. Awaiting approval. No paid video generation used.
+## Export (review only — approved Reel #1 export untouched)
+- generated-artifacts/cup-of-tea-reel2_silent_backup.mp4 — original silent visuals, 1080x1920 H.264 30 fps, 45.0 s.
+- generated-artifacts/cup-of-tea-reel2_audio_review.mp4 — same video stream (stream-copied) + AAC 192k, 45.0 s.
+- Capture: headless Chromium CDP screencast, frames retimed per scene to SCENE_DURATIONS using logged scene-timer fire times.

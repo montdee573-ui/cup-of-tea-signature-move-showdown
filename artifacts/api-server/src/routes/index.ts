@@ -10,10 +10,12 @@ import showdownsRouter from "./showdowns";
 import contestResultsRouter from "./contest-results";
 import resendWebhookRouter from "./resend-webhook";
 import creatorCardsRouter from "./creator-cards";
+import campaignMediaRouter from "./campaign-media";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(campaignMediaRouter);
 router.use(contestRouter);
 router.use(moveCardsRouter);
 router.use(studioRouter);

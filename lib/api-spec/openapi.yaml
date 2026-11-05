@@ -21,6 +21,35 @@ tags:
   - name: submissions
     description: Account-free move video submissions and owner moderation
 paths:
+  /campaign-media/cards-brackets.mp4:
+    get:
+      operationId: getCardsBracketsCampaignVideo
+      tags: [contest]
+      summary: Public promotional reel, separate from participant videos
+      parameters:
+        - in: header
+          name: Range
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Complete MP4 video
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Requested MP4 byte range
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "416":
+          description: Invalid or unsatisfiable byte range
+        "503":
+          description: Media temporarily unavailable
   /healthz:
     get:
       operationId: healthCheck
