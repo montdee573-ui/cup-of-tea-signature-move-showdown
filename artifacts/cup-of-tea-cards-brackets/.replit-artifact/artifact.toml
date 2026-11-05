@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "9:16"
+previewPath = "/cup-of-tea-cards-brackets/"
+title = "Cup of Tea — Cards & Brackets"
+description = "Reel #2: a separate 45-second vertical promotional preview. Demo-labeled cards and brackets unless officially verified; Reel #1 preserved. Final 1080x1920 export requires user approval."
+version = "1.0.0"
+id = "artifacts/cup-of-tea-cards-brackets"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/cup-of-tea-cards-brackets/" ]
+localPort = 23936
+
+[services.development]
+run = "pnpm --filter @workspace/cup-of-tea-cards-brackets run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cup-of-tea-cards-brackets", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/cup-of-tea-cards-brackets/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23936"
+BASE_PATH = "/cup-of-tea-cards-brackets/"

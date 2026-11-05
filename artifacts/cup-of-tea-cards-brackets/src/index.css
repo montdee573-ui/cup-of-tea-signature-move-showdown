@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@500;700&display=swap');
+@import 'tailwindcss';
+
+/* REPLACE THESE -- define your own palette and fonts for each video */
+:root {
+  --color-primary: #22e6f2;
+  --color-secondary: #ff2fa8;
+  --color-accent: #ffc94a;
+  --color-bg-light: #0d0a24;
+  --color-bg-dark: #07051a;
+  --color-bg-muted: #171238;
+  --color-text-primary: #f3efff;
+  --color-text-secondary: #b9b0e6;
+  --color-text-muted: #7d74b0;
+  --color-text-inverse: #07051a;
+  --color-success: #22e6f2;
+  --color-warning: #ffc94a;
+  --color-error: #ff2fa8;
+  --font-display: 'Bungee', sans-serif;
+  --font-body: 'Chakra Petch', sans-serif;
+  --font-mono: 'Chakra Petch', monospace;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-bg-light: var(--color-bg-light);
+  --color-bg-dark: var(--color-bg-dark);
+  --color-bg-muted: var(--color-bg-muted);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.video-media-frame {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.video-media-frame > :is(img, video) {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  width: 100%;
+}
+
+.video-media-frame[data-media-fit='contain'] > :is(img, video) {
+  object-fit: contain;
+}
+
+.video-media-frame[data-media-position='top'] > :is(img, video) {
+  object-position: top;
+}
+
+.video-media-frame[data-media-position='right'] > :is(img, video) {
+  object-position: right;
+}
+
+.video-media-frame[data-media-position='bottom'] > :is(img, video) {
+  object-position: bottom;
+}
+
+.video-media-frame[data-media-position='left'] > :is(img, video) {
+  object-position: left;
+}
+
+body{background:#07051a;}
+.disp{font-family:var(--font-display);}
+.body{font-family:var(--font-body);}
+.neon-c{color:#22e6f2;text-shadow:0 0 1.2vh rgba(34,230,242,.55);}
+.neon-m{color:#ff2fa8;text-shadow:0 0 1.2vh rgba(255,47,168,.55);}
+.demo-tag{font-family:var(--font-body);font-weight:700;letter-spacing:.3em;font-size:1.5vh;padding:.5vh 1.2vh;border:2px solid #ffc94a;color:#ffc94a;background:rgba(7,5,26,.8);border-radius:.6vh;}
