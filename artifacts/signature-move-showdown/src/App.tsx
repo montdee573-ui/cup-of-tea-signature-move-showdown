@@ -35,6 +35,7 @@ import ContestResults from './pages/ContestResults';
 
 import CreatorCardPage from './pages/CreatorCardPage';
 import ContestHome from './ContestHome';
+import MerchPage from './MerchPage';
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
 function Brand() {
@@ -493,6 +494,7 @@ function Launch() {
 export default function App() {
   return <Switch>
     <Route path="/" component={ContestHome} />
+    <Route path="/merch" component={MerchPage} />
     <Route path="/cards/:slug" component={Detail} />
     <Route path="/community-cards/:id" component={CommunityCardPage} />
     <Route path="/showdown" component={Showdown} />

@@ -18,13 +18,13 @@ const options = [
     href: "/submit",
     action: "Start With Your Entry",
   },
-  {
-    title: "Merchandise",
-    price: "COMING SOON",
+ {
+  title: "Merchandise",
+  price: "EXPLORE COLLECTION",
     description:
       "Explore merchandise ideas for your signature move. Product ordering is not enabled yet.",
-    href: "/submit",
-    action: "Plan Your Merchandise",
+   href: "/merch",
+action: "Explore Merchandise",
   },
 ];
 
