@@ -34,7 +34,7 @@ import Showdown from './pages/Showdown';
 import ContestResults from './pages/ContestResults';
 
 import CreatorCardPage from './pages/CreatorCardPage';
-
+import ContestHome from './ContestHome';
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
 function Brand() {
@@ -492,7 +492,7 @@ function Launch() {
 
 export default function App() {
   return <Switch>
-    <Route path="/" component={Collection} />
+    <Route path="/" component={ContestHome} />
     <Route path="/cards/:slug" component={Detail} />
     <Route path="/community-cards/:id" component={CommunityCardPage} />
     <Route path="/showdown" component={Showdown} />
