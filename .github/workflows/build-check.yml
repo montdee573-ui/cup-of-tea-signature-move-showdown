@@ -33,5 +33,10 @@ jobs:
       - name: Check TypeScript
         run: pnpm run typecheck
 
+     
       - name: Build applications
+        env:
+          PORT: "3000"
+          BASE_PATH: "/"
         run: pnpm -r --if-present run build
+
