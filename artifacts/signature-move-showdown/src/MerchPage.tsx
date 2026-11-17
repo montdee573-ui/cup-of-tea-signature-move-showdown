@@ -68,7 +68,7 @@ export default function MerchPage() {
           marginTop: 25
         }}>
           {products.map((product) => (
-            <article key={product.name} style={{
+            <details key={product.name} style={{
               background: "#141b31",
               border: "1px solid #365176",
               borderRadius: 16,
@@ -79,7 +79,15 @@ export default function MerchPage() {
                 {product.icon}
               </div>
 
-              <h3>{product.name}</h3>
+             <summary style={{
+  cursor: "pointer",
+  fontSize: 20,
+  fontWeight: "bold",
+  padding: "12px 0",
+  color: "#53dce9"
+}}>
+  {product.name}
+</summary>
 
               <p style={{
                 color: "#53dce9",
@@ -96,7 +104,7 @@ export default function MerchPage() {
                 will appear when the catalog
                 is connected.
               </p>
-            </article>
+            </details>
           ))}
         </section>
 
