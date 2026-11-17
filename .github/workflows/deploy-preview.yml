@@ -1,0 +1,59 @@
+
+name: Cup of Tea Website Preview
+
+on:
+  push:
+    branches:
+      - cup-of-tea-unified-contest
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: cup-of-tea-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Get project code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Cup of Tea preview
+        env:
+          PORT: "3000"
+          BASE_PATH: "/cup-of-tea-signature-move-showdown/"
+        run: pnpm --filter @workspace/signature-move-showdown build
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload website
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: artifacts/signature-move-showdown/dist/public
+
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4
