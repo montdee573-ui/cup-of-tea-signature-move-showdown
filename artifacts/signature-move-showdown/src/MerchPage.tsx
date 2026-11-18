@@ -60,6 +60,18 @@ export default function MerchPage() {
 
         <h2>Explore the Collection</h2>
 
+<img
+  src="/cup-of-tea-signature-move-showdown/images/cup-of-tea-merch-board.png"
+  alt="Cup of Tea merchandise collection showing hats, shirts, jerseys, pants, shorts, socks and shoes"
+  style={{
+    width: "100%",
+    height: "auto",
+    borderRadius: 12,
+    marginTop: 20,
+    marginBottom: 30
+  }}
+/>
+
         <section style={{
           display: "grid",
           gridTemplateColumns:
