@@ -1,5 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Router } from 'wouter';
+import { useHashLocation } from 'wouter/use-hash-location';
 
 import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -13,14 +15,19 @@ const queryClient = new QueryClient({
 });
 
 createRoot(document.getElementById('root')!, {
-  // Keeps caught errors off reportError(), which would raise the dev overlay.
   onCaughtError: (error, errorInfo) => {
     console.error(error, errorInfo.componentStack);
   },
 }).render(
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <App />
+      {import.meta.env.BASE_URL === '/' ? (
+        <App />
+      ) : (
+        <Router hook={useHashLocation}>
+          <App />
+        </Router>
+      )}
     </QueryClientProvider>
   </ErrorBoundary>,
 );
