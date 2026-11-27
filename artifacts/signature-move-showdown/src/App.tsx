@@ -8,7 +8,7 @@ import {
   Video, Volume2, CreditCard, X,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import {
   getGetMoveCardQueryKey,
   getListMoveCardsQueryKey,
@@ -545,10 +545,34 @@ function PromoterDashboard() {
     <p role="status">Private promoter accounts and verified sales tracking are not enabled. No earnings or referral codes are issued here yet.</p>
     <Link href="/promoter">Program information</Link></section></main></Shell>;
 }
+type PromoterQueueItem = { id: number; status: string; referralCode: string | null; eligibilityVerified: boolean; guardianConsentVerified: boolean };
 function OwnerPromoters() {
   const session = useGetStudioSession({ query: { queryKey: getGetStudioSessionQueryKey(), retry: false } });
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('pending');
+  const queue = useQuery({
+    queryKey: ['private-promoter-queue', page, status],
+    enabled: session.data?.authenticated === true,
+    retry: false,
+    gcTime: 0,
+    queryFn: async (): Promise<{items: PromoterQueueItem[]; hasMore: boolean}> => {
+      const response = await fetch('/api/owner/promoters?' + new URLSearchParams({page: String(page), status}), {credentials: 'same-origin', cache: 'no-store'});
+      if (!response.ok) throw new Error('Unable to load private promoter records.');
+      return response.json();
+    }
+  });
   return <Shell><main className="page"><section className="state-panel"><h1>Owner promoter management</h1>
-    {session.isLoading ? <p>Checking owner session…</p> : session.data?.authenticated ? <p role="status">Recruitment, referral attribution, verified commission ledger and payouts are pending server integration. No records or payout actions are available.</p> : <><p>Owner access required.</p><Link href="/owner">Sign in to owner studio</Link></>}
+    {session.isLoading ? <p>Checking owner session…</p> : session.data?.authenticated ? <>
+      <label>Review queue <select value={status} onChange={event => {setStatus(event.target.value); setPage(1);}}><option value="pending">Pending</option><option value="approved">Approved</option></select></label>
+      {queue.isLoading ? <p>Loading applications…</p> : queue.isError ? <p role="alert">Unable to load applications. Check database and server readiness.</p> : <>
+        <p>Page {page}</p>
+        {queue.data?.items.length === 0 && <p>No applications in this queue.</p>}
+        {queue.data?.items.map(item => <article key={item.id}><h2>Application #{item.id}</h2><p>Status: {item.status}</p><p>Eligibility: {item.eligibilityVerified ? 'Confirmed' : 'Pending'} · Consent requirements: {item.guardianConsentVerified ? 'Confirmed' : 'Pending'}</p>{item.referralCode && <p>Referral link: <code>{window.location.origin + '/?ref=' + encodeURIComponent(item.referralCode)}</code></p>}</article>)}
+        <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</button>
+        <button disabled={!queue.data?.hasMore} onClick={() => setPage(p => p + 1)}>Next</button>
+      </>}
+      <p>Registration, verification controls and payout actions remain unavailable until tested.</p>
+    </> : <><p>Owner access required.</p><Link href="/owner">Sign in to owner studio</Link></>}
   </section></main></Shell>;
 }
 
