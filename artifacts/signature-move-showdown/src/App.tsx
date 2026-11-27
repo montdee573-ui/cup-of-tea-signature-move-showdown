@@ -57,6 +57,7 @@ function Shell({ children }: { children: ReactNode }) {
         <Link href="/showdown" className={location === '/showdown' ? 'nav-active' : ''} data-testid="link-showdown"><CircleDot size={14} /> Free showdown</Link>
         <Link href="/gallery">Stage 2</Link>
         <Link href="/championship">Stage 3</Link>
+        <Link href="/promoter">Promoter program</Link>
       </nav>
       <span className="public-label"><span /> OPEN ARCHIVE · NO LOGIN</span>
     </header>
@@ -512,6 +513,31 @@ function TradingGallery() {
   </section></main></Shell>;
 }
 
+function PromoterProgram() {
+  return <Shell><main className="page"><section className="state-panel">
+    <h1>Official promoter program</h1><h2>What move would you put on your card?</h2>
+    <p>Proposed commission: $0.96 per verified $2 motion-card purchase. Daily target: 100 purchases; earnings are not guaranteed.</p>
+    <p>Recruitment is not open yet. Eligibility, guardian consent where required, lawful work arrangements, payment verification and payout terms must be confirmed before participation.</p>
+    <Link href="/promoter/apply">Application information</Link>
+  </section></main></Shell>;
+}
+function PromoterApply() {
+  return <Shell><main className="page"><section className="state-panel"><h1>Promoter applications</h1>
+    <p role="status">Applications are not being collected yet. Do not submit personal information or payment details. Applicants under 18 must involve a parent or guardian.</p>
+    <Link href="/promoter">Return to promoter program</Link></section></main></Shell>;
+}
+function PromoterDashboard() {
+  return <Shell><main className="page"><section className="state-panel"><h1>Promoter dashboard</h1>
+    <p role="status">Private promoter accounts and verified sales tracking are not enabled. No earnings or referral codes are issued here yet.</p>
+    <Link href="/promoter">Program information</Link></section></main></Shell>;
+}
+function OwnerPromoters() {
+  const session = useGetStudioSession({ query: { queryKey: getGetStudioSessionQueryKey(), retry: false } });
+  return <Shell><main className="page"><section className="state-panel"><h1>Owner promoter management</h1>
+    {session.isLoading ? <p>Checking owner session…</p> : session.data?.authenticated ? <p role="status">Recruitment, referral attribution, verified commission ledger and payouts are pending server integration. No records or payout actions are available.</p> : <><p>Owner access required.</p><Link href="/owner">Sign in to owner studio</Link></>}
+  </section></main></Shell>;
+}
+
 function OwnerStudio() {
   return <Shell><main className="page"><Studio /></main></Shell>;
 }
@@ -556,6 +582,10 @@ export default function App() {
     <Route path="/qualified-cards">{() => <StagePage heading="Qualified cards" description="Only server-verified eligible cards will appear here." />}</Route>
     <Route path="/bracket">{() => <StagePage heading="Championship bracket" description="Official matchups will appear after verified qualification and bracket setup." />}</Route>
     <Route path="/matchup/:id">{() => <StagePage heading="Championship matchup" description="Matchup data and voting are not yet connected." />}</Route>
+    <Route path="/promoter" component={PromoterProgram} />
+    <Route path="/promoter/apply" component={PromoterApply} />
+    <Route path="/promoter/dashboard" component={PromoterDashboard} />
+    <Route path="/owner/promoters" component={OwnerPromoters} />
     <Route component={NotFound} />
   </Switch>;
 }
