@@ -10,6 +10,8 @@ import showdownsRouter from "./showdowns";
 import contestResultsRouter from "./contest-results";
 import creatorCardsRouter from "./creator-cards";
 
+import promotersRouter from "./promoters";
+
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -22,5 +24,7 @@ router.use(communityCardsRouter);
 router.use(showdownsRouter);
 router.use(contestResultsRouter);
 router.use(creatorCardsRouter);
+
+router.use(promotersRouter);
 
 export default router;
