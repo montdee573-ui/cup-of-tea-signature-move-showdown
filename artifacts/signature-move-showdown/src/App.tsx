@@ -546,6 +546,48 @@ function PromoterDashboard() {
     <Link href="/promoter">Program information</Link></section></main></Shell>;
 }
 type PromoterQueueItem = { id: number; status: string; referralCode: string | null; eligibilityVerified: boolean; guardianConsentVerified: boolean };
+type RecruitmentOrganization = {id: number; name: string; recruitmentCode: string; active: boolean};
+function OrganizationControls() {
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const organizations = useQuery({
+    queryKey: ['private-recruitment-organizations'], retry: false, gcTime: 0,
+    queryFn: async (): Promise<RecruitmentOrganization[]> => {
+      const response = await fetch('/api/owner/promoters/organizations', {credentials: 'same-origin', cache: 'no-store'});
+      if (!response.ok) throw new Error('Unable to load organizations.');
+      return response.json();
+    }
+  });
+  async function change(path: string, action: string, body: object) {
+    setBusy(true); setError('');
+    try {
+      const response = await fetch('/api/owner/promoters/organizations' + path, {
+        method: 'POST', credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'X-Promoter-Action': action},
+        body: JSON.stringify(body)
+      });
+      if (!response.ok) throw new Error('Organization update failed.');
+      if (!path) setName('');
+      await organizations.refetch();
+    } catch { setError('Unable to update organization. Check owner session and server readiness.'); }
+    finally { setBusy(false); }
+  }
+  return <section className="state-panel"><h2>Recruitment organizations</h2>
+    <form onSubmit={event => {event.preventDefault(); if (!busy && name.trim()) void change('', 'create-organization', {name: name.trim()});}}>
+      <label>Organization name <input value={name} maxLength={160} required onChange={event => setName(event.target.value)} /></label>
+      <button disabled={busy || !name.trim()}>Register organization</button>
+    </form>
+    {error && <p role="alert">{error}</p>}
+    {organizations.isLoading && <p>Loading organizations…</p>}
+    {organizations.isError && <p role="alert">Unable to load organizations.</p>}
+    {organizations.data?.map(org => <article key={org.id}><h3>{org.name}</h3><p>{org.active ? 'Active' : 'Inactive'}</p><p>Recruitment code: <code>{org.recruitmentCode}</code></p>
+      <button disabled={busy} onClick={() => void change('/' + org.id + '/activation', 'organization-activation', {active: !org.active})}>{org.active ? 'Deactivate' : 'Activate'}</button>
+    </article>)}
+    <p>Application intake and shareable recruitment links remain disabled pending secure registration.</p>
+  </section>;
+}
+
 function OwnerPromoters() {
   const session = useGetStudioSession({ query: { queryKey: getGetStudioSessionQueryKey(), retry: false } });
   const [page, setPage] = useState(1);
@@ -571,6 +613,7 @@ function OwnerPromoters() {
         <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</button>
         <button disabled={!queue.data?.hasMore} onClick={() => setPage(p => p + 1)}>Next</button>
       </>}
+      <OrganizationControls />
       <p>Registration, verification controls and payout actions remain unavailable until tested.</p>
     </> : <><p>Owner access required.</p><Link href="/owner">Sign in to owner studio</Link></>}
   </section></main></Shell>;
