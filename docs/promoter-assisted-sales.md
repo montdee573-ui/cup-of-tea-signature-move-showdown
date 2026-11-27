@@ -1,12 +1,10 @@
-# Holiday promoter workflows
+# Approved promotional assignments — online only
 
-Two service paths for every approved promoter:
+Owner decision 2026-11-27 supersedes cash and one-shirt-per-size proposals.
 
-1. Customer self-service: personal referral link, customer-controlled submission and verified payment.
-2. Worker-assisted: worker helps record and submit the customer's signature move after payment, with explicit customer permission and guardian consent where required. Preserve customer ownership and access. Never publish without approval.
+1. Customer self-service: personal referral link, customer records and submits, customer pays online.
+2. Worker-assisted: authenticated worker records and submits with customer permission; customer pays online. Server-side worker attribution, no referral link required.
 
-Both paths use the same immutable order attribution and one $0.96 commission per verified $2 motion-card payment. No commission based on a worker's claim alone. In-person payment collection is not enabled until an approved receipt, reconciliation, safeguarding and payment process exists. Do not collect through personal worker accounts.
+Both assignments may sell the three approved T-shirt designs in any available size and quantity. Motion cards cost $2 and earn $0.96 per verified purchase; shirts earn 48% of verified eligible profit. No first-shirt-per-size restriction. Combined commission cap $96 per worker per day and $960 per ten-day campaign; no mandatory 100-card quota. Statutory wages remain separate and cannot be capped by this policy. No cash, staff investment or prepaid balances. Keep payments disabled until verified readiness.
 
-Implementation pending: assisted recording UI, consent evidence, payment reconciliation, customer access handoff, verified payment ledger integration. Merchandise commission remains separate; first-shirt-per-size reset period requires owner confirmation.
-
-No live payment activation or recruitment opening authorized by this document.
+Pending: define verified merchandise profit, campaign day/timezone and refund treatment; implement transactional shared cap, worker authentication and checkout attribution, merchandise fulfillment and tests. No live activation authorized.
