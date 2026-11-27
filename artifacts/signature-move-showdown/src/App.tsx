@@ -58,6 +58,7 @@ function Shell({ children }: { children: ReactNode }) {
         <Link href="/gallery">Stage 2</Link>
         <Link href="/championship">Stage 3</Link>
         <Link href="/promoter">Promoter program</Link>
+        <Link href="/merch">Merchandise</Link>
       </nav>
       <span className="public-label"><span /> OPEN ARCHIVE · NO LOGIN</span>
     </header>
@@ -513,6 +514,19 @@ function TradingGallery() {
   </section></main></Shell>;
 }
 
+function MerchandiseStore() {
+  return <Shell><main className="page"><section className="archive">
+    <h1>Cup of Tea merchandise</h1><p>Three approved T-shirt designs only. Fulfilled through Printful once the store is verified.</p>
+    <div className="card-grid">{[1,2,3].map(number => <article className="state-panel" key={number}>
+      <h2>Design {number}</h2><p>Approved artwork and Printful listing awaiting connection.</p>
+      <label>Size <select disabled defaultValue=""><option value="">Availability pending</option>{['S','M','L','XL','2XL','3XL'].map(size => <option key={size}>{size}</option>)}</select></label>
+      <label>Color <select disabled><option>Availability pending</option></select></label>
+      <p>Price pending verification.</p><button type="button" disabled>Purchase unavailable</button>
+    </article>)}</div>
+    <p role="status">Checkout and promoter merchandise commissions are not enabled. No orders or payments are accepted here yet.</p>
+  </section></main></Shell>;
+}
+
 function PromoterProgram() {
   return <Shell><main className="page"><section className="state-panel">
     <h1>Official promoter program</h1><h2>What move would you put on your card?</h2>
@@ -586,6 +600,7 @@ export default function App() {
     <Route path="/promoter/apply" component={PromoterApply} />
     <Route path="/promoter/dashboard" component={PromoterDashboard} />
     <Route path="/owner/promoters" component={OwnerPromoters} />
+    <Route path="/merch" component={MerchandiseStore} />
     <Route component={NotFound} />
   </Switch>;
 }
