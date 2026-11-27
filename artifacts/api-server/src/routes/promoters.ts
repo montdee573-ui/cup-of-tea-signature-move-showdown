@@ -18,6 +18,22 @@ router.get("/owner/promoters/:id/commissions", async (req, res) => {
   if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid promoter." }); return; }
   res.json(await db.select().from(promoterCommissionsTable).where(eq(promoterCommissionsTable.promoterId, id)));
 });
+router.post("/owner/promoters/:id/verify", async (req, res) => {
+  if (req.get("X-Promoter-Action") !== "verify" || !req.is("application/json")) {
+    res.status(403).json({ error: "Explicit owner verification required." }); return;
+  }
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0 || req.body?.eligibilityVerified !== true || req.body?.consentRequirementsSatisfied !== true) {
+    res.status(400).json({ error: "Verified eligibility and applicable consent requirements must be confirmed." }); return;
+  }
+  // Owner must independently verify lawful work eligibility and applicable guardian consent.
+  // This records an attestation, not documentary proof or automatic age verification.
+  const [verified] = await db.update(promotersTable).set({
+    eligibilityVerified: true, guardianConsentVerified: true
+  }).where(and(eq(promotersTable.id, id), eq(promotersTable.status, "pending"))).returning();
+  if (!verified) { res.status(409).json({ error: "Pending application required." }); return; }
+  res.json(verified);
+});
 router.post("/owner/promoters/:id/approve", async (req, res) => {
   if (req.get("X-Promoter-Action") !== "approve" || !req.is("application/json")) {
     res.status(403).json({ error: "Explicit owner approval required." }); return;
