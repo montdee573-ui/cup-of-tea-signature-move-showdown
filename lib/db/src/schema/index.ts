@@ -25,4 +25,4 @@ export * from "./showdowns";
 export * from "./contest-results";
 export * from "./creator-motion-orders";
 
-export { promotersTable, promoterCommissionsTable } from "./promoters";
+export { promotersTable, promoterCommissionsTable, recruitmentOrganizationsTable } from "./promoters";
