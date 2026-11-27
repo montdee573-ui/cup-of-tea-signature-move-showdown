@@ -26,3 +26,5 @@ export * from "./contest-results";
 export * from "./creator-motion-orders";
 
 export { promotersTable, promoterCommissionsTable, recruitmentOrganizationsTable, recruitmentStaffTable } from "./promoters";
+
+export * from "./organization-cash";
