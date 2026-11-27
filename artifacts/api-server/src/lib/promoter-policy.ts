@@ -32,17 +32,22 @@ export type CommissionEvidence = {
   refunded: boolean;
   amountCents: number;
   currency: string;
-  product: 'motion-card' | 'other';
+  product: 'motion-card' | 'merchandise' | 'other';
+  // Verified aggregate eligible profit for an order containing only approved shirts.
+  eligibleProfitCents?: number;
+  approvedShirtOrder?: boolean;
 };
 
 export function evaluateCommission(e: CommissionEvidence) {
   const code = normalizePromoterCode(e.referralCode);
+  const motion = e.product === 'motion-card' && e.amountCents === MOTION_PURCHASE_CENTS;
+  const merchandise = e.product === 'merchandise' && e.approvedShirtOrder === true && Number.isSafeInteger(e.eligibleProfitCents) && (e.eligibleProfitCents ?? 0) > 0 && (e.eligibleProfitCents ?? 0) <= e.amountCents;
   const eligible = Boolean(code && code === normalizePromoterCode(e.attributedCode)
     && e.promoterApproved && e.eligibilityVerified && e.paymentId.trim()
     && e.paymentVerified && e.livePayment && !e.refunded
-    && e.amountCents === MOTION_PURCHASE_CENTS && e.currency.toUpperCase() === 'USD'
-    && e.product === 'motion-card');
-  return { eligible, commissionCents: eligible ? PROMOTER_COMMISSION_CENTS : 0,
+    && Number.isSafeInteger(e.amountCents) && e.amountCents > 0 && e.currency.toUpperCase() === 'USD'
+    && (motion || merchandise));
+  return { eligible, commissionCents: eligible ? (motion ? PROMOTER_COMMISSION_CENTS : shirtCommissionCents(e.eligibleProfitCents ?? 0)) : 0,
     paymentKey: e.provider + ':' + e.paymentId };
 }
 
