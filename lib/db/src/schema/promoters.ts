@@ -22,6 +22,8 @@ export const promotersTable = pgTable("promoters", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").references(() => recruitmentOrganizationsTable.id),
   workerCode: text("worker_code").unique(),
+  credentialHash: text("credential_hash"),
+  credentialVersion: integer("credential_version").notNull().default(0),
   accountSubject: text("account_subject").notNull().unique(),
   referralCode: text("referral_code").unique(),
   status: text("status").notNull().default("pending"),
