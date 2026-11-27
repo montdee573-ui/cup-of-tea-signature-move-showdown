@@ -530,9 +530,9 @@ function MerchandiseStore() {
 function PromoterProgram() {
   return <Shell><main className="page"><section className="state-panel">
     <h1>Official promoter program</h1><h2>What move would you put on your card?</h2>
-    <p>Proposed commission: $0.96 per verified $2 motion-card purchase. Daily target: 100 purchases; earnings are not guaranteed.</p>
+    <p>Earn $0.96 per verified $2 motion-card purchase and 48% of eligible T-shirt profit, up to $96 in combined daily commissions and $960 per ten-day campaign. No mandatory card quota. Earnings are not guaranteed; applicable wages remain separate.</p>
     <p>Recruitment is not open yet. Eligibility, guardian consent where required, lawful work arrangements, payment verification and payout terms must be confirmed before participation.</p>
-    <Link href="/promoter/apply">Application information</Link>
+    <p>Task 1: share your personal referral link. Task 2: assist customers with recording and submission. Both tasks may promote all three shirts in any available size. Online payments only.</p><Link href="/promoter/apply">Application information</Link>
   </section></main></Shell>;
 }
 function PromoterApply() {
@@ -543,6 +543,7 @@ function PromoterApply() {
 function PromoterDashboard() {
   return <Shell><main className="page"><section className="state-panel"><h1>Promoter dashboard</h1>
     <p role="status">Private promoter accounts and verified sales tracking are not enabled. No earnings or referral codes are issued here yet.</p>
+    <h2>Combined commission tracker</h2><dl><dt>Motion-card commissions</dt><dd>Unavailable</dd><dt>T-shirt commissions</dt><dd>Unavailable</dd><dt>Daily credited commissions</dt><dd>Unavailable / $96.00</dd><dt>Ten-day credited commissions</dt><dd>Unavailable / $960.00</dd><dt>Pending payout</dt><dd>Unavailable</dd></dl><p>Both assignments count toward the same limits. Verified earnings will appear after secure account access and payment tracking are connected.</p>
     <Link href="/promoter">Program information</Link></section></main></Shell>;
 }
 type PromoterQueueItem = { id: number; status: string; referralCode: string | null; eligibilityVerified: boolean; guardianConsentVerified: boolean };
