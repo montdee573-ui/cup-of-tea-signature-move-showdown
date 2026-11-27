@@ -1,3 +1,4 @@
+import { resolvePromoterReferral } from "../lib/promoter-referral";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
@@ -378,8 +379,13 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
     }
     if (reopened) order = reopened;
   } else {
+    // Capture attribution only on initial order creation; retries preserve it.
+    const referral = process.env.PROMOTER_ATTRIBUTION_ENABLED === "true"
+      ? await resolvePromoterReferral(req.get("X-Promoter-Referral")) : null;
     const [created] = await db.insert(creatorMotionOrdersTable)
-      .values({ submissionId: row.id, status: "creating", priceUsd: offer.priceUsd })
+      .values({ submissionId: row.id, status: "creating", priceUsd: offer.priceUsd,
+        attributedPromoterId: referral?.promoterId ?? null,
+        attributedReferralCode: referral?.referralCode ?? null })
       .onConflictDoNothing()
       .returning();
     order = created ?? await readOrder(row.id);
