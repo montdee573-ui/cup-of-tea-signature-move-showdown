@@ -55,6 +55,8 @@ function Shell({ children }: { children: ReactNode }) {
         <Link href="/launch" className={location === '/launch' ? 'nav-active' : ''} data-testid="link-launch"><Megaphone size={14} /> Launch</Link>
         <Link href="/submit" className={location === '/submit' ? 'nav-active' : ''} data-testid="link-submit-move"><Zap size={14} /> Submit a move</Link>
         <Link href="/showdown" className={location === '/showdown' ? 'nav-active' : ''} data-testid="link-showdown"><CircleDot size={14} /> Free showdown</Link>
+        <Link href="/gallery">Stage 2</Link>
+        <Link href="/championship">Stage 3</Link>
         <Link href="/review" className={location === '/review' ? 'nav-active' : ''} data-testid="link-review-submissions"><LockKeyhole size={14} /> Review desk</Link>
       </nav>
       <span className="public-label"><span /> OPEN ARCHIVE · NO LOGIN</span>
@@ -202,6 +204,7 @@ function Collection() {
         <div className="hero-stamp"><span>STUDY</span><i>THE</i><b>GAME</b></div>
       </section>
 
+      <StageDirectory />
       <section className="archive" id="collection">
         <div className="archive-head">
           <div><div className="eyebrow"><Film size={12} /> THE COLLECTION</div><h2>Moves worth rewinding.</h2></div>
@@ -490,6 +493,32 @@ function Launch() {
   </Shell>;
 }
 
+
+const stagePages = [
+  { stage: 1, title: 'Motion Card', pages: [['/', 'Main website and card gallery'], ['/submit', 'Signature move submission'], ['/creator-cards/:id', 'Creator card and motion-card access'], ['/community-cards/:id', 'Community trading cards'], ['/showdown', 'Free contest and voting'], ['/launch', 'Promotional campaign'], ['/review', 'Submission review'], ['/studio/results', 'Contest results']] },
+  { stage: 2, title: 'Still Trading Card', pages: [['/gallery', 'Public still trading-card collection'], ['/community-cards/:id', 'Individual trading card and like counter'], ['/leaderboard', 'Card standings by verified likes'], ['/my-cards', 'Participant-owned cards'], ['/qualification', 'Progress toward 1,000 unique likes'], ['/rules', 'Pre-bracket voting and qualification rules']] },
+  { stage: 3, title: 'Championship', pages: [['/championship', 'Championship entrance'], ['/qualified-cards', 'Qualified cards'], ['/bracket', 'Card-versus-card competition'], ['/matchup/:id', 'Individual championship matchup']] },
+] as const;
+
+function StageDirectory() {
+  return <section className="archive" aria-label="Three contest stages">
+    <h2>Cup of Tea — Signature Move Showdown</h2>
+    {stagePages.map(stage => <section key={stage.stage}>
+      <h3>Stage {stage.stage} — {stage.title}</h3>
+      <ul>{stage.pages.map(([path, label]) => <li key={path}>{path.includes(':id') ? <span>{label} — open an individual card or matchup when available</span> : <Link href={path}>{label}</Link>}</li>)}</ul>
+    </section>)}
+  </section>;
+}
+
+function StagePage({ heading, description }: { heading: string; description: string }) {
+  return <Shell><main className="page"><section className="state-panel">
+    <h1>{heading}</h1><p>{description}</p>
+    <p role="status">Integration pending. No live standings, ownership, qualification or championship results are asserted on this page.</p>
+    <Link href="/submit" className="button-primary">Submit a move</Link>
+    <Link href="/showdown">Existing free showdown</Link>
+  </section><StageDirectory /></main></Shell>;
+}
+
 export default function App() {
   return <Switch>
     <Route path="/" component={Collection} />
@@ -501,6 +530,15 @@ export default function App() {
     <Route path="/creator-cards/:id" component={CreatorCardPage} />
     <Route path="/review" component={SubmissionReview} />
     <Route path="/studio/results" component={ContestResults} />
+    <Route path="/gallery" component={Collection} />
+    <Route path="/leaderboard">{() => <StagePage heading="Leaderboard" description="Verified unique likes per still card." />}</Route>
+    <Route path="/my-cards">{() => <StagePage heading="My cards" description="Private ownership access requires secure authentication." />}</Route>
+    <Route path="/qualification">{() => <StagePage heading="Qualification" description="Target: 1,000 unique verified likes. Final eligibility policy is pending approval." />}</Route>
+    <Route path="/rules">{() => <StagePage heading="Pre-bracket rules" description="Free voting; one like per verified voter per card. No purchased votes. Final eligibility rules are pending." />}</Route>
+    <Route path="/championship">{() => <StagePage heading="Championship" description="Stage 3 entrance for qualified cards." />}</Route>
+    <Route path="/qualified-cards">{() => <StagePage heading="Qualified cards" description="Only server-verified eligible cards will appear here." />}</Route>
+    <Route path="/bracket">{() => <StagePage heading="Championship bracket" description="Official matchups will appear after verified qualification and bracket setup." />}</Route>
+    <Route path="/matchup/:id">{() => <StagePage heading="Championship matchup" description="Matchup data and voting are not yet connected." />}</Route>
     <Route component={NotFound} />
   </Switch>;
 }
