@@ -6,6 +6,18 @@ import { isStudioOwner } from "./studio";
 import { generatePromoterCode } from "../lib/promoter-policy";
 
 const router: IRouter = Router();
+// Recruitment code lookup reveals no applicant or private organization records.
+router.get("/promoters/recruitment-status", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const code = typeof req.query.code === "string" ? req.query.code.trim().toUpperCase() : "";
+  if (!/^ORG[A-F0-9]{24}$/.test(code)) {
+    res.json({ valid: false, registrationOpen: false }); return;
+  }
+  const [organization] = await db.select({id: recruitmentOrganizationsTable.id})
+    .from(recruitmentOrganizationsTable)
+    .where(and(eq(recruitmentOrganizationsTable.recruitmentCode, code), eq(recruitmentOrganizationsTable.active, true))).limit(1);
+  res.json({ valid: Boolean(organization), registrationOpen: false });
+});
 router.use("/owner/promoters", (req, res, next) => {
   res.set("Cache-Control", "no-store");
   if (!isStudioOwner(req)) { res.status(401).json({ error: "Owner sign-in required." }); return; }
