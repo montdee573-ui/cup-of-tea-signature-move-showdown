@@ -3,6 +3,7 @@ import { pgTable, text, serial, integer, timestamp, uniqueIndex, boolean } from 
 export const recruitmentOrganizationsTable = pgTable("recruitment_organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  facilityAddress: text("facility_address"),
   recruitmentCode: text("recruitment_code").notNull().unique(),
   active: boolean("active").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -11,6 +12,7 @@ export const recruitmentOrganizationsTable = pgTable("recruitment_organizations"
 export const promotersTable = pgTable("promoters", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").references(() => recruitmentOrganizationsTable.id),
+  workerCode: text("worker_code").unique(),
   accountSubject: text("account_subject").notNull().unique(),
   referralCode: text("referral_code").unique(),
   status: text("status").notNull().default("pending"),
