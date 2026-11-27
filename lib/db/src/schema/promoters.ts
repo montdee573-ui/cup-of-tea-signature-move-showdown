@@ -9,6 +9,15 @@ export const recruitmentOrganizationsTable = pgTable("recruitment_organizations"
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Staff membership is provisioned by the owner after independent identity verification.
+export const recruitmentStaffTable = pgTable("recruitment_staff", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").notNull().references(() => recruitmentOrganizationsTable.id),
+  accountSubject: text("account_subject").notNull(),
+  active: boolean("active").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [uniqueIndex("recruitment_staff_membership_unique").on(table.organizationId, table.accountSubject)]);
+
 export const promotersTable = pgTable("promoters", {
   id: serial("id").primaryKey(),
   organizationId: integer("organization_id").references(() => recruitmentOrganizationsTable.id),
