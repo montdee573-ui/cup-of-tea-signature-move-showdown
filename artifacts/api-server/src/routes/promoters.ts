@@ -1,6 +1,7 @@
+import { randomBytes } from "node:crypto";
 import { Router, type IRouter } from "express";
 import { and, eq, isNull } from "drizzle-orm";
-import { db, promotersTable, promoterCommissionsTable } from "@workspace/db";
+import { db, promotersTable, promoterCommissionsTable, recruitmentOrganizationsTable } from "@workspace/db";
 import { isStudioOwner } from "./studio";
 import { generatePromoterCode } from "../lib/promoter-policy";
 
@@ -9,6 +10,20 @@ router.use("/owner/promoters", (req, res, next) => {
   res.set("Cache-Control", "no-store");
   if (!isStudioOwner(req)) { res.status(401).json({ error: "Owner sign-in required." }); return; }
   next();
+});
+router.get("/owner/promoters/organizations", async (_req, res) => {
+  res.json(await db.select().from(recruitmentOrganizationsTable).orderBy(recruitmentOrganizationsTable.id).limit(5000));
+});
+router.post("/owner/promoters/organizations", async (req, res) => {
+  if (req.get("X-Promoter-Action") !== "create-organization" || !req.is("application/json")) {
+    res.status(403).json({ error: "Explicit owner action required." }); return;
+  }
+  const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+  if (!name || name.length > 160) { res.status(400).json({ error: "Valid organization name required." }); return; }
+  const [organization] = await db.insert(recruitmentOrganizationsTable).values({
+    name, recruitmentCode: "ORG" + randomBytes(12).toString("hex").toUpperCase(), active: false
+  }).returning();
+  res.status(201).json(organization);
 });
 router.get("/owner/promoters", async (req, res) => {
   const page = Number(req.query.page ?? 1);
