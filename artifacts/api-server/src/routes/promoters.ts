@@ -25,6 +25,19 @@ router.post("/owner/promoters/organizations", async (req, res) => {
   }).returning();
   res.status(201).json(organization);
 });
+router.post("/owner/promoters/organizations/:id/activation", async (req, res) => {
+  if (req.get("X-Promoter-Action") !== "organization-activation" || !req.is("application/json")) {
+    res.status(403).json({ error: "Explicit owner action required." }); return;
+  }
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0 || typeof req.body?.active !== "boolean") {
+    res.status(400).json({ error: "Valid organization and activation state required." }); return;
+  }
+  const [organization] = await db.update(recruitmentOrganizationsTable).set({active: req.body.active})
+    .where(eq(recruitmentOrganizationsTable.id, id)).returning();
+  if (!organization) { res.status(404).json({ error: "Organization not found." }); return; }
+  res.json(organization);
+});
 router.get("/owner/promoters", async (req, res) => {
   const page = Number(req.query.page ?? 1);
   const limit = Number(req.query.limit ?? 50);
