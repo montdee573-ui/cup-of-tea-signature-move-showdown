@@ -57,7 +57,6 @@ function Shell({ children }: { children: ReactNode }) {
         <Link href="/showdown" className={location === '/showdown' ? 'nav-active' : ''} data-testid="link-showdown"><CircleDot size={14} /> Free showdown</Link>
         <Link href="/gallery">Stage 2</Link>
         <Link href="/championship">Stage 3</Link>
-        <Link href="/review" className={location === '/review' ? 'nav-active' : ''} data-testid="link-review-submissions"><LockKeyhole size={14} /> Review desk</Link>
       </nav>
       <span className="public-label"><span /> OPEN ARCHIVE · NO LOGIN</span>
     </header>
@@ -478,7 +477,7 @@ function Launch() {
         </div>
       </section>
 
-      <Studio />
+
 
       <section className="production-strip" data-testid="text-production-notes">
         <div className="production-heading"><span className="launch-label">IN THE EDIT SUITE</span><h2>Clip-based drafts ready.<br /><em>AI generation awaits approval.</em></h2></div>
@@ -495,7 +494,7 @@ function Launch() {
 
 
 const stagePages = [
-  { stage: 1, title: 'Motion Card', pages: [['/', 'Main website and card gallery'], ['/submit', 'Signature move submission'], ['/creator-cards/:id', 'Creator card and motion-card access'], ['/community-cards/:id', 'Community trading cards'], ['/showdown', 'Free contest and voting'], ['/launch', 'Promotional campaign'], ['/review', 'Submission review'], ['/studio/results', 'Contest results']] },
+  { stage: 1, title: 'Motion Card', pages: [['/', 'Main website and card gallery'], ['/submit', 'Signature move submission'], ['/creator-cards/:id', 'Creator card and motion-card access'], ['/community-cards/:id', 'Community trading cards'], ['/showdown', 'Free contest and voting'], ['/launch', 'Promotional campaign'], ['/studio/results', 'Contest results']] },
   { stage: 2, title: 'Still Trading Card', pages: [['/gallery', 'Public still trading-card collection'], ['/community-cards/:id', 'Individual trading card and like counter'], ['/leaderboard', 'Card standings by verified likes'], ['/my-cards', 'Participant-owned cards'], ['/qualification', 'Progress toward 1,000 unique likes'], ['/rules', 'Pre-bracket voting and qualification rules']] },
   { stage: 3, title: 'Championship', pages: [['/championship', 'Championship entrance'], ['/qualified-cards', 'Qualified cards'], ['/bracket', 'Card-versus-card competition'], ['/matchup/:id', 'Individual championship matchup']] },
 ] as const;
@@ -511,6 +510,10 @@ function TradingGallery() {
     {community.isLoading ? <LoadingState /> : community.isError ? <ErrorState onRetry={() => void community.refetch()} /> : cards.length === 0 ? <p role="status">No matching community cards.</p> : <div className="card-grid">{cards.map((card, index) => <MoveTile key={card.id} index={index} card={{ id: card.id, slug: 'community-' + card.id, href: '/community-cards/' + card.id, athleteName: card.displayName, sport: card.sport, era: 'Community', team: card.team ?? '', moveName: card.moveName, tagline: card.handle + ' · ' + card.category, coverImageUrl: null, sourceType: 'user_clip', isCommunity: true }} />)}</div>}
     <Link href="/qualification">Qualification information</Link>
   </section></main></Shell>;
+}
+
+function OwnerStudio() {
+  return <Shell><main className="page"><Studio /></main></Shell>;
 }
 
 function StageDirectory() {
@@ -543,6 +546,7 @@ export default function App() {
     <Route path="/creator-cards/:id" component={CreatorCardPage} />
     <Route path="/review" component={SubmissionReview} />
     <Route path="/studio/results" component={ContestResults} />
+    <Route path="/owner" component={OwnerStudio} />
     <Route path="/gallery" component={TradingGallery} />
     <Route path="/leaderboard">{() => <StagePage heading="Leaderboard" description="Verified unique likes per still card." />}</Route>
     <Route path="/my-cards">{() => <StagePage heading="My cards" description="Private ownership access requires secure authentication." />}</Route>
