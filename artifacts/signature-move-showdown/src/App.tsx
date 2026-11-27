@@ -500,6 +500,19 @@ const stagePages = [
   { stage: 3, title: 'Championship', pages: [['/championship', 'Championship entrance'], ['/qualified-cards', 'Qualified cards'], ['/bracket', 'Card-versus-card competition'], ['/matchup/:id', 'Individual championship matchup']] },
 ] as const;
 
+function TradingGallery() {
+  const community = useListCommunityCards({ query: { queryKey: getListCommunityCardsQueryKey(), refetchOnMount: 'always' } });
+  const [search, setSearch] = useState('');
+  const cards = (community.data ?? []).filter(card => [card.displayName, card.handle, card.moveName, card.sport].join(' ').toLowerCase().includes(search.trim().toLowerCase()));
+  return <Shell><main className="page"><section className="archive">
+    <div className="eyebrow">STAGE 2</div><h1>Community trading-card gallery</h1>
+    <p>Browse approved community entries. Still-card conversion and verified likes are not yet connected.</p>
+    <label className="search-field"><Search size={16}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search community cards" aria-label="Search community cards"/></label>
+    {community.isLoading ? <LoadingState /> : community.isError ? <ErrorState onRetry={() => void community.refetch()} /> : cards.length === 0 ? <p role="status">No matching community cards.</p> : <div className="card-grid">{cards.map((card, index) => <MoveTile key={card.id} index={index} card={{ id: card.id, slug: 'community-' + card.id, href: '/community-cards/' + card.id, athleteName: card.displayName, sport: card.sport, era: 'Community', team: card.team ?? '', moveName: card.moveName, tagline: card.handle + ' · ' + card.category, coverImageUrl: null, sourceType: 'user_clip', isCommunity: true }} />)}</div>}
+    <Link href="/qualification">Qualification information</Link>
+  </section></main></Shell>;
+}
+
 function StageDirectory() {
   return <section className="archive" aria-label="Three contest stages">
     <h2>Cup of Tea — Signature Move Showdown</h2>
@@ -530,7 +543,7 @@ export default function App() {
     <Route path="/creator-cards/:id" component={CreatorCardPage} />
     <Route path="/review" component={SubmissionReview} />
     <Route path="/studio/results" component={ContestResults} />
-    <Route path="/gallery" component={Collection} />
+    <Route path="/gallery" component={TradingGallery} />
     <Route path="/leaderboard">{() => <StagePage heading="Leaderboard" description="Verified unique likes per still card." />}</Route>
     <Route path="/my-cards">{() => <StagePage heading="My cards" description="Private ownership access requires secure authentication." />}</Route>
     <Route path="/qualification">{() => <StagePage heading="Qualification" description="Target: 1,000 unique verified likes. Final eligibility policy is pending approval." />}</Route>
