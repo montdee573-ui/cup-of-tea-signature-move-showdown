@@ -169,9 +169,11 @@ function providerIdFilter(condition: unknown): string | undefined {
 const testDbOperations = {
   select: () => ({
     from: (table: unknown) => ({
-      orderBy: async () => table === contestResultHistoryTable
-        ? historyRows.map((row) => ({ ...row }))
-        : rows.map((row) => ({ ...row })),
+      orderBy: async () => table === studioReelsTable
+        ? []
+        : table === contestResultHistoryTable
+          ? historyRows.map((row) => ({ ...row }))
+          : rows.map((row) => ({ ...row })),
       where: (condition: unknown) => {
         let matches: unknown[];
         if (table === studioLoginAttemptsTable) {

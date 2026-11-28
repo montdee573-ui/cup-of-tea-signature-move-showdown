@@ -182,6 +182,14 @@ test("anonymous visitors cannot read studio settings, reel history, or reel vide
   }
 });
 
+test("authenticated team members can read private reel history", async () => {
+  const response = await fetch(`${publicApiBaseUrl}/api/studio/reels`, {
+    headers: { cookie: ownerCookie() },
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { reels: [], firstTestPassed: false });
+});
+
 test("owner login throttling persists failures, expires the window, and clears after success", async () => {
   resetStudioLoginAttempts();
   const simultaneousAttempts = await Promise.all(
