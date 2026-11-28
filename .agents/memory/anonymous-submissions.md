@@ -5,6 +5,6 @@ description: Product requirement for account-free participant entry and archive 
 
 Participant submissions should be available without requiring an account or the owner passphrase. Public archive browsing also stays open without login. Reserve the owner passphrase for moderation, private review, and result clearance.
 
-**Why:** the user explicitly chose anonymous submissions.
+**Why:** the user explicitly chose anonymous submissions and reaffirmed that choice after a later three-stage brief proposed participant accounts.
 
 **How to apply:** preserve account-free entry in future submission flows. If a storage or safety constraint prevents anonymous uploads, explain the constraint and get agreement before requiring login.
