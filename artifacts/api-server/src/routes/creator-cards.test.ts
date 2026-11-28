@@ -1184,7 +1184,12 @@ test("a shared check lock blocks other sessions without inventing attempt times"
       await tx.execute(sql`SELECT pg_try_advisory_xact_lock(hashtextextended(${`refund-check:${submissionId}`}, 0)) AS acquired`);
       await Promise.all([
         fetch(`${baseUrl}/studio/creator-refunds`, { headers: { Cookie: ownerCookie() } }),
-        ownerRefundDecision("refund").then((response) => assert.equal(response.status, 409)),
+        ownerRefundDecision("refund").then(async (response) => {
+          assert.equal(response.status, 409);
+          assert.deepEqual(await response.json(), {
+            error: "A refund status check is already running. Your request remains open; refresh the queue shortly.",
+          });
+        }),
       ]);
       assert.equal(calls.length, 0);
       assert.equal(creatorCardState().orders[0].refundStatusCheckedAt, null);

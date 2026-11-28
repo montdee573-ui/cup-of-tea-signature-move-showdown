@@ -144,8 +144,12 @@ export default function SubmissionReview() {
                 : `Request ${result.refundRequestStatus}. The decision was saved, but no creator notification was sent.`);
         void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() });
       },
-      onError: () => {
-        // An unsuccessful provider check still records an attempted check.
+      onError: (error) => {
+        if (error instanceof Error && error.message.includes("A refund status check is already running.")) {
+          setRefundDecisionNotice("A refund status check is already running. The request remains open; refresh the queue shortly.");
+        }
+        // Refresh the queue for state changes, but the owner-safe notice above
+        // distinguishes a skipped check from a failed provider verification.
         void queryClient.invalidateQueries({ queryKey: getListCreatorMotionRefundRequestsQueryKey() });
       },
     });
@@ -210,7 +214,7 @@ export default function SubmissionReview() {
           <button type="button" onClick={() => void refundQueue.refetch()} disabled={refundQueue.isFetching}><RefreshCw size={14} /> Refresh</button>
         </div>
         <p className="refund-review-intro">Review failed creator-reel retries. Full refunds are issued through Whop and do not change contest entries or results.</p>
-        {resolveRefund.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{resolveRefund.error instanceof Error ? resolveRefund.error.message : "The refund decision could not be saved. Refresh the queue and try again."}</span></div>}
+        {resolveRefund.isError && !(resolveRefund.error instanceof Error && resolveRefund.error.message.includes("A refund status check is already running.")) && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{resolveRefund.error instanceof Error ? resolveRefund.error.message : "The refund decision could not be saved. Refresh the queue and try again."}</span></div>}
         {retryRefundNotification.isError && <div className="review-alert" role="alert"><CircleAlert size={16} /><span>{retryRefundNotification.error instanceof Error ? retryRefundNotification.error.message : "The creator email could not be retried. The refund was not changed."}</span></div>}
         {refundDecisionNotice && <p className="refund-review-state" role="status">{refundDecisionNotice}</p>}
         {refundQueue.isLoading ? <p className="refund-review-state" role="status">Loading refund requests…</p> :

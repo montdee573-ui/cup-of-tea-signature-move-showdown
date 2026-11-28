@@ -13,3 +13,4 @@
 - [Shared-state test doubles](shared-state-test-doubles.md) — In-memory DB adapters must preserve transaction behavior and use the route's actual client key.
 - [API app integration test bundles](api-app-integration-test-bundles.md) — Full-app tests bundle every mounted router, so the database test double must export each router’s schema bindings.
 - [Promotional reel approvals](promotional-reel-approvals.md) — Preserve Reel #1; demo-label unverified content, verify music rights, and obtain paid-generation/export approval.
+- [Athlete move-card library](athlete-move-card-library.md) — Stage 1 adds searchable, owner-published athlete move challenges linked to multiple participant attempts.

@@ -427,7 +427,7 @@ async function reopenRefundRequest(submissionId: string) {
 }
 
 type StalledRefundReconciliation =
-  | { outcome: "not_stale" | "unverified" | "unchanged" | "changed"; order: NonNullable<Awaited<ReturnType<typeof readOrder>>> }
+  | { outcome: "not_stale" | "already_checking" | "unverified" | "unchanged" | "changed"; order: NonNullable<Awaited<ReturnType<typeof readOrder>>> }
   | {
       outcome: "completed";
       order: NonNullable<Awaited<ReturnType<typeof readOrder>>>;
@@ -441,7 +441,7 @@ async function reconcileStalledRefund(
   req: Request,
   manual = false,
 ): Promise<StalledRefundReconciliation> {
-  if (activeRefundChecks >= maxActiveRefundChecks) return { outcome: "unverified", order };
+  if (activeRefundChecks >= maxActiveRefundChecks) return { outcome: "already_checking", order };
   activeRefundChecks += 1;
   try {
     return await withRefundCheckLock(order, companyId, req, manual);
@@ -464,7 +464,7 @@ async function withRefundCheckLock(
       SELECT pg_try_advisory_xact_lock(hashtextextended(${`refund-check:${order.submissionId}`}, 0)) AS acquired
     `);
     if (!lock.rows[0]?.acquired) {
-      return { outcome: "unverified", order };
+      return { outcome: "already_checking", order };
     }
     const current = await readOrder(order.submissionId);
     if (!current) return { outcome: "changed", order };
@@ -1263,6 +1263,10 @@ router.post("/studio/creator-refunds/:id/decision", async (req, res): Promise<vo
     }
     try {
       const reconciliation = await reconcileStalledRefund(order, config.companyId, req, true);
+      if (reconciliation.outcome === "already_checking") {
+        res.status(409).json({ error: "A refund status check is already running. Your request remains open; refresh the queue shortly." });
+        return;
+      }
       if (reconciliation.outcome === "unverified") {
         res.status(409).json({ error: "Whop could not verify the original payment. The request remains open." });
         return;
