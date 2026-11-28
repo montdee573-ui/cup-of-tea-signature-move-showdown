@@ -54,6 +54,10 @@ import type {
   MoveSubmission,
   MoveSubmissionReceipt,
   MoveSubmissionReviewInput,
+  PromoterAccount,
+  PromoterApplicationInput,
+  PromoterDashboard,
+  PromoterProgramStatus,
   ResendEmailWebhookEvent,
   Showdown,
   ShowdownInput,
@@ -98,6 +102,325 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetPromoterProgramStatusUrl = () => {
+
+
+
+
+  return `/api/promoters/status`
+}
+
+/**
+ * @summary Public promoter intake and account availability
+ */
+export const getPromoterProgramStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<PromoterProgramStatus> => {
+
+  return customFetch<PromoterProgramStatus>(getGetPromoterProgramStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPromoterProgramStatusQueryKey = () => {
+    return [
+    `/api/promoters/status`
+    ] as const;
+    }
+
+
+export const getGetPromoterProgramStatusQueryOptions = <TData = Awaited<ReturnType<typeof getPromoterProgramStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoterProgramStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPromoterProgramStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPromoterProgramStatus>>> = ({ signal }) => getPromoterProgramStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPromoterProgramStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPromoterProgramStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getPromoterProgramStatus>>>
+export type GetPromoterProgramStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Public promoter intake and account availability
+ */
+
+export function useGetPromoterProgramStatus<TData = Awaited<ReturnType<typeof getPromoterProgramStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoterProgramStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPromoterProgramStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPromoterAccountUrl = () => {
+
+
+
+
+  return `/api/promoters/me`
+}
+
+/**
+ * @summary Read the signed-in user's own application
+ */
+export const getPromoterAccount = async ( options?: Parameters<typeof customFetch>[1]): Promise<PromoterAccount> => {
+
+  return customFetch<PromoterAccount>(getGetPromoterAccountUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPromoterAccountQueryKey = () => {
+    return [
+    `/api/promoters/me`
+    ] as const;
+    }
+
+
+export const getGetPromoterAccountQueryOptions = <TData = Awaited<ReturnType<typeof getPromoterAccount>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoterAccount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPromoterAccountQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPromoterAccount>>> = ({ signal }) => getPromoterAccount({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPromoterAccount>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPromoterAccountQueryResult = NonNullable<Awaited<ReturnType<typeof getPromoterAccount>>>
+export type GetPromoterAccountQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read the signed-in user's own application
+ */
+
+export function useGetPromoterAccount<TData = Awaited<ReturnType<typeof getPromoterAccount>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoterAccount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPromoterAccountQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitPromoterApplicationUrl = () => {
+
+
+
+
+  return `/api/promoters/applications`
+}
+
+/**
+ * @summary Submit an approval-gated application using verified account identity
+ */
+export const submitPromoterApplication = async (promoterApplicationInput: PromoterApplicationInput, options?: Parameters<typeof customFetch>[1]): Promise<PromoterAccount> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PromoterAccount>(getSubmitPromoterApplicationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(promoterApplicationInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitPromoterApplicationMutationKey = () => ['submitPromoterApplication'] as const;
+
+export const getSubmitPromoterApplicationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPromoterApplication>>, TError,SubmitPromoterApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitPromoterApplication>>, TError,SubmitPromoterApplicationMutationVariables, TContext> => {
+
+const mutationKey = getSubmitPromoterApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitPromoterApplication>>, SubmitPromoterApplicationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitPromoterApplication(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitPromoterApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof submitPromoterApplication>>>
+    export type SubmitPromoterApplicationMutationBody = BodyType<PromoterApplicationInput>
+    export type SubmitPromoterApplicationMutationError = ErrorType<void>
+    export type SubmitPromoterApplicationMutationVariables = {data: BodyType<PromoterApplicationInput>}
+
+    /**
+ * @summary Submit an approval-gated application using verified account identity
+ */
+export const useSubmitPromoterApplication = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPromoterApplication>>, TError,SubmitPromoterApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitPromoterApplication>>,
+        TError,
+        SubmitPromoterApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitPromoterApplicationMutationOptions(options));
+    }
+
+export const getGetPromoterDashboardUrl = () => {
+
+
+
+
+  return `/api/promoters/dashboard`
+}
+
+/**
+ * @summary Private verified promoter earnings and referral link
+ */
+export const getPromoterDashboard = async ( options?: Parameters<typeof customFetch>[1]): Promise<PromoterDashboard> => {
+
+  return customFetch<PromoterDashboard>(getGetPromoterDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPromoterDashboardQueryKey = () => {
+    return [
+    `/api/promoters/dashboard`
+    ] as const;
+    }
+
+
+export const getGetPromoterDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getPromoterDashboard>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoterDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPromoterDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPromoterDashboard>>> = ({ signal }) => getPromoterDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPromoterDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPromoterDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getPromoterDashboard>>>
+export type GetPromoterDashboardQueryError = ErrorType<void>
+
+
+/**
+ * @summary Private verified promoter earnings and referral link
+ */
+
+export function useGetPromoterDashboard<TData = Awaited<ReturnType<typeof getPromoterDashboard>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoterDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPromoterDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetCardsBracketsCampaignVideoUrl = () => {
 

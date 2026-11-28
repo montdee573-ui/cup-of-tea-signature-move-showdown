@@ -5,6 +5,73 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface PromoterProgramStatus {
+  registrationOpen: boolean;
+  dashboardEnabled: boolean;
+  commissionsEnabled: boolean;
+}
+
+export interface PromoterApplicationInput {
+  /** @pattern ^ORG[A-Fa-f0-9]{24}$ */
+  recruitmentCode: string;
+  termsAcknowledged: true;
+}
+
+export type PromoterAccountStatus = typeof PromoterAccountStatus[keyof typeof PromoterAccountStatus];
+
+
+export const PromoterAccountStatus = {
+  not_registered: 'not_registered',
+  pending: 'pending',
+  approved: 'approved',
+  inactive: 'inactive',
+} as const;
+
+export interface PromoterAccount {
+  registered: boolean;
+  /** @nullable */
+  id: number | null;
+  status: PromoterAccountStatus;
+  /** @nullable */
+  referralCode: string | null;
+  eligibilityVerified: boolean;
+  consentVerified: boolean;
+}
+
+export interface PromoterCredit {
+  id: number;
+  product: string;
+  commissionCents: number;
+  status: string;
+  createdAt: string;
+}
+
+export type PromoterDashboardTotals = {
+  daily: number;
+  total: number;
+  motion: number;
+  merchandise: number;
+  pending: number;
+};
+
+export type PromoterDashboardScope = typeof PromoterDashboardScope[keyof typeof PromoterDashboardScope];
+
+
+export const PromoterDashboardScope = {
+  'all-recorded-credits': 'all-recorded-credits',
+} as const;
+
+export interface PromoterDashboard {
+  /** @nullable */
+  referralCode: string | null;
+  totals: PromoterDashboardTotals;
+  recent: PromoterCredit[];
+  dailyLimitCents: number;
+  campaignLimitCents: number;
+  scope: PromoterDashboardScope;
+  timezone: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

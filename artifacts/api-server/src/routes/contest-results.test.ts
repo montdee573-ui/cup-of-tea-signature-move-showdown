@@ -25,6 +25,13 @@ let publicApiServer: ReturnType<Express["listen"]>;
 let publicApiBaseUrl: string;
 let observedClientIp = "";
 
+test("public accounts cannot read promoter identity, earnings or owner queues", async () => {
+  for (const path of ["/api/promoters/me", "/api/promoters/dashboard", "/api/owner/promoters"]) {
+    const response = await fetch(`${publicApiBaseUrl}${path}`);
+    assert.equal(response.status, 401, path);
+  }
+});
+
 function ownerCookie(): string {
   const payload = Buffer.from(JSON.stringify({
     role: "owner",

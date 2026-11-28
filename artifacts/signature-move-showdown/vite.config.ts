@@ -18,7 +18,7 @@ export default defineConfig({
   base: basePath,
   plugins: [
     react(),
-    tailwindcss(),
+    tailwindcss({ optimize: false }),
     ...(process.env.REPL_ID !== undefined
       ? [(await import('@replit/vite-plugin-runtime-error-modal')).default()]
       : []),

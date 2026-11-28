@@ -8,6 +8,7 @@ import {
   useRetryCreatorMotionGeneration,
 } from "@workspace/api-client-react";
 import type { CreatorCardAccessResponse } from "@workspace/api-client-react";
+import { promoterReferralHeaders } from "../lib/promoter-referral";
 
 function readToken() {
   if (typeof window === "undefined") return "";
@@ -20,7 +21,7 @@ export default function CreatorCardPage() {
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [priceApproved, setPriceApproved] = useState(false);
   const access = useGetCreatorCardAccess();
-  const checkout = useCreateCreatorMotionCardCheckout();
+  const checkout = useCreateCreatorMotionCardCheckout({ request: { headers: promoterReferralHeaders() } });
   const retryGeneration = useRetryCreatorMotionGeneration();
   const refundRequest = useRequestCreatorMotionRefund();
   const refreshAccess = useRef(access.mutate);

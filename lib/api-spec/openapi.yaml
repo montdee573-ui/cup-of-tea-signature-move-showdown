@@ -21,6 +21,79 @@ tags:
   - name: submissions
     description: Account-free move video submissions and owner moderation
 paths:
+  /promoters/status:
+    get:
+      operationId: getPromoterProgramStatus
+      summary: Public promoter intake and account availability
+      responses:
+        "200":
+          description: Program availability, not approval to work or earn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoterProgramStatus"
+  /promoters/me:
+    get:
+      operationId: getPromoterAccount
+      summary: Read the signed-in user's own application
+      responses:
+        "200":
+          description: Own application only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoterAccount"
+        "401":
+          description: Verified account sign-in required
+  /promoters/applications:
+    post:
+      operationId: submitPromoterApplication
+      summary: Submit an approval-gated application using verified account identity
+      parameters:
+        - name: X-Promoter-Action
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [apply]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromoterApplicationInput"
+      responses:
+        "200":
+          description: Current application, including duplicate submission recovery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoterAccount"
+        "400":
+          description: Invalid input or inactive organization
+        "401":
+          description: Verified account required
+        "403":
+          description: Explicit same-site application action required
+        "503":
+          description: Recruitment intake has not been approved
+  /promoters/dashboard:
+    get:
+      operationId: getPromoterDashboard
+      summary: Private verified promoter earnings and referral link
+      responses:
+        "200":
+          description: Own recorded credits, not guaranteed earnings or a payout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoterDashboard"
+        "401":
+          description: Verified account required
+        "403":
+          description: Active verified promoter approval required
+        "503":
+          description: Dashboard not enabled
   /campaign-media/cards-brackets.mp4:
     get:
       operationId: getCardsBracketsCampaignVideo
@@ -1840,6 +1913,60 @@ components:
         type: integer
         minimum: 1
   schemas:
+    PromoterProgramStatus:
+      type: object
+      required: [registrationOpen, dashboardEnabled, commissionsEnabled]
+      properties:
+        registrationOpen: {type: boolean}
+        dashboardEnabled: {type: boolean}
+        commissionsEnabled: {type: boolean}
+    PromoterApplicationInput:
+      type: object
+      required: [recruitmentCode, termsAcknowledged]
+      properties:
+        recruitmentCode: {type: string, pattern: "^ORG[A-Fa-f0-9]{24}$"}
+        termsAcknowledged: {type: boolean, enum: [true]}
+    PromoterAccount:
+      type: object
+      required: [registered, id, status, referralCode, eligibilityVerified, consentVerified]
+      properties:
+        registered: {type: boolean}
+        id: {type: ["integer", "null"]}
+        status: {type: string, enum: [not_registered, pending, approved, inactive]}
+        referralCode: {type: ["string", "null"]}
+        eligibilityVerified: {type: boolean}
+        consentVerified: {type: boolean}
+    PromoterCredit:
+      type: object
+      required: [id, product, commissionCents, status, createdAt]
+      properties:
+        id: {type: integer}
+        product: {type: string}
+        commissionCents: {type: integer}
+        status: {type: string}
+        createdAt: {type: string, format: date-time}
+    PromoterDashboard:
+      type: object
+      required: [referralCode, totals, recent, dailyLimitCents, campaignLimitCents, scope, timezone]
+      properties:
+        referralCode: {type: ["string", "null"]}
+        totals:
+          type: object
+          required: [daily, total, motion, merchandise, pending]
+          properties:
+            daily: {type: integer}
+            total: {type: integer}
+            motion: {type: integer}
+            merchandise: {type: integer}
+            pending: {type: integer}
+        recent:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromoterCredit"
+        dailyLimitCents: {type: integer}
+        campaignLimitCents: {type: integer}
+        scope: {type: string, enum: [all-recorded-credits]}
+        timezone: {type: string}
     HealthStatus:
       type: object
       properties:

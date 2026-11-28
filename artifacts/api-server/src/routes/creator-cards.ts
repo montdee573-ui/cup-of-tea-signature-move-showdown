@@ -1,5 +1,6 @@
-import { recordPromoterCommission } from "../lib/promoter-commission-ledger";
+import { recordPromoterCommission, reversePromoterCommission } from "../lib/promoter-commission-ledger";
 import { resolvePromoterReferral } from "../lib/promoter-referral";
+import { getAuth } from "@clerk/express";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
@@ -300,6 +301,9 @@ async function readVerifiedStoredPayment(
     || refundedAmount < 0
     || Math.round(refundedAmount * 100) > Math.round(Number(payment.total) * 100)
   ) return null;
+  if (refundedAmount > 0 && order.attributedPromoterId) {
+    await reversePromoterCommission(order.paymentId, order.attributedPromoterId);
+  }
   return payment;
 }
 
@@ -556,7 +560,8 @@ async function refreshOrderStatus(
     await recordPromoterCommission({
       attributedCode: order.attributedReferralCode, provider: "whop",
       paymentId: payment.id, paymentVerified: true, livePayment: true,
-      refunded: false, amountCents: Math.round(Number(payment.amount) * 100),
+      refunded: false, amountCents: Math.round(Number(order.priceUsd) * 100),
+      paidAt: payment.created_at ?? undefined,
       currency: payment.currency ?? "", product: "motion-card"
     });
   }
@@ -803,8 +808,12 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
     if (reopened) order = reopened;
   } else {
     // Capture attribution only on initial order creation; retries preserve it.
-    const referral = process.env.PROMOTER_ATTRIBUTION_ENABLED === "true"
-      ? await resolvePromoterReferral(req.get("X-Promoter-Referral")) : null;
+    let referral: Awaited<ReturnType<typeof resolvePromoterReferral>> = null;
+    if (process.env.PROMOTER_ATTRIBUTION_ENABLED === "true") {
+      const auth = getAuth(req);
+      referral = await resolvePromoterReferral(req.get("X-Promoter-Referral"),
+        auth.userId && auth.sessionClaims?.iss ? {issuer:auth.sessionClaims.iss,subject:auth.userId} : undefined);
+    }
     const [created] = await db.insert(creatorMotionOrdersTable)
       .values({ submissionId: row.id, status: "creating", priceUsd: offer.priceUsd,
         attributedPromoterId: referral?.promoterId ?? null,

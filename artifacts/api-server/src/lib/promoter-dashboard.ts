@@ -1,4 +1,4 @@
-import { and, eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql, isNull, ne } from "drizzle-orm";
 import { db, promotersTable, promoterCommissionsTable, recruitmentOrganizationsTable } from "@workspace/db";
 import { DAILY_COMMISSION_LIMIT_CENTS, CAMPAIGN_COMMISSION_LIMIT_CENTS } from "./promoter-policy";
 
@@ -17,7 +17,7 @@ export async function readPromoterDashboard(identity: {issuer:string; subject:st
     motion:sql<number>`coalesce(sum(${c.commissionCents}) filter (where ${c.product} = 'motion-card'),0)::int`,
     merchandise:sql<number>`coalesce(sum(${c.commissionCents}) filter (where ${c.product} = 'merchandise'),0)::int`,
     pending:sql<number>`coalesce(sum(${c.commissionCents}) filter (where ${c.status} = 'pending'),0)::int`
-  }).from(c).where(eq(c.promoterId,worker.id));
+  }).from(c).where(and(eq(c.promoterId,worker.id), isNull(c.reversedAt), ne(c.status,"reversed")));
   const recent = await db.select({id:c.id,product:c.product,commissionCents:c.commissionCents,status:c.status,createdAt:c.createdAt}).from(c).where(eq(c.promoterId,worker.id)).orderBy(desc(c.id)).limit(50);
   return {referralCode:worker.referralCode, totals, recent, dailyLimitCents:DAILY_COMMISSION_LIMIT_CENTS,campaignLimitCents:CAMPAIGN_COMMISSION_LIMIT_CENTS, scope:"all-recorded-credits", timezone:"America/Chicago"};
 }

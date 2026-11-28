@@ -55,10 +55,10 @@ catalog:
   drizzle-orm: ^0.45.2
   framer-motion: ^12.23.24
   lucide-react: ^0.545.0
-  # Must be this exact version because expo requires it
-  react: 19.1.0
-  # Must be this exact version because expo requires it
-  react-dom: 19.1.0
+  # Matching React/DOM patch pair satisfies the supported Clerk peer range.
+  react: 19.1.4
+  # Keep aligned with React above; there is no Expo artifact in this workspace.
+  react-dom: 19.1.4
   tailwind-merge: ^3.3.1
   tailwindcss: ^4.1.14
   tsx: ^4.21.0

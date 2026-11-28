@@ -9,6 +9,80 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Public promoter intake and account availability
+ */
+export const GetPromoterProgramStatusResponse = zod.object({
+  "registrationOpen": zod.boolean(),
+  "dashboardEnabled": zod.boolean(),
+  "commissionsEnabled": zod.boolean()
+})
+
+
+/**
+ * @summary Read the signed-in user's own application
+ */
+export const GetPromoterAccountResponse = zod.object({
+  "registered": zod.boolean(),
+  "id": zod.int().nullable(),
+  "status": zod.enum(['not_registered', 'pending', 'approved', 'inactive']),
+  "referralCode": zod.string().nullable(),
+  "eligibilityVerified": zod.boolean(),
+  "consentVerified": zod.boolean()
+})
+
+
+/**
+ * @summary Submit an approval-gated application using verified account identity
+ */
+export const SubmitPromoterApplicationHeader = zod.object({
+  "X-Promoter-Action": zod.enum(['apply'])
+})
+
+export const submitPromoterApplicationBodyRecruitmentCodeRegExp = new RegExp('^ORG[A-Fa-f0-9]{24}$');
+
+
+export const SubmitPromoterApplicationBody = zod.object({
+  "recruitmentCode": zod.string().regex(submitPromoterApplicationBodyRecruitmentCodeRegExp),
+  "termsAcknowledged": zod.literal(true)
+})
+
+export const SubmitPromoterApplicationResponse = zod.object({
+  "registered": zod.boolean(),
+  "id": zod.int().nullable(),
+  "status": zod.enum(['not_registered', 'pending', 'approved', 'inactive']),
+  "referralCode": zod.string().nullable(),
+  "eligibilityVerified": zod.boolean(),
+  "consentVerified": zod.boolean()
+})
+
+
+/**
+ * @summary Private verified promoter earnings and referral link
+ */
+export const GetPromoterDashboardResponse = zod.object({
+  "referralCode": zod.string().nullable(),
+  "totals": zod.object({
+  "daily": zod.int(),
+  "total": zod.int(),
+  "motion": zod.int(),
+  "merchandise": zod.int(),
+  "pending": zod.int()
+}),
+  "recent": zod.array(zod.object({
+  "id": zod.int(),
+  "product": zod.string(),
+  "commissionCents": zod.int(),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "dailyLimitCents": zod.int(),
+  "campaignLimitCents": zod.int(),
+  "scope": zod.enum(['all-recorded-credits']),
+  "timezone": zod.string()
+})
+
+
+/**
  * @summary Public promotional reel, separate from participant videos
  */
 export const GetCardsBracketsCampaignVideoHeader = zod.object({

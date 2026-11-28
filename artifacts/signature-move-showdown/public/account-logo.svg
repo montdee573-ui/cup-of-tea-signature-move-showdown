@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64" role="img" aria-label="Viral Reel Cup of Tea">
+  <rect width="64" height="64" rx="16" fill="#10101a"/>
+  <path d="M14 25h32v9c0 12-8 17-16 17s-16-5-16-17zm32 4h5c10 0 9 12-5 12M17 55h31M24 19l-3-9 10 5 10-5-3 9" fill="none" stroke="#58ddec" stroke-width="3" stroke-linejoin="round"/>
+  <text x="78" y="30" fill="#f5f2fb" font-size="24" font-weight="700" font-family="sans-serif">VIRAL REEL</text>
+  <text x="79" y="50" fill="#58ddec" font-size="12" font-family="sans-serif">CUP OF TEA · SIGDUEL.COM</text>
+</svg>

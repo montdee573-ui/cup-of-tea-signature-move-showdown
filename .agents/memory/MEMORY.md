@@ -15,3 +15,4 @@
 - [Promotional reel approvals](promotional-reel-approvals.md) — Preserve Reel #1; demo-label unverified content, verify music rights, and obtain paid-generation/export approval.
 - [Athlete move-card library](athlete-move-card-library.md) — Stage 1 adds searchable, owner-published athlete move challenges linked to multiple participant attempts.
 - [pnpm workspace rewrites](pnpm-workspace-rewrites.md) — Inspect workspace config and lockfile after adding packages; pnpm may reorder settings and drop security comments.
+- [Competition timeline](competition-timeline.md) — Full contest ends at May 2027 Show Week; December 7–16 is only the initial promoter campaign.

@@ -1,6 +1,8 @@
 # Viral Reel
 
-Free movie discovery app for finding legal, free-to-watch films worth sharing, with search, genre filters, watch links, and a personal list.
+All-sports signature-move cards, participant submissions, free community voting,
+three competition stages and optional paid motion cards. Official domain:
+https://sigduel.com. Preserve the existing sports design and branding.
 
 ## Run & Operate
 
@@ -16,31 +18,43 @@ Free movie discovery app for finding legal, free-to-watch films worth sharing, w
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
+- Validation: Zod 4, `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Build: esbuild API bundle and Vite static apps
+- Promoter accounts: managed Clerk, separate from the existing team-only studio session
 
 ## Where things live
 
-- `artifacts/signature-move-showdown` — React/Vite movie discovery site with curated free titles, search, filters, watch links, and a watchlist.
-- `artifacts/api-server` — shared API server; the movie catalog is intentionally client-curated for this first build.
+- `artifacts/signature-move-showdown` — public sports archive, participant workflows, promoter pages and private owner tools.
+- `artifacts/api-server` — shared API, moderation, provider verification and commissions.
+- `lib/api-spec/openapi.yaml` — API contracts; regenerate clients/schemas after changes.
+- `LAUNCH_PLAN.md` and `docs/promoter-assisted-sales.md` — launch timeline and approved commercial rules.
 
 ## Architecture decisions
 
-- The first movie catalog uses direct links to free-to-watch source pages rather than copying or redistributing movie files.
-- The app does not require an account; saved titles are stored locally in the visitor's browser.
-- Availability can vary by region, so every watch action opens the source page instead of promising universal playback.
+- Anonymous participation and public browsing remain available. Private creator links are bearer links, not identity verification.
+- The full competition runs from launch through May 2027 Show Week. December 7–16, 2026 is only the initial promoter campaign.
+- Stage 1: Create & Submit. Stage 2: Signature Move Showdown. Stage 3: Championship Brackets.
+- Exact Show Week dates, stage deadlines and unresolved qualification rules require owner approval.
+- Free entry and voting never depend on the optional $2-plus-tax motion card or merchandise purchases.
+- Base44 remains the intended official bracket authority. Community exhibition votes are not official championship results.
+- Official winners require verified data and owner clearance. Preserve clearance/correction history.
+- Physical Champion Card is the intended verified-winner award; printer, artwork and ordering require approval.
 
 ## Product
 
-- Trending and free-tonight movie rows.
-- Genre filtering and title search.
-- Movie details with score, description, source link, and save-to-list action.
-- Mobile-friendly public browsing without sign-in.
+- Initial target: 500 AI-generated, owner-approved professional athlete cards. Do not bulk-spend on generation or publish unreviewed athletes.
+- Participants may recreate professional moves or submit original moves in any sport.
+- Preserve existing Whop, Printful, Replicate and Resend integrations. No live charges, fulfillment, payouts or outreach without the necessary approvals.
+- Promoter commission: $0.96 per qualifying motion card; approved shirt policy: 48% of verified eligible profit. Combined caps: $96/day and $960/ten-day campaign; statutory wages are separate.
+- Eligibility, guardian consent where required and lawful work arrangements precede recruitment/work activation.
+- No shared promoter/team identity. Signing into a promoter account never grants Reel Studio access.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+Conserve credits: reuse working code, avoid redesigns and duplicate investigations,
+run targeted checks, then one final integrated test before proposing republishing.
+Do not send invitations or revise promotional materials without authorization.
 
 ## Gotchas
 

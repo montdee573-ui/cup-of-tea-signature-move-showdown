@@ -35,6 +35,10 @@ import ContestResults from './pages/ContestResults';
 
 import CreatorCardPage from './pages/CreatorCardPage';
 import MoveMerchCollection from './components/MoveMerchCollection';
+import ShowAnnouncement from './components/ShowAnnouncement';
+import { PromoterApplication, PersonalPromoterDashboard, PromoterSignIn, PromoterSignUp } from './pages/PromoterAccount';
+import MerchMockupStudio from './pages/MerchMockupStudio';
+import PromoterApprovalActions from './components/PromoterApprovalActions';
 
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
@@ -418,6 +422,7 @@ function Studio() {
       </div>
 
       <div className="studio-config-panel">
+        <p><Link href="/owner/merch">Private merchandise mockups</Link> · <Link href="/owner/promoters">Promoter administration</Link></p>
         <div className="config-head"><span className="launch-label">CURRENT OUTPUT PROFILE</span><span className={`config-state ${ready ? 'ready' : 'blocked'}`} data-testid="status-provider-readiness">{ready ? 'READY TO PRODUCE' : 'GENERATION BLOCKED'}</span></div>
         <div className="config-model"><span className="model-mark"><Film size={18} /></span><div><small>MODEL / PROVIDER</small><strong data-testid="text-studio-model">{model}</strong></div></div>
         <div className="config-specs"><div><span>FRAME</span><strong data-testid="text-studio-aspect">9:16 vertical</strong></div><div><span>RESOLUTION</span><strong data-testid="text-studio-resolution">720p</strong></div><div><span>AUDIO</span><strong data-testid="text-studio-audio">Native audio on</strong></div><div><span>RATE</span><strong data-testid="text-studio-rate">{costLabel(rate)}/sec</strong></div></div>
@@ -495,10 +500,11 @@ function Launch() {
 
       <section className="launch-truth" aria-label="Important campaign information" data-testid="status-campaign-terms">
         <div className="truth-icon"><ShieldCheck size={20} /></div>
-          <div className="truth-copy"><span className="launch-label">THE PROMISE</span><strong>Entry is free. Voting is free.</strong><p>An optional generated creator reel is separate from the free contest. Sales remain off until the owner approves the payment provider and final price, and purchases never affect eligibility, votes, standings, or official results.</p></div>
+          <div className="truth-copy"><span className="launch-label">THE PROMISE</span><strong>Entry is free. Voting is free.</strong><p>The optional motion card is $2 plus applicable tax, subject to verified checkout availability. Purchases never affect eligibility, votes, standings, or official results.</p></div>
         <div className="phase-planned"><span>PHASE 2</span><strong>PLANNED</strong><small>Merchandise is not live.</small></div>
       </section>
 
+      <ShowAnnouncement />
       <section className="brief-section" id="reel-briefs">
         <header className="brief-heading">
           <div><div className="launch-label"><Megaphone size={13} /> SHORT-FORM CAMPAIGN</div><h2>Five reels.<br /><em>One community.</em></h2></div>
@@ -529,9 +535,9 @@ function Launch() {
 
 
 const stagePages = [
-  { stage: 1, title: 'Motion Card', pages: [['/', 'Main website and card gallery'], ['/submit', 'Signature move submission'], ['/creator-cards/:id', 'Creator card and motion-card access'], ['/community-cards/:id', 'Community trading cards'], ['/showdown', 'Free contest and voting'], ['/launch', 'Promotional campaign'], ['/studio/results', 'Contest results']] },
-  { stage: 2, title: 'Still Trading Card', pages: [['/gallery', 'Public still trading-card collection'], ['/community-cards/:id', 'Individual trading card and like counter'], ['/leaderboard', 'Card standings by verified likes'], ['/my-cards', 'Participant-owned cards'], ['/qualification', 'Progress toward 1,000 unique likes'], ['/rules', 'Pre-bracket voting and qualification rules']] },
-  { stage: 3, title: 'Championship', pages: [['/championship', 'Championship entrance'], ['/qualified-cards', 'Qualified cards'], ['/bracket', 'Card-versus-card competition'], ['/matchup/:id', 'Individual championship matchup']] },
+  { stage: 1, title: 'Create & Submit', pages: [['/', 'Main website and card gallery'], ['/submit', 'Signature move submission'], ['/creator-cards/:id', 'Creator card and motion-card access'], ['/community-cards/:id', 'Community trading cards'], ['/showdown', 'Free contest and voting'], ['/launch', 'Official show announcement'], ['/studio/results', 'Contest results']] },
+  { stage: 2, title: 'Signature Move Showdown', pages: [['/gallery', 'Public still trading-card collection'], ['/community-cards/:id', 'Individual trading card'], ['/leaderboard', 'Card standings'], ['/my-cards', 'Participant-owned cards'], ['/qualification', 'Qualification information'], ['/rules', 'Pre-bracket voting and qualification rules']] },
+  { stage: 3, title: 'Championship Brackets', pages: [['/championship', 'Championship entrance'], ['/qualified-cards', 'Qualified cards'], ['/bracket', 'Card-versus-card competition'], ['/matchup/:id', 'Individual championship matchup']] },
 ] as const;
 
 function TradingGallery() {
@@ -569,15 +575,10 @@ function PromoterProgram() {
   </section></main></Shell>;
 }
 function PromoterApply() {
-  return <Shell><main className="page"><section className="state-panel"><h1>Promoter applications</h1>
-    <p role="status">Applications are not being collected yet. Do not submit personal information or payment details. Applicants under 18 must involve a parent or guardian.</p>
-    <Link href="/promoter">Return to promoter program</Link></section></main></Shell>;
+  return <Shell><main className="page"><PromoterApplication /></main></Shell>;
 }
 function PromoterDashboard() {
-  return <Shell><main className="page"><section className="state-panel"><h1>Promoter dashboard</h1>
-    <p role="status">Private promoter accounts and verified sales tracking are not enabled. No earnings or referral codes are issued here yet.</p>
-    <h2>Combined commission tracker</h2><dl><dt>Motion-card commissions</dt><dd>Unavailable</dd><dt>T-shirt commissions</dt><dd>Unavailable</dd><dt>Daily credited commissions</dt><dd>Unavailable / $96.00</dd><dt>Ten-day credited commissions</dt><dd>Unavailable / $960.00</dd><dt>Pending payout</dt><dd>Unavailable</dd></dl><p>Both assignments count toward the same limits. Verified earnings will appear after secure account access and payment tracking are connected.</p>
-    <Link href="/promoter">Program information</Link></section></main></Shell>;
+  return <Shell><main className="page"><PersonalPromoterDashboard /></main></Shell>;
 }
 type PromoterQueueItem = { id: number; status: string; referralCode: string | null; eligibilityVerified: boolean; guardianConsentVerified: boolean };
 type RecruitmentOrganization = {id: number; name: string; recruitmentCode: string; active: boolean};
@@ -643,7 +644,9 @@ function OwnerPromoters() {
       {queue.isLoading ? <p>Loading applications…</p> : queue.isError ? <p role="alert">Unable to load applications. Check database and server readiness.</p> : <>
         <p>Page {page}</p>
         {queue.data?.items.length === 0 && <p>No applications in this queue.</p>}
-        {queue.data?.items.map(item => <article key={item.id}><h2>Application #{item.id}</h2><p>Status: {item.status}</p><p>Eligibility: {item.eligibilityVerified ? 'Confirmed' : 'Pending'} · Consent requirements: {item.guardianConsentVerified ? 'Confirmed' : 'Pending'}</p>{item.referralCode && <p>Referral link: <code>{window.location.origin + '/?ref=' + encodeURIComponent(item.referralCode)}</code></p>}</article>)}
+        {queue.data?.items.map(item => <article key={item.id}><h2>Application #{item.id}</h2><p>Status: {item.status}</p><p>Eligibility: {item.eligibilityVerified ? 'Confirmed' : 'Pending'} · Consent requirements: {item.guardianConsentVerified ? 'Confirmed' : 'Pending'}</p>{item.referralCode && <p>Referral link: <code>{window.location.origin + '/?ref=' + encodeURIComponent(item.referralCode)}</code></p>}
+          <PromoterApprovalActions id={item.id} status={item.status} verified={item.eligibilityVerified} consent={item.guardianConsentVerified} onChanged={() => { void queue.refetch(); }} />
+        </article>)}
         <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</button>
         <button disabled={!queue.data?.hasMore} onClick={() => setPage(p => p + 1)}>Next</button>
       </>}
@@ -655,6 +658,16 @@ function OwnerPromoters() {
 
 function OwnerStudio() {
   return <main className="page"><Studio /></main>;
+}
+
+function PrivateMerchStudio() {
+  const session = useGetStudioSession({ query: { queryKey: getGetStudioSessionQueryKey(), retry: false, refetchOnWindowFocus: true } });
+  return <main className="page"><Link href="/owner">Back to team studio</Link>
+    {session.isLoading ? <p>Checking team access…</p>
+      : session.isError ? <p role="alert">Team session could not be verified.</p>
+      : session.data?.authenticated ? <MerchMockupStudio />
+      : <section className="state-panel"><h1>Team access required</h1><Link href="/owner">Sign in to the team studio</Link></section>}
+  </main>;
 }
 
 function StageDirectory() {
@@ -678,6 +691,8 @@ function StagePage({ heading, description }: { heading: string; description: str
 
 export default function App() {
   return <Switch>
+    <Route path="/sign-in/*?" component={PromoterSignIn} />
+    <Route path="/sign-up/*?" component={PromoterSignUp} />
     <Route path="/" component={Collection} />
     <Route path="/cards/:slug" component={Detail} />
     <Route path="/community-cards/:id" component={CommunityCardPage} />
@@ -688,10 +703,11 @@ export default function App() {
     <Route path="/review" component={SubmissionReview} />
     <Route path="/studio/results" component={ContestResults} />
     <Route path="/owner" component={OwnerStudio} />
+    <Route path="/owner/merch" component={PrivateMerchStudio} />
     <Route path="/gallery" component={TradingGallery} />
     <Route path="/leaderboard">{() => <StagePage heading="Leaderboard" description="Verified unique likes per still card." />}</Route>
     <Route path="/my-cards">{() => <StagePage heading="My cards" description="Private ownership access requires secure authentication." />}</Route>
-    <Route path="/qualification">{() => <StagePage heading="Qualification" description="Target: 1,000 unique verified likes. Final eligibility policy is pending approval." />}</Route>
+    <Route path="/qualification">{() => <StagePage heading="Qualification" description="Qualification thresholds, verified-voter rules and stage deadlines await owner approval. No unapproved threshold is enforced." />}</Route>
     <Route path="/rules">{() => <StagePage heading="Pre-bracket rules" description="Free voting; one like per verified voter per card. No purchased votes. Final eligibility rules are pending." />}</Route>
     <Route path="/championship">{() => <StagePage heading="Championship" description="Stage 3 entrance for qualified cards." />}</Route>
     <Route path="/qualified-cards">{() => <StagePage heading="Qualified cards" description="Only server-verified eligible cards will appear here." />}</Route>

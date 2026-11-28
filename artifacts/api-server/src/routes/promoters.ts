@@ -3,9 +3,77 @@ import { Router, type IRouter } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, promotersTable, promoterCommissionsTable, recruitmentOrganizationsTable } from "@workspace/db";
 import { isStudioOwner } from "./studio";
-import { generatePromoterCode } from "../lib/promoter-policy";
+import { commissionCampaignWindow, generatePromoterCode } from "../lib/promoter-policy";
+import { registerPromoter, type VerifiedApplicant } from "../lib/promoter-registration";
+import { verifiedPromoterIdentity } from "../lib/promoter-identity";
+import { readPromoterDashboard } from "../lib/promoter-dashboard";
+import {
+  GetPromoterProgramStatusResponse, GetPromoterAccountResponse,
+  SubmitPromoterApplicationBody, GetPromoterDashboardResponse,
+} from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+async function ownAccount(identity: VerifiedApplicant) {
+  const [row] = await db.select().from(promotersTable)
+    .where(eq(promotersTable.accountSubject, JSON.stringify([identity.issuer, identity.subject]))).limit(1);
+  return GetPromoterAccountResponse.parse({
+    registered: Boolean(row), id: row?.id ?? null,
+    status: !row ? "not_registered" : row.status === "approved" || row.status === "pending" ? row.status : "inactive",
+    referralCode: row?.status === "approved" ? row.referralCode : null,
+    eligibilityVerified: row?.eligibilityVerified ?? false,
+    consentVerified: row?.guardianConsentVerified ?? false,
+  });
+}
+
+router.get("/promoters/status", (_req, res) => {
+  res.set("Cache-Control", "no-store").json(GetPromoterProgramStatusResponse.parse({
+    registrationOpen: process.env.PROMOTER_REGISTRATION_ENABLED === "true",
+    dashboardEnabled: process.env.PROMOTER_DASHBOARD_ENABLED === "true",
+    commissionsEnabled: process.env.PROMOTER_COMMISSIONS_ENABLED === "true"
+      && process.env.WHOP_LIVE_PAYMENTS_VERIFIED === "true"
+      && process.env.PROMOTER_PAYOUT_POLICY_APPROVED === "true"
+      && commissionCampaignWindow() !== null,
+  }));
+});
+
+router.get("/promoters/me", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const identity = await verifiedPromoterIdentity(req);
+  if (!identity) { res.status(401).json({ error: "Sign in with a verified email to access your application." }); return; }
+  res.json(await ownAccount(identity));
+});
+
+router.post("/promoters/applications", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  if (req.get("X-Promoter-Action") !== "apply" || !req.is("application/json")) {
+    res.status(403).json({ error: "Explicit application action required." }); return;
+  }
+  if (process.env.PROMOTER_REGISTRATION_ENABLED !== "true") {
+    res.status(503).json({ error: "Recruitment intake is awaiting owner approval." }); return;
+  }
+  const identity = await verifiedPromoterIdentity(req);
+  if (!identity) { res.status(401).json({ error: "Sign in with a verified email before applying." }); return; }
+  const input = SubmitPromoterApplicationBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "A valid organization code and acknowledgement are required." }); return; }
+  const result = await registerPromoter(identity, input.data.recruitmentCode);
+  if (result.status === "invalid-organization") { res.status(400).json({ error: "That recruitment organization is unavailable." }); return; }
+  if (result.status === "closed") { res.status(503).json({ error: "Recruitment intake is closed." }); return; }
+  if (result.status === "unauthorized") { res.status(401).json({ error: "Verified account required." }); return; }
+  res.json(await ownAccount(identity));
+});
+
+router.get("/promoters/dashboard", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const identity = await verifiedPromoterIdentity(req);
+  if (!identity) { res.status(401).json({ error: "Sign in with a verified email to view your dashboard." }); return; }
+  if (process.env.PROMOTER_DASHBOARD_ENABLED !== "true") {
+    res.status(503).json({ error: "The promoter dashboard is not enabled." }); return;
+  }
+  const dashboard = await readPromoterDashboard(identity);
+  if (!dashboard) { res.status(403).json({ error: "Active organization membership, eligibility, consent and owner approval are required." }); return; }
+  res.json(GetPromoterDashboardResponse.parse(dashboard));
+});
 // Recruitment code lookup reveals no applicant or private organization records.
 router.get("/promoters/recruitment-status", async (req, res) => {
   res.set("Cache-Control", "no-store");

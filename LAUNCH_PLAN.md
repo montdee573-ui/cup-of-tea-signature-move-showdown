@@ -4,7 +4,30 @@
 **Proposed campaign:** December 7–16, 2026 (10 days)  
 **Campaign tracking cutoff:** December 16, 2026 at 6:00 PM Chicago time  
 **Hosting:** Replit  
-**Custom domain:** Undecided
+**Official website:** https://sigduel.com
+
+## Official competition timeline
+
+The full competition runs from the upcoming launch through **Show Week in May
+2027**, not merely through the initial promoter campaign.
+
+1. **November–December 2026 — Launch & Promotion:** website launch, public
+   awareness, promoter recruitment and Christmas promotion.
+2. **Stage 1 — Create & Submit:** all-sports signature move cards, video
+   submissions and collections; recreate professional moves or submit originals.
+3. **Stage 2 — Signature Move Showdown:** community voting and qualifying matchups.
+4. **Stage 3 — Championship Brackets:** qualified participants compete toward
+   the championship.
+5. **May 2027 — Show Week:** Championship Final Faceoff, verified official
+   winner announcement, Physical Champion Card award and celebration.
+
+Exact Show Week dates and individual stage deadlines await owner confirmation.
+Do not automatically close the competition on December 16. The initial target
+is 500 AI-generated, owner-approved professional athlete cards; that target is
+not a claim that 500 cards are already generated, verified or published.
+
+Entry and community voting are free. The optional motion card costs $2 plus
+applicable tax. Purchases never change contest eligibility or results.
 
 This repository-local plan consolidates the revised campaign window and the
 previously reported promoter outreach. The dates and targets are planning

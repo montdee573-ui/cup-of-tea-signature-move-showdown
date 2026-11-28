@@ -33,6 +33,7 @@ export type CommissionEvidence = {
   amountCents: number;
   currency: string;
   product: 'motion-card' | 'merchandise' | 'other';
+  paidAt?: string;
   // Verified aggregate eligible profit for an order containing only approved shirts.
   eligibleProfitCents?: number;
   approvedShirtOrder?: boolean;
@@ -58,4 +59,20 @@ export function shirtCommissionCents(eligibleProfitCents: number): number {
 export function cappedCommissionCents(requested: number, daily: number, campaign: number): number {
   if (![requested,daily,campaign].every(n => Number.isSafeInteger(n) && n >= 0)) return 0;
   return Math.max(0, Math.min(requested, DAILY_COMMISSION_LIMIT_CENTS-daily, CAMPAIGN_COMMISSION_LIMIT_CENTS-campaign));
+}
+
+// No assumed midnight/cutoff: the owner supplies explicit instants and timezone.
+// These settings govern commissions only, never the multi-month competition.
+export function commissionCampaignWindow(config: Record<string, string | undefined> = process.env) {
+  const start = config.PROMOTER_CAMPAIGN_START_AT;
+  const end = config.PROMOTER_CAMPAIGN_END_AT;
+  const timezone = config.PROMOTER_CAMPAIGN_TIMEZONE;
+  if (!start || !end || !timezone
+    || !/(Z|[+-]\d{2}:\d{2})$/.test(start) || !/(Z|[+-]\d{2}:\d{2})$/.test(end)) return null;
+  const startAt = new Date(start);
+  const endAt = new Date(end);
+  if (!Number.isFinite(startAt.getTime()) || !Number.isFinite(endAt.getTime()) || endAt <= startAt) return null;
+  try { new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(startAt); }
+  catch { return null; }
+  return { startAt, endAt, timezone };
 }
