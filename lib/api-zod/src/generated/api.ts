@@ -36,14 +36,14 @@ export const listContestantsResponseOverallFidelityMax = 100;
 
 
 export const ListContestantsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "group": zod.string(),
   "handle": zod.string(),
   "signatureMove": zod.string(),
   "category": zod.string(),
   "verificationStatus": zod.enum(['Verified Clean', 'Pending Check', 'Needs Proof']),
   "coreVerdict": zod.enum(['Top Leaderboard', 'Challenge Cleared', 'Under Review', 'Not Cleared']),
-  "overallFidelity": zod.number().int().min(listContestantsResponseOverallFidelityMin).max(listContestantsResponseOverallFidelityMax),
+  "overallFidelity": zod.int().min(listContestantsResponseOverallFidelityMin).max(listContestantsResponseOverallFidelityMax),
   "referenceClipUrl": zod.string().nullable(),
   "visualProofName": zod.string().nullable(),
   "createdAt": zod.coerce.date()
@@ -64,7 +64,7 @@ export const CreateContestantBody = zod.object({
   "handle": zod.string().min(createContestantBodyHandleMin),
   "signatureMove": zod.string().min(createContestantBodySignatureMoveMin),
   "category": zod.enum(['Male', 'Female', 'Open']),
-  "referenceClipUrl": zod.string().url(),
+  "referenceClipUrl": zod.url(),
   "visualProofName": zod.string().nullish()
 })
 
@@ -74,14 +74,14 @@ export const createContestantResponseOverallFidelityMax = 100;
 
 
 export const CreateContestantResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "group": zod.string(),
   "handle": zod.string(),
   "signatureMove": zod.string(),
   "category": zod.string(),
   "verificationStatus": zod.enum(['Verified Clean', 'Pending Check', 'Needs Proof']),
   "coreVerdict": zod.enum(['Top Leaderboard', 'Challenge Cleared', 'Under Review', 'Not Cleared']),
-  "overallFidelity": zod.number().int().min(createContestantResponseOverallFidelityMin).max(createContestantResponseOverallFidelityMax),
+  "overallFidelity": zod.int().min(createContestantResponseOverallFidelityMin).max(createContestantResponseOverallFidelityMax),
   "referenceClipUrl": zod.string().nullable(),
   "visualProofName": zod.string().nullable(),
   "createdAt": zod.coerce.date()
@@ -104,14 +104,14 @@ export const getContestantResponseOverallFidelityMax = 100;
 
 
 export const GetContestantResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "group": zod.string(),
   "handle": zod.string(),
   "signatureMove": zod.string(),
   "category": zod.string(),
   "verificationStatus": zod.enum(['Verified Clean', 'Pending Check', 'Needs Proof']),
   "coreVerdict": zod.enum(['Top Leaderboard', 'Challenge Cleared', 'Under Review', 'Not Cleared']),
-  "overallFidelity": zod.number().int().min(getContestantResponseOverallFidelityMin).max(getContestantResponseOverallFidelityMax),
+  "overallFidelity": zod.int().min(getContestantResponseOverallFidelityMin).max(getContestantResponseOverallFidelityMax),
   "referenceClipUrl": zod.string().nullable(),
   "visualProofName": zod.string().nullable(),
   "createdAt": zod.coerce.date()
@@ -127,20 +127,20 @@ export const getContestSummaryResponseLeaderboardItemOverallFidelityMax = 100;
 
 
 export const GetContestSummaryResponse = zod.object({
-  "totalEntries": zod.number().int(),
-  "verifiedEntries": zod.number().int(),
-  "pendingEntries": zod.number().int(),
-  "averageFidelity": zod.number().int(),
+  "totalEntries": zod.int(),
+  "verifiedEntries": zod.int(),
+  "pendingEntries": zod.int(),
+  "averageFidelity": zod.int(),
   "topMove": zod.string(),
   "leaderboard": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "group": zod.string(),
   "handle": zod.string(),
   "signatureMove": zod.string(),
   "category": zod.string(),
   "verificationStatus": zod.enum(['Verified Clean', 'Pending Check', 'Needs Proof']),
   "coreVerdict": zod.enum(['Top Leaderboard', 'Challenge Cleared', 'Under Review', 'Not Cleared']),
-  "overallFidelity": zod.number().int().min(getContestSummaryResponseLeaderboardItemOverallFidelityMin).max(getContestSummaryResponseLeaderboardItemOverallFidelityMax),
+  "overallFidelity": zod.int().min(getContestSummaryResponseLeaderboardItemOverallFidelityMin).max(getContestSummaryResponseLeaderboardItemOverallFidelityMax),
   "referenceClipUrl": zod.string().nullable(),
   "visualProofName": zod.string().nullable(),
   "createdAt": zod.coerce.date()
@@ -152,7 +152,7 @@ export const GetContestSummaryResponse = zod.object({
  * @summary List athlete move cards
  */
 export const ListMoveCardsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "slug": zod.string(),
   "athleteName": zod.string(),
   "sport": zod.string(),
@@ -164,7 +164,7 @@ export const ListMoveCardsResponseItem = zod.object({
   "cues": zod.array(zod.string()),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string(),
-  "sourceUrl": zod.string().url().nullable(),
+  "sourceUrl": zod.url().nullable(),
   "coverImageUrl": zod.string().nullable(),
   "moderationStatus": zod.enum(['draft', 'published']),
   "identityVerified": zod.boolean(),
@@ -186,7 +186,7 @@ export const GetMoveCardParams = zod.object({
 })
 
 export const GetMoveCardResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "slug": zod.string(),
   "athleteName": zod.string(),
   "sport": zod.string(),
@@ -198,7 +198,7 @@ export const GetMoveCardResponse = zod.object({
   "cues": zod.array(zod.string()),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string(),
-  "sourceUrl": zod.string().url().nullable(),
+  "sourceUrl": zod.url().nullable(),
   "coverImageUrl": zod.string().nullable(),
   "moderationStatus": zod.enum(['draft', 'published']),
   "identityVerified": zod.boolean(),
@@ -212,7 +212,7 @@ export const GetMoveCardResponse = zod.object({
  * @summary List athlete move cards for owner review
  */
 export const ListStudioMoveCardsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "slug": zod.string(),
   "athleteName": zod.string(),
   "sport": zod.string(),
@@ -224,7 +224,7 @@ export const ListStudioMoveCardsResponseItem = zod.object({
   "cues": zod.array(zod.string()),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string(),
-  "sourceUrl": zod.string().url().nullable(),
+  "sourceUrl": zod.url().nullable(),
   "coverImageUrl": zod.string().nullable(),
   "moderationStatus": zod.enum(['draft', 'published']),
   "identityVerified": zod.boolean(),
@@ -250,7 +250,7 @@ export const ListStudioReferenceClipsQueryParams = zod.object({
 
 
 export const ListStudioReferenceClipsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "athleteName": zod.string(),
   "sport": zod.string(),
@@ -258,10 +258,10 @@ export const ListStudioReferenceClipsResponseItem = zod.object({
   "team": zod.string(),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string(),
-  "sourceUrl": zod.string().url().nullable(),
+  "sourceUrl": zod.url().nullable(),
   "permissionConfirmed": zod.boolean(),
   "contentType": zod.enum(['video/mp4', 'video/quicktime', 'video/webm']),
-  "sizeBytes": zod.number().int().min(1),
+  "sizeBytes": zod.int().min(1),
   "createdAt": zod.coerce.date()
 })
 export const ListStudioReferenceClipsResponse = zod.array(ListStudioReferenceClipsResponseItem)
@@ -282,7 +282,7 @@ export const UploadStudioReferenceClipHeader = zod.object({
 
 
 export const UploadStudioReferenceClipResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "athleteName": zod.string(),
   "sport": zod.string(),
@@ -290,10 +290,10 @@ export const UploadStudioReferenceClipResponse = zod.object({
   "team": zod.string(),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string(),
-  "sourceUrl": zod.string().url().nullable(),
+  "sourceUrl": zod.url().nullable(),
   "permissionConfirmed": zod.boolean(),
   "contentType": zod.enum(['video/mp4', 'video/quicktime', 'video/webm']),
-  "sizeBytes": zod.number().int().min(1),
+  "sizeBytes": zod.int().min(1),
   "createdAt": zod.coerce.date()
 })
 
@@ -331,11 +331,11 @@ export const DeleteStudioReferenceClipResponse = zod.void()
 
 
 export const GenerateStudioMoveCardDraftFromClipBody = zod.object({
-  "clipId": zod.number().int().min(1)
+  "clipId": zod.int().min(1)
 })
 
 export const GenerateStudioMoveCardDraftFromClipResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "slug": zod.string(),
   "athleteName": zod.string(),
   "sport": zod.string(),
@@ -347,7 +347,7 @@ export const GenerateStudioMoveCardDraftFromClipResponse = zod.object({
   "cues": zod.array(zod.string()),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string(),
-  "sourceUrl": zod.string().url().nullable(),
+  "sourceUrl": zod.url().nullable(),
   "coverImageUrl": zod.string().nullable(),
   "moderationStatus": zod.enum(['draft', 'published']),
   "identityVerified": zod.boolean(),
@@ -391,12 +391,12 @@ export const CreateStudioMoveCardDraftBody = zod.object({
   "cues": zod.array(zod.string().max(createStudioMoveCardDraftBodyCuesItemMax)).max(createStudioMoveCardDraftBodyCuesMax),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string().min(1).max(createStudioMoveCardDraftBodySourceLabelMax),
-  "sourceUrl": zod.string().url().nullable(),
-  "coverImageUrl": zod.string().url().nullable()
+  "sourceUrl": zod.url().nullable(),
+  "coverImageUrl": zod.url().nullable()
 })
 
 export const CreateStudioMoveCardDraftResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "slug": zod.string(),
   "athleteName": zod.string(),
   "sport": zod.string(),
@@ -408,7 +408,7 @@ export const CreateStudioMoveCardDraftResponse = zod.object({
   "cues": zod.array(zod.string()),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string(),
-  "sourceUrl": zod.string().url().nullable(),
+  "sourceUrl": zod.url().nullable(),
   "coverImageUrl": zod.string().nullable(),
   "moderationStatus": zod.enum(['draft', 'published']),
   "identityVerified": zod.boolean(),
@@ -459,8 +459,8 @@ export const UpdateStudioMoveCardBody = zod.object({
   "cues": zod.array(zod.string().max(updateStudioMoveCardBodyOneCuesItemMax)).max(updateStudioMoveCardBodyOneCuesMax),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string().min(1).max(updateStudioMoveCardBodyOneSourceLabelMax),
-  "sourceUrl": zod.string().url().nullable(),
-  "coverImageUrl": zod.string().url().nullable()
+  "sourceUrl": zod.url().nullable(),
+  "coverImageUrl": zod.url().nullable()
 }).and(zod.object({
   "identityVerified": zod.boolean(),
   "mediaPermissionConfirmed": zod.boolean(),
@@ -468,7 +468,7 @@ export const UpdateStudioMoveCardBody = zod.object({
 }))
 
 export const UpdateStudioMoveCardResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "slug": zod.string(),
   "athleteName": zod.string(),
   "sport": zod.string(),
@@ -480,7 +480,7 @@ export const UpdateStudioMoveCardResponse = zod.object({
   "cues": zod.array(zod.string()),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string(),
-  "sourceUrl": zod.string().url().nullable(),
+  "sourceUrl": zod.url().nullable(),
   "coverImageUrl": zod.string().nullable(),
   "moderationStatus": zod.enum(['draft', 'published']),
   "identityVerified": zod.boolean(),
@@ -502,7 +502,7 @@ export const GenerateStudioMoveCardDraftHeader = zod.object({
 })
 
 export const GenerateStudioMoveCardDraftResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "slug": zod.string(),
   "athleteName": zod.string(),
   "sport": zod.string(),
@@ -514,7 +514,7 @@ export const GenerateStudioMoveCardDraftResponse = zod.object({
   "cues": zod.array(zod.string()),
   "sourceType": zod.enum(['user_clip', 'official']),
   "sourceLabel": zod.string(),
-  "sourceUrl": zod.string().url().nullable(),
+  "sourceUrl": zod.url().nullable(),
   "coverImageUrl": zod.string().nullable(),
   "moderationStatus": zod.enum(['draft', 'published']),
   "identityVerified": zod.boolean(),
@@ -528,15 +528,15 @@ export const GenerateStudioMoveCardDraftResponse = zod.object({
  * @summary List approved participant cards
  */
 export const ListCommunityCardsResponseItem = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "sport": zod.string(),
   "category": zod.string(),
   "moveName": zod.string(),
-  "professionalMoveCardId": zod.number().int().nullable(),
+  "professionalMoveCardId": zod.int().nullable(),
   "team": zod.string().nullable(),
-  "merchProductId": zod.number().int().nullable(),
+  "merchProductId": zod.int().nullable(),
   "merchProductName": zod.string().nullable(),
   "design": zod.enum(['holo', 'court']),
   "createdAt": zod.coerce.date(),
@@ -549,19 +549,19 @@ export const ListCommunityCardsResponse = zod.array(ListCommunityCardsResponseIt
  * @summary Get an approved participant card
  */
 export const GetCommunityCardParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const GetCommunityCardResponse = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "sport": zod.string(),
   "category": zod.string(),
   "moveName": zod.string(),
-  "professionalMoveCardId": zod.number().int().nullable(),
+  "professionalMoveCardId": zod.int().nullable(),
   "team": zod.string().nullable(),
-  "merchProductId": zod.number().int().nullable(),
+  "merchProductId": zod.int().nullable(),
   "merchProductName": zod.string().nullable(),
   "design": zod.enum(['holo', 'court']),
   "createdAt": zod.coerce.date(),
@@ -573,7 +573,7 @@ export const GetCommunityCardResponse = zod.object({
  * @summary Stream an approved participant video
  */
 export const GetCommunityCardVideoParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const GetCommunityCardVideoResponse = zod.unknown()
@@ -583,14 +583,14 @@ export const GetCommunityCardVideoResponse = zod.unknown()
  * @summary List free community matchups and results
  */
 export const ListShowdownsQueryParams = zod.object({
-  "voterToken": zod.coerce.string().uuid()
+  "voterToken": zod.uuid()
 })
 
 export const ListShowdownsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "mode": zod.enum(['sport', 'exhibition']),
   "left": zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "sport": zod.string(),
@@ -599,7 +599,7 @@ export const ListShowdownsResponseItem = zod.object({
   "videoUrl": zod.string()
 }),
   "right": zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "sport": zod.string(),
@@ -607,8 +607,8 @@ export const ListShowdownsResponseItem = zod.object({
   "team": zod.string().nullable(),
   "videoUrl": zod.string()
 }),
-  "leftVotes": zod.number().int(),
-  "rightVotes": zod.number().int(),
+  "leftVotes": zod.int(),
+  "rightVotes": zod.int(),
   "myVoteEntryId": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })
@@ -619,16 +619,16 @@ export const ListShowdownsResponse = zod.array(ListShowdownsResponseItem)
  * @summary Create a free matchup from approved cards
  */
 export const CreateShowdownBody = zod.object({
-  "firstEntryId": zod.string().uuid(),
-  "secondEntryId": zod.string().uuid(),
+  "firstEntryId": zod.uuid(),
+  "secondEntryId": zod.uuid(),
   "mode": zod.enum(['sport', 'exhibition'])
 })
 
 export const CreateShowdownResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "mode": zod.enum(['sport', 'exhibition']),
   "left": zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "sport": zod.string(),
@@ -637,7 +637,7 @@ export const CreateShowdownResponse = zod.object({
   "videoUrl": zod.string()
 }),
   "right": zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "sport": zod.string(),
@@ -645,8 +645,8 @@ export const CreateShowdownResponse = zod.object({
   "team": zod.string().nullable(),
   "videoUrl": zod.string()
 }),
-  "leftVotes": zod.number().int(),
-  "rightVotes": zod.number().int(),
+  "leftVotes": zod.int(),
+  "rightVotes": zod.int(),
   "myVoteEntryId": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })
@@ -663,15 +663,15 @@ export const VoteOnShowdownParams = zod.object({
 })
 
 export const VoteOnShowdownBody = zod.object({
-  "entryId": zod.string().uuid(),
-  "voterToken": zod.string().uuid()
+  "entryId": zod.uuid(),
+  "voterToken": zod.uuid()
 })
 
 export const VoteOnShowdownResponse = zod.object({
-  "showdownId": zod.number().int(),
-  "leftVotes": zod.number().int(),
-  "rightVotes": zod.number().int(),
-  "myVoteEntryId": zod.string().uuid()
+  "showdownId": zod.int(),
+  "leftVotes": zod.int(),
+  "rightVotes": zod.int(),
+  "myVoteEntryId": zod.uuid()
 })
 
 
@@ -683,15 +683,15 @@ export const ListStudioContestResultsResponse = zod.object({
   "emailSenderConfigured": zod.boolean().describe('Whether an email sender is configured.'),
   "ownerNotificationConfigured": zod.boolean().describe('Whether an owner email destination is configured for bounce and complaint alerts.'),
   "results": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "eventTitle": zod.string(),
   "division": zod.string(),
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string(),
   "status": zod.enum(['draft', 'cleared']),
@@ -702,8 +702,8 @@ export const ListStudioContestResultsResponse = zod.object({
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
-  "resultId": zod.number().int(),
+  "id": zod.int(),
+  "resultId": zod.int(),
   "changeType": zod.enum(['clearance', 'correction']),
   "snapshot": zod.object({
   "eventTitle": zod.string(),
@@ -711,9 +711,9 @@ export const ListStudioContestResultsResponse = zod.object({
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string()
 }),
@@ -756,23 +756,23 @@ export const CreateStudioContestResultBody = zod.object({
   "winnerName": zod.string().min(1).max(createStudioContestResultBodyWinnerNameMax),
   "winnerHandle": zod.string().max(createStudioContestResultBodyWinnerHandleMax),
   "runnerUpName": zod.string().min(1).max(createStudioContestResultBodyRunnerUpNameMax),
-  "winnerVotes": zod.number().int().min(createStudioContestResultBodyWinnerVotesMin),
-  "runnerUpVotes": zod.number().int().min(createStudioContestResultBodyRunnerUpVotesMin),
-  "coreScore": zod.number().int().min(createStudioContestResultBodyCoreScoreMin).max(createStudioContestResultBodyCoreScoreMax).nullish(),
+  "winnerVotes": zod.int().min(createStudioContestResultBodyWinnerVotesMin),
+  "runnerUpVotes": zod.int().min(createStudioContestResultBodyRunnerUpVotesMin),
+  "coreScore": zod.int().min(createStudioContestResultBodyCoreScoreMin).max(createStudioContestResultBodyCoreScoreMax).nullish(),
   "base44Summary": zod.string().min(1).max(createStudioContestResultBodyBase44SummaryMax),
   "viralReelSummary": zod.string().min(1).max(createStudioContestResultBodyViralReelSummaryMax)
 })
 
 export const CreateStudioContestResultResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "eventTitle": zod.string(),
   "division": zod.string(),
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string(),
   "status": zod.enum(['draft', 'cleared']),
@@ -783,8 +783,8 @@ export const CreateStudioContestResultResponse = zod.object({
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
-  "resultId": zod.number().int(),
+  "id": zod.int(),
+  "resultId": zod.int(),
   "changeType": zod.enum(['clearance', 'correction']),
   "snapshot": zod.object({
   "eventTitle": zod.string(),
@@ -792,9 +792,9 @@ export const CreateStudioContestResultResponse = zod.object({
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string()
 }),
@@ -812,11 +812,11 @@ export const updateStudioContestResultEmailDestinationBodyEmailRecipientMax = 25
 
 
 export const UpdateStudioContestResultEmailDestinationBody = zod.object({
-  "emailRecipient": zod.string().email().max(updateStudioContestResultEmailDestinationBodyEmailRecipientMax)
+  "emailRecipient": zod.email().max(updateStudioContestResultEmailDestinationBodyEmailRecipientMax)
 })
 
 export const UpdateStudioContestResultEmailDestinationResponse = zod.object({
-  "emailRecipient": zod.string().email(),
+  "emailRecipient": zod.email(),
   "emailSenderConfigured": zod.boolean()
 })
 
@@ -860,23 +860,23 @@ export const UpdateStudioContestResultBody = zod.object({
   "winnerName": zod.string().min(1).max(updateStudioContestResultBodyWinnerNameMax),
   "winnerHandle": zod.string().max(updateStudioContestResultBodyWinnerHandleMax),
   "runnerUpName": zod.string().min(1).max(updateStudioContestResultBodyRunnerUpNameMax),
-  "winnerVotes": zod.number().int().min(updateStudioContestResultBodyWinnerVotesMin),
-  "runnerUpVotes": zod.number().int().min(updateStudioContestResultBodyRunnerUpVotesMin),
-  "coreScore": zod.number().int().min(updateStudioContestResultBodyCoreScoreMin).max(updateStudioContestResultBodyCoreScoreMax).nullish(),
+  "winnerVotes": zod.int().min(updateStudioContestResultBodyWinnerVotesMin),
+  "runnerUpVotes": zod.int().min(updateStudioContestResultBodyRunnerUpVotesMin),
+  "coreScore": zod.int().min(updateStudioContestResultBodyCoreScoreMin).max(updateStudioContestResultBodyCoreScoreMax).nullish(),
   "base44Summary": zod.string().min(1).max(updateStudioContestResultBodyBase44SummaryMax),
   "viralReelSummary": zod.string().min(1).max(updateStudioContestResultBodyViralReelSummaryMax)
 })
 
 export const UpdateStudioContestResultResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "eventTitle": zod.string(),
   "division": zod.string(),
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string(),
   "status": zod.enum(['draft', 'cleared']),
@@ -887,8 +887,8 @@ export const UpdateStudioContestResultResponse = zod.object({
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
-  "resultId": zod.number().int(),
+  "id": zod.int(),
+  "resultId": zod.int(),
   "changeType": zod.enum(['clearance', 'correction']),
   "snapshot": zod.object({
   "eventTitle": zod.string(),
@@ -896,9 +896,9 @@ export const UpdateStudioContestResultResponse = zod.object({
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string()
 }),
@@ -928,15 +928,15 @@ export const ClearStudioContestResultBody = zod.object({
 })
 
 export const ClearStudioContestResultResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "eventTitle": zod.string(),
   "division": zod.string(),
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string(),
   "status": zod.enum(['draft', 'cleared']),
@@ -947,8 +947,8 @@ export const ClearStudioContestResultResponse = zod.object({
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
-  "resultId": zod.number().int(),
+  "id": zod.int(),
+  "resultId": zod.int(),
   "changeType": zod.enum(['clearance', 'correction']),
   "snapshot": zod.object({
   "eventTitle": zod.string(),
@@ -956,9 +956,9 @@ export const ClearStudioContestResultResponse = zod.object({
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string()
 }),
@@ -1011,23 +1011,23 @@ export const CorrectStudioContestResultBody = zod.object({
   "winnerName": zod.string().min(1).max(correctStudioContestResultBodyWinnerNameMax),
   "winnerHandle": zod.string().max(correctStudioContestResultBodyWinnerHandleMax),
   "runnerUpName": zod.string().min(1).max(correctStudioContestResultBodyRunnerUpNameMax),
-  "winnerVotes": zod.number().int().min(correctStudioContestResultBodyWinnerVotesMin),
-  "runnerUpVotes": zod.number().int().min(correctStudioContestResultBodyRunnerUpVotesMin),
-  "coreScore": zod.number().int().min(correctStudioContestResultBodyCoreScoreMin).max(correctStudioContestResultBodyCoreScoreMax).nullish(),
+  "winnerVotes": zod.int().min(correctStudioContestResultBodyWinnerVotesMin),
+  "runnerUpVotes": zod.int().min(correctStudioContestResultBodyRunnerUpVotesMin),
+  "coreScore": zod.int().min(correctStudioContestResultBodyCoreScoreMin).max(correctStudioContestResultBodyCoreScoreMax).nullish(),
   "base44Summary": zod.string().min(1).max(correctStudioContestResultBodyBase44SummaryMax),
   "viralReelSummary": zod.string().min(1).max(correctStudioContestResultBodyViralReelSummaryMax)
 })
 
 export const CorrectStudioContestResultResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "eventTitle": zod.string(),
   "division": zod.string(),
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string(),
   "status": zod.enum(['draft', 'cleared']),
@@ -1038,8 +1038,8 @@ export const CorrectStudioContestResultResponse = zod.object({
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
-  "resultId": zod.number().int(),
+  "id": zod.int(),
+  "resultId": zod.int(),
   "changeType": zod.enum(['clearance', 'correction']),
   "snapshot": zod.object({
   "eventTitle": zod.string(),
@@ -1047,9 +1047,9 @@ export const CorrectStudioContestResultResponse = zod.object({
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string()
 }),
@@ -1074,15 +1074,15 @@ export const EmailStudioContestResultBody = zod.object({
 })
 
 export const EmailStudioContestResultResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "eventTitle": zod.string(),
   "division": zod.string(),
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string(),
   "status": zod.enum(['draft', 'cleared']),
@@ -1093,8 +1093,8 @@ export const EmailStudioContestResultResponse = zod.object({
   "emailSentAt": zod.coerce.date().nullable(),
   "emailDeliveryError": zod.string().nullable(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
-  "resultId": zod.number().int(),
+  "id": zod.int(),
+  "resultId": zod.int(),
   "changeType": zod.enum(['clearance', 'correction']),
   "snapshot": zod.object({
   "eventTitle": zod.string(),
@@ -1102,9 +1102,9 @@ export const EmailStudioContestResultResponse = zod.object({
   "winnerName": zod.string(),
   "winnerHandle": zod.string(),
   "runnerUpName": zod.string(),
-  "winnerVotes": zod.number().int(),
-  "runnerUpVotes": zod.number().int(),
-  "coreScore": zod.number().int().nullable(),
+  "winnerVotes": zod.int(),
+  "runnerUpVotes": zod.int(),
+  "coreScore": zod.int().nullable(),
   "base44Summary": zod.string(),
   "viralReelSummary": zod.string()
 }),
@@ -1140,10 +1140,10 @@ export const ReceiveResendEmailEventResponse = zod.void()
  * @summary List Printful products for planning
  */
 export const ListMerchCatalogResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "type": zod.string().nullable(),
-  "variantCount": zod.number().int(),
+  "variantCount": zod.int(),
   "imageUrl": zod.string().nullable()
 })
 export const ListMerchCatalogResponse = zod.array(ListMerchCatalogResponseItem)
@@ -1160,10 +1160,10 @@ export const GetMerchProductDetailsParams = zod.object({
 })
 
 export const GetMerchProductDetailsResponse = zod.object({
-  "productId": zod.number().int(),
+  "productId": zod.int(),
   "title": zod.string(),
   "variants": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "color": zod.string().nullable(),
   "size": zod.string().nullable()
@@ -1198,16 +1198,16 @@ export const createMerchMockupBodyArtworkUrlMax = 2048;
 
 
 export const CreateMerchMockupBody = zod.object({
-  "variantIds": zod.array(zod.number().int().min(1)).min(1).max(createMerchMockupBodyVariantIdsMax),
+  "variantIds": zod.array(zod.int().min(1)).min(1).max(createMerchMockupBodyVariantIdsMax),
   "placements": zod.array(zod.string().min(1).max(createMerchMockupBodyPlacementsItemMax)).min(1).max(createMerchMockupBodyPlacementsMax),
-  "artworkUrl": zod.string().url().max(createMerchMockupBodyArtworkUrlMax)
+  "artworkUrl": zod.url().max(createMerchMockupBodyArtworkUrlMax)
 })
 
 export const CreateMerchMockupResponse = zod.object({
   "taskKey": zod.string(),
   "status": zod.enum(['pending', 'completed', 'failed']),
-  "productId": zod.number().int(),
-  "variantIds": zod.array(zod.number().int()),
+  "productId": zod.int(),
+  "variantIds": zod.array(zod.int()),
   "placements": zod.array(zod.string())
 })
 
@@ -1234,10 +1234,10 @@ export const retryMerchMockupsBodyArtworkUrlMax = 2048;
 
 export const RetryMerchMockupsBody = zod.object({
   "combinations": zod.array(zod.object({
-  "variantId": zod.number().int().min(1),
+  "variantId": zod.int().min(1),
   "placement": zod.string().min(1).max(retryMerchMockupsBodyCombinationsItemPlacementMax)
 })).min(1).max(retryMerchMockupsBodyCombinationsMax),
-  "artworkUrl": zod.string().url().max(retryMerchMockupsBodyArtworkUrlMax)
+  "artworkUrl": zod.url().max(retryMerchMockupsBodyArtworkUrlMax)
 })
 
 
@@ -1249,12 +1249,12 @@ export const RetryMerchMockupsResponse = zod.object({
   "tasks": zod.array(zod.object({
   "taskKey": zod.string(),
   "status": zod.enum(['pending', 'completed', 'failed']),
-  "productId": zod.number().int(),
-  "variantIds": zod.array(zod.number().int()),
+  "productId": zod.int(),
+  "variantIds": zod.array(zod.int()),
   "placements": zod.array(zod.string())
 })),
   "failedCombinations": zod.array(zod.object({
-  "variantId": zod.number().int().min(1),
+  "variantId": zod.int().min(1),
   "placement": zod.string().min(1).max(retryMerchMockupsResponseFailedCombinationsItemPlacementMax)
 })),
   "error": zod.string().nullable()
@@ -1279,8 +1279,8 @@ export const GetMerchMockupTaskResponse = zod.object({
   "mockups": zod.array(zod.object({
   "title": zod.string(),
   "placement": zod.string(),
-  "variantIds": zod.array(zod.number().int()),
-  "imageUrl": zod.string().url()
+  "variantIds": zod.array(zod.int()),
+  "imageUrl": zod.url()
 }))
 })
 
@@ -1321,7 +1321,7 @@ export const DeleteStudioSessionResponse = zod.void()
  */
 export const GetStudioSettingsResponse = zod.object({
   "model": zod.string(),
-  "durationOptions": zod.array(zod.number().int()),
+  "durationOptions": zod.array(zod.int()),
   "aspectRatio": zod.string(),
   "resolution": zod.string(),
   "audioEnabled": zod.boolean(),
@@ -1339,12 +1339,12 @@ export const GetStudioSettingsResponse = zod.object({
  */
 export const ListStudioReelsResponse = zod.object({
   "reels": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "briefId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['starting', 'processing', 'succeeded', 'failed', 'aborted']),
   "model": zod.string(),
-  "durationSeconds": zod.number().int(),
+  "durationSeconds": zod.int(),
   "aspectRatio": zod.string(),
   "resolution": zod.string(),
   "audioEnabled": zod.boolean(),
@@ -1377,12 +1377,12 @@ export const CreateStudioReelBody = zod.object({
 })
 
 export const CreateStudioReelResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "briefId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['starting', 'processing', 'succeeded', 'failed', 'aborted']),
   "model": zod.string(),
-  "durationSeconds": zod.number().int(),
+  "durationSeconds": zod.int(),
   "aspectRatio": zod.string(),
   "resolution": zod.string(),
   "audioEnabled": zod.boolean(),
@@ -1424,7 +1424,7 @@ export const createMoveSubmissionResponseCreatorAccessTokenMax = 128;
 
 
 export const CreateMoveSubmissionResponse = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "status": zod.enum(['pending']),
   "createdAt": zod.coerce.date(),
   "creatorAccessToken": zod.string().min(createMoveSubmissionResponseCreatorAccessTokenMin).max(createMoveSubmissionResponseCreatorAccessTokenMax).describe('Private bearer token shown only in the submission receipt.')
@@ -1435,7 +1435,7 @@ export const CreateMoveSubmissionResponse = zod.object({
  * @summary Load a private creator card and verify its generated-reel purchase
  */
 export const GetCreatorCardAccessParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const getCreatorCardAccessBodyCreatorTokenMin = 43;
@@ -1460,7 +1460,7 @@ export const GetCreatorCardAccessResponse = zod.object({
   "refundRequestedAt": zod.coerce.date().nullable(),
   "refundRequestAllowed": zod.boolean(),
   "card": zod.union([zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "sport": zod.string(),
@@ -1475,7 +1475,7 @@ export const GetCreatorCardAccessResponse = zod.object({
  * @summary Create a hosted checkout for an optional generated creator reel
  */
 export const CreateCreatorMotionCardCheckoutParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const createCreatorMotionCardCheckoutBodyCreatorTokenMin = 43;
@@ -1493,7 +1493,7 @@ export const CreateCreatorMotionCardCheckoutBody = zod.object({
 
 export const CreateCreatorMotionCardCheckoutResponse = zod.object({
   "motionStatus": zod.enum(['checkout_pending', 'paid']),
-  "checkoutUrl": zod.string().url().nullable(),
+  "checkoutUrl": zod.url().nullable(),
   "priceUsd": zod.number()
 })
 
@@ -1502,7 +1502,7 @@ export const CreateCreatorMotionCardCheckoutResponse = zod.object({
  * @summary Retry a failed generated reel without creating another payment
  */
 export const RetryCreatorMotionGenerationParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const retryCreatorMotionGenerationBodyCreatorTokenMin = 43;
@@ -1527,7 +1527,7 @@ export const RetryCreatorMotionGenerationResponse = zod.object({
   "refundRequestedAt": zod.coerce.date().nullable(),
   "refundRequestAllowed": zod.boolean(),
   "card": zod.union([zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "sport": zod.string(),
@@ -1542,7 +1542,7 @@ export const RetryCreatorMotionGenerationResponse = zod.object({
  * @summary Request a refund after a failed reel retry
  */
 export const RequestCreatorMotionRefundParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const requestCreatorMotionRefundBodyCreatorTokenMin = 43;
@@ -1566,7 +1566,7 @@ export const RequestCreatorMotionRefundResponse = zod.object({
  * @summary List refund requests and failed notifications for the owner
  */
 export const ListCreatorMotionRefundRequestsResponseItem = zod.object({
-  "submissionId": zod.string().uuid(),
+  "submissionId": zod.uuid(),
   "creatorName": zod.string(),
   "moveName": zod.string(),
   "priceUsd": zod.number(),
@@ -1585,7 +1585,7 @@ export const ListCreatorMotionRefundRequestsResponse = zod.array(ListCreatorMoti
  * @summary Issue a refund through Whop or decline the request
  */
 export const ResolveCreatorMotionRefundRequestParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const ResolveCreatorMotionRefundRequestBody = zod.object({
@@ -1604,7 +1604,7 @@ export const ResolveCreatorMotionRefundRequestResponse = zod.object({
  * @summary Retry a failed creator refund notification
  */
 export const RetryCreatorMotionRefundNotificationParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const RetryCreatorMotionRefundNotificationResponse = zod.object({
@@ -1616,20 +1616,20 @@ export const RetryCreatorMotionRefundNotificationResponse = zod.object({
  * @summary List pending submissions for the owner
  */
 export const ListMoveSubmissionsForReviewResponseItem = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "sport": zod.string(),
   "category": zod.string(),
   "moveName": zod.string(),
-  "professionalMoveCardId": zod.number().int().nullable(),
+  "professionalMoveCardId": zod.int().nullable(),
   "displayName": zod.string(),
   "handle": zod.string(),
-  "merchProductId": zod.number().int().nullable(),
+  "merchProductId": zod.int().nullable(),
   "merchProductName": zod.string().nullable(),
   "team": zod.string().nullable(),
   "design": zod.enum(['holo', 'court']),
   "videoFileName": zod.string(),
   "videoContentType": zod.string(),
-  "videoSizeBytes": zod.number().int(),
+  "videoSizeBytes": zod.int(),
   "consentAt": zod.coerce.date(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "createdAt": zod.coerce.date(),
@@ -1643,7 +1643,7 @@ export const ListMoveSubmissionsForReviewResponse = zod.array(ListMoveSubmission
  * @summary Approve or reject a pending move submission
  */
 export const ReviewMoveSubmissionParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const ReviewMoveSubmissionBody = zod.object({
@@ -1651,20 +1651,20 @@ export const ReviewMoveSubmissionBody = zod.object({
 })
 
 export const ReviewMoveSubmissionResponse = zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "sport": zod.string(),
   "category": zod.string(),
   "moveName": zod.string(),
-  "professionalMoveCardId": zod.number().int().nullable(),
+  "professionalMoveCardId": zod.int().nullable(),
   "displayName": zod.string(),
   "handle": zod.string(),
-  "merchProductId": zod.number().int().nullable(),
+  "merchProductId": zod.int().nullable(),
   "merchProductName": zod.string().nullable(),
   "team": zod.string().nullable(),
   "design": zod.enum(['holo', 'court']),
   "videoFileName": zod.string(),
   "videoContentType": zod.string(),
-  "videoSizeBytes": zod.number().int(),
+  "videoSizeBytes": zod.int(),
   "consentAt": zod.coerce.date(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "createdAt": zod.coerce.date(),
@@ -1677,7 +1677,7 @@ export const ReviewMoveSubmissionResponse = zod.object({
  * @summary Stream a private submission video for the owner
  */
 export const GetMoveSubmissionVideoParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.uuid()
 })
 
 export const GetMoveSubmissionVideoResponse = zod.unknown()
