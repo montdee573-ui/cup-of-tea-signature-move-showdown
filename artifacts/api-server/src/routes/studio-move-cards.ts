@@ -2,16 +2,18 @@ import { randomUUID } from "node:crypto";
 import express, { Router, type IRouter, type Request } from "express";
 import { and, asc, eq } from "drizzle-orm";
 import { GoogleGenAI } from "@google/genai";
-import { db, moveCardsTable } from "@workspace/db";
+import { db, moveCardsTable, studioReferenceClipsTable } from "@workspace/db";
 import {
   GetMoveCardResponse,
   ListMoveCardsResponse,
   CreateStudioMoveCardDraftBody,
+  GenerateStudioMoveCardDraftFromClipBody,
   UpdateStudioMoveCardBody,
 } from "@workspace/api-zod";
 import { z } from "zod";
 import { isStudioOwner } from "./studio";
 import { ensureSeeded } from "./move-cards";
+import { studioReferenceClipFile } from "../lib/studio-object-storage";
 
 const router: IRouter = Router();
 const MAX_REFERENCE_BYTES = 5 * 1024 * 1024;
@@ -316,6 +318,79 @@ router.post("/studio/move-cards/ai-draft", (req, res, next) => {
       return;
     }
     req.log.error({ err: error, providerStatus }, "Gemini move-card analysis failed");
+    res.status(503).json({ error: "AI analysis is temporarily unavailable. No card was published." });
+  }
+});
+
+router.post("/studio/move-cards/ai-draft-from-clip", async (req, res): Promise<void> => {
+  if (!isStudioOwner(req)) {
+    res.status(401).json({ error: "Owner login required." });
+    return;
+  }
+  const input = GenerateStudioMoveCardDraftFromClipBody.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: "Choose a saved reference clip before requesting analysis." });
+    return;
+  }
+  const clips = await db.select().from(studioReferenceClipsTable).orderBy(asc(studioReferenceClipsTable.id));
+  const clip = clips.find((candidate) => candidate.id === input.data.clipId);
+  if (!clip) {
+    res.status(404).json({ error: "Reference clip not found." });
+    return;
+  }
+  if (!clip.permissionConfirmed) {
+    res.status(400).json({ error: "Confirm rights and permission before analyzing this clip." });
+    return;
+  }
+  if (!process.env.GEMINI_API_KEY) {
+    res.status(503).json({ error: "AI suggestions are unavailable because Gemini is not configured." });
+    return;
+  }
+  if (!consumeAnalysisSlot(req)) {
+    res.status(429).json({ error: "The hourly analysis limit is reached. Try again later." });
+    return;
+  }
+
+  try {
+    const [video] = await studioReferenceClipFile(clip.objectPath).download();
+    if (!video || video.length !== clip.sizeBytes || !validVideoSignature(video, clip.contentType)) {
+      res.status(400).json({ error: "The saved reference clip is incomplete or invalid." });
+      return;
+    }
+    const suggestion = await analyzeVideoWithRetry(video, clip.contentType, clip.athleteName, clip.sport);
+    const draft = {
+      athleteName: clip.athleteName,
+      sport: clip.sport,
+      era: clip.era,
+      team: clip.team,
+      moveName: suggestion.moveName,
+      tagline: suggestion.tagline,
+      explanation: suggestion.explanation,
+      cues: suggestion.cues,
+      sourceType: clip.sourceType,
+      sourceLabel: clip.sourceLabel,
+      sourceUrl: clip.sourceUrl,
+      coverImageUrl: null,
+      slug: makeSlug(clip.athleteName, suggestion.moveName),
+      moderationStatus: "draft",
+      identityVerified: false,
+      mediaPermissionConfirmed: false,
+      aiGenerated: true,
+      aiReviewed: false,
+    } as const;
+    const [card] = await db.insert(moveCardsTable).values(draft).returning();
+    req.log.info({ cardId: card.id, clipId: clip.id, sport: card.sport }, "Created private move-card draft from saved reference clip");
+    res.status(201).json(GetMoveCardResponse.parse(card));
+  } catch (error) {
+    const providerStatus = typeof error === "object" && error !== null && "status" in error
+      ? Number((error as { status?: unknown }).status)
+      : 0;
+    if (error instanceof z.ZodError || error instanceof SyntaxError) {
+      req.log.warn({ err: error, clipId: clip.id }, "Gemini reference-clip suggestion did not match the expected schema");
+      res.status(503).json({ error: "The clip did not produce a usable draft. No card was published." });
+      return;
+    }
+    req.log.error({ err: error, providerStatus, clipId: clip.id }, "Gemini saved reference-clip analysis failed");
     res.status(503).json({ error: "AI analysis is temporarily unavailable. No card was published." });
   }
 });

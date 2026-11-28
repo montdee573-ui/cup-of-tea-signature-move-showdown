@@ -42,6 +42,7 @@ import type {
   ErrorResponse,
   HealthStatus,
   ListShowdownsParams,
+  ListStudioReferenceClipsParams,
   MerchCatalogItem,
   MerchMockupInput,
   MerchMockupRetryInput,
@@ -65,6 +66,8 @@ import type {
   StudioMoveCardUpdateInput,
   StudioReel,
   StudioReelsResponse,
+  StudioReferenceClip,
+  StudioReferenceClipAnalysisInput,
   StudioSession,
   StudioSettings
 } from './api.schemas';
@@ -800,6 +803,417 @@ export function useListStudioMoveCards<TData = Awaited<ReturnType<typeof listStu
 
 
 
+
+export const getListStudioReferenceClipsUrl = (params?: ListStudioReferenceClipsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/studio/reference-clips?${stringifiedParams}` : `/api/studio/reference-clips`
+}
+
+/**
+ * @summary Search private owner reference clips
+ */
+export const listStudioReferenceClips = async (params?: ListStudioReferenceClipsParams, options?: Parameters<typeof customFetch>[1]): Promise<StudioReferenceClip[]> => {
+
+  return customFetch<StudioReferenceClip[]>(getListStudioReferenceClipsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStudioReferenceClipsQueryKey = (params?: ListStudioReferenceClipsParams,) => {
+    return [
+    `/api/studio/reference-clips`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListStudioReferenceClipsQueryOptions = <TData = Awaited<ReturnType<typeof listStudioReferenceClips>>, TError = ErrorType<ErrorResponse>>(params?: ListStudioReferenceClipsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStudioReferenceClips>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStudioReferenceClipsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStudioReferenceClips>>> = ({ signal }) => listStudioReferenceClips(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStudioReferenceClips>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListStudioReferenceClipsQueryResult = NonNullable<Awaited<ReturnType<typeof listStudioReferenceClips>>>
+export type ListStudioReferenceClipsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Search private owner reference clips
+ */
+
+export function useListStudioReferenceClips<TData = Awaited<ReturnType<typeof listStudioReferenceClips>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListStudioReferenceClipsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStudioReferenceClips>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListStudioReferenceClipsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadStudioReferenceClipUrl = () => {
+
+
+
+
+  return `/api/studio/reference-clips`
+}
+
+/**
+ * @summary Save a rights-cleared clip in the private source library
+ */
+export const uploadStudioReferenceClip = async (uploadStudioReferenceClipBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<StudioReferenceClip> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudioReferenceClip>(getUploadStudioReferenceClipUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'video/mp4', ...getHeaders(options?.headers) },
+    body: uploadStudioReferenceClipBody
+  }
+);}
+
+
+
+
+
+export const getUploadStudioReferenceClipMutationKey = () => ['uploadStudioReferenceClip'] as const;
+
+export const getUploadStudioReferenceClipMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadStudioReferenceClip>>, TError,UploadStudioReferenceClipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadStudioReferenceClip>>, TError,UploadStudioReferenceClipMutationVariables, TContext> => {
+
+const mutationKey = getUploadStudioReferenceClipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadStudioReferenceClip>>, UploadStudioReferenceClipMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadStudioReferenceClip(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadStudioReferenceClipMutationResult = NonNullable<Awaited<ReturnType<typeof uploadStudioReferenceClip>>>
+    export type UploadStudioReferenceClipMutationBody = BodyType<Blob>
+    export type UploadStudioReferenceClipMutationError = ErrorType<ErrorResponse>
+    export type UploadStudioReferenceClipMutationVariables = {data: BodyType<Blob>}
+
+    /**
+ * @summary Save a rights-cleared clip in the private source library
+ */
+export const useUploadStudioReferenceClip = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadStudioReferenceClip>>, TError,UploadStudioReferenceClipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadStudioReferenceClip>>,
+        TError,
+        UploadStudioReferenceClipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadStudioReferenceClipMutationOptions(options));
+    }
+
+export const getGetStudioReferenceClipVideoUrl = (id: number,) => {
+
+
+
+
+  return `/api/studio/reference-clips/${id}/video`
+}
+
+/**
+ * @summary Stream a private reference clip to the signed-in owner
+ */
+export const getStudioReferenceClipVideo = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetStudioReferenceClipVideoUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudioReferenceClipVideoQueryKey = (id: number,) => {
+    return [
+    `/api/studio/reference-clips/${id}/video`
+    ] as const;
+    }
+
+
+export const getGetStudioReferenceClipVideoQueryOptions = <TData = Awaited<ReturnType<typeof getStudioReferenceClipVideo>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudioReferenceClipVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudioReferenceClipVideoQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudioReferenceClipVideo>>> = ({ signal }) => getStudioReferenceClipVideo(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudioReferenceClipVideo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStudioReferenceClipVideoQueryResult = NonNullable<Awaited<ReturnType<typeof getStudioReferenceClipVideo>>>
+export type GetStudioReferenceClipVideoQueryError = ErrorType<void>
+
+
+/**
+ * @summary Stream a private reference clip to the signed-in owner
+ */
+
+export function useGetStudioReferenceClipVideo<TData = Awaited<ReturnType<typeof getStudioReferenceClipVideo>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudioReferenceClipVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStudioReferenceClipVideoQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteStudioReferenceClipUrl = (id: number,) => {
+
+
+
+
+  return `/api/studio/reference-clips/${id}`
+}
+
+/**
+ * @summary Remove a private reference clip
+ */
+export const deleteStudioReferenceClip = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteStudioReferenceClipUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteStudioReferenceClipMutationKey = () => ['deleteStudioReferenceClip'] as const;
+
+export const getDeleteStudioReferenceClipMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStudioReferenceClip>>, TError,DeleteStudioReferenceClipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStudioReferenceClip>>, TError,DeleteStudioReferenceClipMutationVariables, TContext> => {
+
+const mutationKey = getDeleteStudioReferenceClipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStudioReferenceClip>>, DeleteStudioReferenceClipMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteStudioReferenceClip(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStudioReferenceClipMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStudioReferenceClip>>>
+
+    export type DeleteStudioReferenceClipMutationError = ErrorType<ErrorResponse>
+    export type DeleteStudioReferenceClipMutationVariables = {id: number}
+
+    /**
+ * @summary Remove a private reference clip
+ */
+export const useDeleteStudioReferenceClip = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStudioReferenceClip>>, TError,DeleteStudioReferenceClipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStudioReferenceClip>>,
+        TError,
+        DeleteStudioReferenceClipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteStudioReferenceClipMutationOptions(options));
+    }
+
+export const getGenerateStudioMoveCardDraftFromClipUrl = () => {
+
+
+
+
+  return `/api/studio/move-cards/ai-draft-from-clip`
+}
+
+/**
+ * @summary Analyze a saved private reference clip and create a draft
+ */
+export const generateStudioMoveCardDraftFromClip = async (studioReferenceClipAnalysisInput: StudioReferenceClipAnalysisInput, options?: Parameters<typeof customFetch>[1]): Promise<MoveCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MoveCard>(getGenerateStudioMoveCardDraftFromClipUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(studioReferenceClipAnalysisInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateStudioMoveCardDraftFromClipMutationKey = () => ['generateStudioMoveCardDraftFromClip'] as const;
+
+export const getGenerateStudioMoveCardDraftFromClipMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateStudioMoveCardDraftFromClip>>, TError,GenerateStudioMoveCardDraftFromClipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateStudioMoveCardDraftFromClip>>, TError,GenerateStudioMoveCardDraftFromClipMutationVariables, TContext> => {
+
+const mutationKey = getGenerateStudioMoveCardDraftFromClipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateStudioMoveCardDraftFromClip>>, GenerateStudioMoveCardDraftFromClipMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateStudioMoveCardDraftFromClip(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateStudioMoveCardDraftFromClipMutationResult = NonNullable<Awaited<ReturnType<typeof generateStudioMoveCardDraftFromClip>>>
+    export type GenerateStudioMoveCardDraftFromClipMutationBody = BodyType<StudioReferenceClipAnalysisInput>
+    export type GenerateStudioMoveCardDraftFromClipMutationError = ErrorType<ErrorResponse>
+    export type GenerateStudioMoveCardDraftFromClipMutationVariables = {data: BodyType<StudioReferenceClipAnalysisInput>}
+
+    /**
+ * @summary Analyze a saved private reference clip and create a draft
+ */
+export const useGenerateStudioMoveCardDraftFromClip = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateStudioMoveCardDraftFromClip>>, TError,GenerateStudioMoveCardDraftFromClipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateStudioMoveCardDraftFromClip>>,
+        TError,
+        GenerateStudioMoveCardDraftFromClipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGenerateStudioMoveCardDraftFromClipMutationOptions(options));
+    }
 
 export const getCreateStudioMoveCardDraftUrl = () => {
 

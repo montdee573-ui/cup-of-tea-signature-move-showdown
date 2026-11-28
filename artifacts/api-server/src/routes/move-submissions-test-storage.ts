@@ -1,7 +1,11 @@
+import { Readable } from "node:stream";
+
 let saveCalls = 0;
+const savedReferenceClips = new Map<string, { bytes: Buffer; contentType: string }>();
 
 export function resetMoveSubmissionStorageState(): void {
   saveCalls = 0;
+  savedReferenceClips.clear();
 }
 
 export function moveSubmissionStorageState() {
@@ -28,3 +32,22 @@ export async function saveReelVideo(): Promise<never> {
 }
 
 export async function verifyStorageAccess(): Promise<void> {}
+
+export async function saveStudioReferenceClip(objectPath: string, bytes: Buffer, contentType: string): Promise<void> {
+  savedReferenceClips.set(objectPath, { bytes: Buffer.from(bytes), contentType });
+}
+
+export async function deleteStudioReferenceClip(objectPath: string): Promise<void> {
+  savedReferenceClips.delete(objectPath);
+}
+
+export function studioReferenceClipFile(objectPath: string) {
+  const stored = savedReferenceClips.get(objectPath);
+  if (!stored) throw new Error("Reference clip not found.");
+  return {
+    createReadStream: (range?: { start: number; end: number }) => Readable.from(
+      range ? [stored.bytes.subarray(range.start, range.end + 1)] : [stored.bytes],
+    ),
+    download: async () => [Buffer.from(stored.bytes)],
+  };
+}

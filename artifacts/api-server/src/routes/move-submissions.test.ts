@@ -12,10 +12,13 @@ import {
 } from "@workspace/api-zod";
 import moveSubmissionsRouter from "./move-submissions";
 import studioMoveCardsRouter from "./studio-move-cards";
+import studioReferenceClipsRouter from "./studio-reference-clips";
 import {
   moveSubmissionPersistenceState,
   resetMoveSubmissionPersistenceState,
+  seedStudioReferenceClip,
   setAvailableProfessionalCardId,
+  studioReferenceClipPersistenceState,
 } from "./move-submissions-test-db";
 import { moveSubmissionStorageState, resetMoveSubmissionStorageState } from "./move-submissions-test-storage";
 import {
@@ -59,6 +62,7 @@ before(async () => {
   app.use(express.json());
   app.use(moveSubmissionsRouter);
   app.use(studioMoveCardsRouter);
+  app.use(studioReferenceClipsRouter);
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -103,6 +107,79 @@ function ownerCookie(): string {
     .digest("base64url");
   return `reel_studio_owner=${payload}.${signature}`;
 }
+
+function referenceClipMetadataHeader(metadata: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(metadata)).toString("base64url");
+}
+
+const validReferenceClip = Buffer.from("0000ftypisom000000000000");
+
+test("private reference clip library requires owner authentication", async () => {
+  assert.equal((await fetch(`${baseUrl}/studio/reference-clips`)).status, 401);
+  assert.equal((await fetch(`${baseUrl}/studio/reference-clips/1/video`)).status, 401);
+  assert.equal((await fetch(`${baseUrl}/studio/move-cards/ai-draft-from-clip`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clipId: 1 }),
+  })).status, 401);
+});
+
+test("owner can upload, search, stream, and delete rights-cleared private reference clips", async () => {
+  const cookie = ownerCookie();
+  const metadata = {
+    title: "Signature footwork reference",
+    athleteName: "Test Athlete",
+    sport: "Basketball",
+    era: "Current",
+    team: "Test Team",
+    sourceType: "official",
+    sourceLabel: "Authorized official clip",
+    sourceUrl: "https://example.org/clip",
+    permissionConfirmed: true,
+  };
+  const upload = await fetch(`${baseUrl}/studio/reference-clips`, {
+    method: "POST",
+    headers: {
+      Cookie: cookie,
+      "Content-Type": "video/mp4",
+      "X-Reference-Clip-Metadata": referenceClipMetadataHeader(metadata),
+    },
+    body: validReferenceClip,
+  });
+  assert.equal(upload.status, 201);
+  const clip = await upload.json() as { id: number; title: string; permissionConfirmed: boolean };
+  assert.equal(clip.title, metadata.title);
+  assert.equal(clip.permissionConfirmed, true);
+
+  const matching = await fetch(`${baseUrl}/studio/reference-clips?search=footwork`, { headers: { Cookie: cookie } });
+  assert.equal(matching.status, 200);
+  assert.equal((await matching.json() as Array<{ id: number }>).length, 1);
+  const nonmatching = await fetch(`${baseUrl}/studio/reference-clips?search=soccer`, { headers: { Cookie: cookie } });
+  assert.equal((await nonmatching.json() as Array<unknown>).length, 0);
+
+  const streamed = await fetch(`${baseUrl}/studio/reference-clips/${clip.id}/video`, {
+    headers: { Cookie: cookie, Range: "bytes=4-7" },
+  });
+  assert.equal(streamed.status, 206);
+  assert.equal(streamed.headers.get("content-range"), `bytes 4-7/${validReferenceClip.length}`);
+  assert.equal(await streamed.text(), "ftyp");
+
+  const removed = await fetch(`${baseUrl}/studio/reference-clips/${clip.id}`, { method: "DELETE", headers: { Cookie: cookie } });
+  assert.equal(removed.status, 204);
+  assert.deepEqual(studioReferenceClipPersistenceState().clips, []);
+  assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
+});
+
+test("saved clip analysis refuses clips without stored permission confirmation", async () => {
+  seedStudioReferenceClip({ permissionConfirmed: false });
+  const response = await fetch(`${baseUrl}/studio/move-cards/ai-draft-from-clip`, {
+    method: "POST",
+    headers: { Cookie: ownerCookie(), "Content-Type": "application/json" },
+    body: JSON.stringify({ clipId: 1 }),
+  });
+  assert.equal(response.status, 400);
+  assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
+});
 
 test("anonymous callers cannot view the private queue or approve or reject a card", async () => {
   const queue = await fetch(`${baseUrl}/studio/move-submissions/review`);

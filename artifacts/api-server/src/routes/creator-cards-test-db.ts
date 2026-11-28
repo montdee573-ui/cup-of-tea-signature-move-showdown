@@ -2,6 +2,7 @@ import { creatorMotionOrdersTable } from "../../../../lib/db/src/schema/creator-
 import { moveSubmissionsTable } from "../../../../lib/db/src/schema/move-submissions";
 import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
 import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
+import { studioReferenceClipsTable } from "../../../../lib/db/src/schema/studio-reference-clips";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm";
 
@@ -206,5 +207,7 @@ export const db: any = {
     }),
   }),
 };
+
+export { studioReferenceClipsTable };
 
 export { creatorMotionOrdersTable, moveSubmissionsTable, studioLoginAttemptsTable, studioReelsTable };

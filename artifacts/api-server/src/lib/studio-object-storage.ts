@@ -56,6 +56,12 @@ export function creatorMotionVideoFile(id: string): File {
   return storage.bucket(bucketName).file(objectName);
 }
 
+export function studioReferenceClipFile(objectPath: string): File {
+  const { bucketName, objectName } = parsePrivatePath(objectPath);
+  if (!objectName.startsWith("studio-reference-clips/")) throw new Error("Invalid reference clip path");
+  return storage.bucket(bucketName).file(objectName);
+}
+
 export async function verifyStorageAccess(): Promise<void> {
   const { bucketName, objectPrefix } = privateDirectory();
   const file = storage.bucket(bucketName).file(`${objectPrefix}/reel-studio/.probe-${randomUUID()}`);
@@ -106,6 +112,25 @@ export async function saveCreatorMotionVideo(id: string, bytes: Buffer): Promise
     },
   });
   return objectPath;
+}
+
+export async function saveStudioReferenceClip(
+  objectPath: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<void> {
+  const file = studioReferenceClipFile(objectPath);
+  await file.save(bytes, {
+    resumable: false,
+    metadata: {
+      contentType,
+      cacheControl: "private, no-store, max-age=0",
+    },
+  });
+}
+
+export async function deleteStudioReferenceClip(objectPath: string): Promise<void> {
+  await studioReferenceClipFile(objectPath).delete({ ignoreNotFound: true });
 }
 
 export async function deleteMoveSubmissionVideo(id: string): Promise<void> {

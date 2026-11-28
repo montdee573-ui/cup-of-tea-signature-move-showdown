@@ -236,6 +236,128 @@ export const ListStudioMoveCardsResponse = zod.array(ListStudioMoveCardsResponse
 
 
 /**
+ * @summary Search private owner reference clips
+ */
+export const listStudioReferenceClipsQuerySearchMax = 100;
+
+
+
+export const ListStudioReferenceClipsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listStudioReferenceClipsQuerySearchMax).optional()
+})
+
+
+
+
+export const ListStudioReferenceClipsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "athleteName": zod.string(),
+  "sport": zod.string(),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string(),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string(),
+  "sourceUrl": zod.string().url().nullable(),
+  "permissionConfirmed": zod.boolean(),
+  "contentType": zod.enum(['video/mp4', 'video/quicktime', 'video/webm']),
+  "sizeBytes": zod.number().int().min(1),
+  "createdAt": zod.coerce.date()
+})
+export const ListStudioReferenceClipsResponse = zod.array(ListStudioReferenceClipsResponseItem)
+
+
+/**
+ * @summary Save a rights-cleared clip in the private source library
+ */
+export const uploadStudioReferenceClipHeaderXReferenceClipMetadataMax = 4096;
+
+
+
+export const UploadStudioReferenceClipHeader = zod.object({
+  "X-Reference-Clip-Metadata": zod.string().max(uploadStudioReferenceClipHeaderXReferenceClipMetadataMax).describe('Base64url JSON with title, athlete, sport, era, team, source, and permission confirmation')
+})
+
+
+
+
+export const UploadStudioReferenceClipResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "athleteName": zod.string(),
+  "sport": zod.string(),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string(),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string(),
+  "sourceUrl": zod.string().url().nullable(),
+  "permissionConfirmed": zod.boolean(),
+  "contentType": zod.enum(['video/mp4', 'video/quicktime', 'video/webm']),
+  "sizeBytes": zod.number().int().min(1),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Stream a private reference clip to the signed-in owner
+ */
+
+
+
+export const GetStudioReferenceClipVideoParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const GetStudioReferenceClipVideoResponse = zod.unknown()
+
+
+/**
+ * @summary Remove a private reference clip
+ */
+
+
+
+export const DeleteStudioReferenceClipParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const DeleteStudioReferenceClipResponse = zod.void()
+
+
+/**
+ * @summary Analyze a saved private reference clip and create a draft
+ */
+
+
+
+export const GenerateStudioMoveCardDraftFromClipBody = zod.object({
+  "clipId": zod.number().int().min(1)
+})
+
+export const GenerateStudioMoveCardDraftFromClipResponse = zod.object({
+  "id": zod.number().int(),
+  "slug": zod.string(),
+  "athleteName": zod.string(),
+  "sport": zod.string(),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string(),
+  "moveName": zod.string(),
+  "tagline": zod.string(),
+  "explanation": zod.string(),
+  "cues": zod.array(zod.string()),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string(),
+  "sourceUrl": zod.string().url().nullable(),
+  "coverImageUrl": zod.string().nullable(),
+  "moderationStatus": zod.enum(['draft', 'published']),
+  "identityVerified": zod.boolean(),
+  "mediaPermissionConfirmed": zod.boolean(),
+  "aiGenerated": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Create an owner-reviewed move card draft
  */
 export const createStudioMoveCardDraftBodyAthleteNameMax = 100;

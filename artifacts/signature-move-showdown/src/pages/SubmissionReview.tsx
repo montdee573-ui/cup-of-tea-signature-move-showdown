@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import {
   getGetMoveSubmissionVideoUrl,
+  getListStudioReferenceClipsQueryKey,
   getGetStudioSessionQueryKey,
   getListStudioMoveCardsQueryKey,
   getListMoveCardsQueryKey,
@@ -25,6 +26,10 @@ import {
   useCreateStudioMoveCardDraft,
   useUpdateStudioMoveCard,
   useGenerateStudioMoveCardDraft,
+  useDeleteStudioReferenceClip,
+  useGenerateStudioMoveCardDraftFromClip,
+  useListStudioReferenceClips,
+  useUploadStudioReferenceClip,
 } from "@workspace/api-client-react";
 import type { CreatorMotionRefundRequest, MoveSubmission, MoveCard, StudioMoveCardDraftInput, StudioMoveCardUpdateInput } from "@workspace/api-client-react";
 import MerchMockupStudio from "./MerchMockupStudio";
@@ -95,7 +100,10 @@ const encodeContext = (value: object) => {
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 };
-const videoMime = (file: File) => file.type || (file.name.toLowerCase().endsWith(".webm") ? "video/webm" : file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : "video/mp4");
+const videoMime = (file: File) => {
+  if (["video/mp4", "video/quicktime", "video/webm"].includes(file.type)) return file.type;
+  return file.name.toLowerCase().endsWith(".webm") ? "video/webm" : file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : "video/mp4";
+};
 
 function MoveCardDesk() {
   const queryClient = useQueryClient();
@@ -109,6 +117,34 @@ function MoveCardDesk() {
   const [aiRights, setAiRights] = useState(false);
   const [aiDraftEditSaved, setAiDraftEditSaved] = useState(false);
   const [aiContext, setAiContext] = useState({ athleteName: "", sport: "Basketball", era: "Current" as "Classic" | "Current", team: "", sourceLabel: "", sourceUrl: "" });
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [referenceRights, setReferenceRights] = useState(false);
+  const [referenceSearch, setReferenceSearch] = useState("");
+  const [selectedReferenceClipId, setSelectedReferenceClipId] = useState<number | null>(null);
+  const [referenceInput, setReferenceInput] = useState({
+    title: "", athleteName: "", sport: "Basketball", era: "Current" as "Classic" | "Current", team: "",
+    sourceType: "official" as "official" | "user_clip", sourceLabel: "", sourceUrl: "",
+  });
+  const referenceSearchParams = { search: referenceSearch.trim() || undefined };
+  const referenceClips = useListStudioReferenceClips(referenceSearchParams, {
+    query: { queryKey: getListStudioReferenceClipsQueryKey(referenceSearchParams), refetchOnMount: "always" },
+  });
+  const uploadReferenceClip = useUploadStudioReferenceClip({
+    request: {
+      headers: {
+        "Content-Type": referenceFile ? videoMime(referenceFile) : "video/mp4",
+        "X-Reference-Clip-Metadata": encodeContext({
+          ...referenceInput,
+          sourceLabel: referenceInput.sourceLabel.trim(),
+          sourceUrl: referenceInput.sourceUrl.trim() || null,
+          permissionConfirmed: true,
+        }),
+      },
+      credentials: "same-origin",
+    },
+  });
+  const analyzeSavedClip = useGenerateStudioMoveCardDraftFromClip();
+  const deleteReferenceClip = useDeleteStudioReferenceClip();
   const aiRequestContext = encodeContext({
     ...aiContext,
     sourceUrl: aiContext.sourceUrl.trim() || null,
@@ -181,6 +217,61 @@ function MoveCardDesk() {
       onError: (error) => setNotice(error instanceof Error ? error.message : "Video analysis did not complete."),
     });
   };
+  const saveReferenceClip = () => {
+    if (!referenceFile || !referenceRights) {
+      setNotice("Choose a clip and confirm your permission to use it.");
+      return;
+    }
+    if (!referenceInput.title.trim() || !referenceInput.athleteName.trim() || !referenceInput.sport.trim() || !referenceInput.sourceLabel.trim()) {
+      setNotice("Add a clip title, athlete claim, sport, and source label.");
+      return;
+    }
+    if (referenceInput.sourceUrl.trim() && !referenceInput.sourceUrl.trim().startsWith("https://")) {
+      setNotice("Use an HTTPS source link.");
+      return;
+    }
+    if (!/\.(mp4|mov|webm)$/i.test(referenceFile.name) || referenceFile.size > 5 * 1024 * 1024) {
+      setNotice("Choose an MP4, MOV, or WebM clip no larger than 5 MB.");
+      return;
+    }
+    uploadReferenceClip.mutate({ data: referenceFile }, {
+      onSuccess: (clip) => {
+        setSelectedReferenceClipId(clip.id);
+        setReferenceFile(null);
+        setReferenceRights(false);
+        setNotice("Clip saved privately. Choose it below and request analysis when ready.");
+        void queryClient.invalidateQueries({ queryKey: getListStudioReferenceClipsQueryKey() });
+      },
+      onError: (error) => setNotice(error instanceof Error ? error.message : "The clip could not be saved."),
+    });
+  };
+  const analyzeSavedReferenceClip = () => {
+    if (selectedReferenceClipId === null) {
+      setNotice("Choose a saved reference clip before requesting analysis.");
+      return;
+    }
+    analyzeSavedClip.mutate({ data: { clipId: selectedReferenceClipId } }, {
+      onSuccess: (card) => {
+        setSelectedId(card.id);
+        setForm({ ...fromMoveCard(card), identityVerified: false, mediaPermissionConfirmed: false });
+        setAiDraftEditSaved(false);
+        setNotice("AI analysis created a private, unverified draft. Review every field and verify identity and media rights before publishing.");
+        refreshCardLists(false);
+      },
+      onError: (error) => setNotice(error instanceof Error ? error.message : "Saved clip analysis did not complete."),
+    });
+  };
+  const removeReferenceClip = (clipId: number, title: string) => {
+    if (!window.confirm(`Permanently delete “${title}” from the private clip library? Existing move-card drafts will remain.`)) return;
+    deleteReferenceClip.mutate({ id: clipId }, {
+      onSuccess: () => {
+        if (selectedReferenceClipId === clipId) setSelectedReferenceClipId(null);
+        setNotice("Private source clip deleted.");
+        void queryClient.invalidateQueries({ queryKey: getListStudioReferenceClipsQueryKey() });
+      },
+      onError: (error) => setNotice(error instanceof Error ? error.message : "The clip could not be deleted."),
+    });
+  };
   const busy = createCard.isPending || updateCard.isPending;
   const cueText = form.cues.join("\n");
 
@@ -224,6 +315,47 @@ function MoveCardDesk() {
     {notice && <p className="move-card-notice" role="status">{notice}</p>}
     <section className="ai-card-analysis" aria-labelledby="ai-card-analysis-heading">
       <div><span className="launch-label"><Sparkles size={13} /> OWNER ACTION · VIDEO ANALYSIS</span><h3 id="ai-card-analysis-heading">Create a draft from a clip</h3><p>Analysis is never automatic. The request uses the configured Gemini API key and may incur Google API charges. AI can suggest details, but it cannot establish athlete identity or media rights.</p></div>
+      <div className="reference-clip-library">
+        <div className="reference-library-heading"><div><h4>Private pro-sports clip library</h4><p>Add owner-authorized source clips once, search them later, and use them to start private move-card drafts.</p></div><span>OWNER ONLY</span></div>
+        <div className="reference-library-fields">
+          <label>Clip title<input value={referenceInput.title} onChange={(event) => setReferenceInput((current) => ({ ...current, title: event.target.value }))} maxLength={120} /></label>
+          <label>Athlete claim<input value={referenceInput.athleteName} onChange={(event) => setReferenceInput((current) => ({ ...current, athleteName: event.target.value }))} maxLength={100} /></label>
+          <label>Sport<input value={referenceInput.sport} onChange={(event) => setReferenceInput((current) => ({ ...current, sport: event.target.value }))} maxLength={50} /></label>
+          <label>Era<select value={referenceInput.era} onChange={(event) => setReferenceInput((current) => ({ ...current, era: event.target.value as "Classic" | "Current" }))}><option>Classic</option><option>Current</option></select></label>
+          <label>Team or league<input value={referenceInput.team} onChange={(event) => setReferenceInput((current) => ({ ...current, team: event.target.value }))} maxLength={100} /></label>
+          <label>Source type<select value={referenceInput.sourceType} onChange={(event) => setReferenceInput((current) => ({ ...current, sourceType: event.target.value as "official" | "user_clip" }))}><option value="official">Official source</option><option value="user_clip">Owner-provided clip</option></select></label>
+          <label>Source label<input value={referenceInput.sourceLabel} onChange={(event) => setReferenceInput((current) => ({ ...current, sourceLabel: event.target.value }))} maxLength={180} /></label>
+          <label>Source URL<input type="url" value={referenceInput.sourceUrl} onChange={(event) => setReferenceInput((current) => ({ ...current, sourceUrl: event.target.value }))} placeholder="https://…" /></label>
+          <label className="reference-file-label">MP4, MOV, or WebM · max 5 MB<input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={(event) => setReferenceFile(event.target.files?.[0] ?? null)} />{referenceFile && <small>{referenceFile.name} · {(referenceFile.size / (1024 * 1024)).toFixed(2)} MB</small>}</label>
+        </div>
+        <label className="ai-rights-check"><input type="checkbox" checked={referenceRights} onChange={(event) => setReferenceRights(event.target.checked)} /> I have permission and rights to store and submit this source clip for analysis.</label>
+        <button type="button" className="reference-library-save" onClick={saveReferenceClip} disabled={!referenceFile || !referenceRights || uploadReferenceClip.isPending}><Plus size={14} /> {uploadReferenceClip.isPending ? "Saving clip…" : "Save to private library"}</button>
+        {uploadReferenceClip.isError && <p className="review-form-error" role="alert">{uploadReferenceClip.error instanceof Error ? uploadReferenceClip.error.message : "Clip upload failed."}</p>}
+        <div className="reference-library-search"><label htmlFor="reference-clip-search">Search saved clips</label><input id="reference-clip-search" value={referenceSearch} onChange={(event) => { setSelectedReferenceClipId(null); setReferenceSearch(event.target.value.slice(0, 100)); }} placeholder="Search athlete, sport, title, or source" /></div>
+        {referenceClips.isLoading ? <p className="reference-library-state" role="status">Loading private clips…</p> : referenceClips.isError ? <p className="reference-library-state" role="alert">Private clip library unavailable. Refresh the page after signing into the studio.</p> :
+          <div className="reference-library-list">
+            {(referenceClips.data ?? []).map((clip) => <article key={clip.id} className={`reference-clip-row ${selectedReferenceClipId === clip.id ? "selected" : ""}`}>
+              <button type="button" className="reference-clip-select" onClick={() => setSelectedReferenceClipId(clip.id)}>
+                <span>{clip.sport} · {clip.era.toUpperCase()} · {readableSize(clip.sizeBytes)}</span>
+                <strong>{clip.title}</strong>
+                <small>{clip.athleteName}{clip.team ? ` · ${clip.team}` : ""} · {clip.sourceLabel} · RIGHTS CONFIRMED</small>
+              </button>
+              <button type="button" className="reference-clip-delete" onClick={() => removeReferenceClip(clip.id, clip.title)} disabled={deleteReferenceClip.isPending}>Remove</button>
+            </article>)}
+            {!referenceClips.data?.length && <p className="reference-library-state">No saved clips match this search yet.</p>}
+          </div>}
+        {selectedReferenceClipId !== null && referenceClips.data?.find((clip) => clip.id === selectedReferenceClipId) && (() => {
+          const selectedClip = referenceClips.data.find((clip) => clip.id === selectedReferenceClipId)!;
+          return <div className="reference-clip-selected">
+            <video controls playsInline preload="metadata" src={`/api/studio/reference-clips/${selectedClip.id}/video`} aria-label={`Private reference clip: ${selectedClip.title}`} />
+            <div><strong>{selectedClip.title}</strong><small>Selected source: {selectedClip.sourceLabel}. Analysis creates a private draft and may incur Gemini API charges.</small></div>
+          </div>;
+        })()}
+        <button type="button" className="ai-analysis-button" onClick={analyzeSavedReferenceClip} disabled={selectedReferenceClipId === null || analyzeSavedClip.isPending}>
+          <Sparkles size={14} /> {analyzeSavedClip.isPending ? "Analyzing saved clip…" : "Analyze selected clip and create private draft"}
+        </button>
+        {analyzeSavedClip.isError && <p className="review-form-error" role="alert">{analyzeSavedClip.error instanceof Error ? analyzeSavedClip.error.message : "Saved clip analysis failed."}</p>}
+      </div>
       <div className="ai-card-context">
         <label>Athlete claim<input value={aiContext.athleteName} onChange={(event) => setAiContext((current) => ({ ...current, athleteName: event.target.value }))} /></label>
         <label>Sport<input value={aiContext.sport} onChange={(event) => setAiContext((current) => ({ ...current, sport: event.target.value }))} /></label>

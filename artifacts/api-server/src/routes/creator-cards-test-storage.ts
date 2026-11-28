@@ -26,6 +26,16 @@ export async function saveReelVideo(): Promise<never> {
 
 export async function verifyStorageAccess(): Promise<void> {}
 
+export async function saveStudioReferenceClip(): Promise<void> {
+  throw new Error("Unexpected reference clip storage write in creator-card tests.");
+}
+
+export async function deleteStudioReferenceClip(): Promise<void> {}
+
+export function studioReferenceClipFile(): never {
+  throw new Error("Unexpected reference clip storage access in creator-card tests.");
+}
+
 export function creatorMotionVideoFile(_id: string) {
   return {
     async getMetadata(): Promise<[{ size: number }]> {

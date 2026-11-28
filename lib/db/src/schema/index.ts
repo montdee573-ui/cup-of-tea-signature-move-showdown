@@ -27,3 +27,4 @@ export * from "./contest-result-history";
 export * from "./contest-result-email-settings";
 export * from "./creator-motion-orders";
 export * from "./studio-login-attempts";
+export * from "./studio-reference-clips";

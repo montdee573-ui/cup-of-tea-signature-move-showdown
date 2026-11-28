@@ -134,6 +134,100 @@ export type StudioMoveCardUpdateInput = StudioMoveCardDraftInput & {
   action: StudioMoveCardUpdateInputAction;
 };
 
+export type StudioReferenceClipEra = typeof StudioReferenceClipEra[keyof typeof StudioReferenceClipEra];
+
+
+export const StudioReferenceClipEra = {
+  Classic: 'Classic',
+  Current: 'Current',
+} as const;
+
+export type StudioReferenceClipSourceType = typeof StudioReferenceClipSourceType[keyof typeof StudioReferenceClipSourceType];
+
+
+export const StudioReferenceClipSourceType = {
+  user_clip: 'user_clip',
+  official: 'official',
+} as const;
+
+export type StudioReferenceClipContentType = typeof StudioReferenceClipContentType[keyof typeof StudioReferenceClipContentType];
+
+
+export const StudioReferenceClipContentType = {
+  'video/mp4': 'video/mp4',
+  'video/quicktime': 'video/quicktime',
+  'video/webm': 'video/webm',
+} as const;
+
+export interface StudioReferenceClip {
+  id: number;
+  title: string;
+  athleteName: string;
+  sport: string;
+  era: StudioReferenceClipEra;
+  team: string;
+  sourceType: StudioReferenceClipSourceType;
+  sourceLabel: string;
+  /** @nullable */
+  sourceUrl: string | null;
+  permissionConfirmed: boolean;
+  contentType: StudioReferenceClipContentType;
+  /** @minimum 1 */
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export type StudioReferenceClipUploadInputEra = typeof StudioReferenceClipUploadInputEra[keyof typeof StudioReferenceClipUploadInputEra];
+
+
+export const StudioReferenceClipUploadInputEra = {
+  Classic: 'Classic',
+  Current: 'Current',
+} as const;
+
+export type StudioReferenceClipUploadInputSourceType = typeof StudioReferenceClipUploadInputSourceType[keyof typeof StudioReferenceClipUploadInputSourceType];
+
+
+export const StudioReferenceClipUploadInputSourceType = {
+  user_clip: 'user_clip',
+  official: 'official',
+} as const;
+
+export interface StudioReferenceClipUploadInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  athleteName: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  sport: string;
+  era: StudioReferenceClipUploadInputEra;
+  /** @maxLength 100 */
+  team: string;
+  sourceType: StudioReferenceClipUploadInputSourceType;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  sourceLabel: string;
+  /** @nullable */
+  sourceUrl: string | null;
+  permissionConfirmed: true;
+}
+
+export interface StudioReferenceClipAnalysisInput {
+  /** @minimum 1 */
+  clipId: number;
+}
+
 export interface MerchCatalogItem {
   id: number;
   title: string;
@@ -1090,6 +1184,13 @@ export interface MoveSubmission {
   reviewedAt: string | null;
   videoUrl: string;
 }
+
+export type ListStudioReferenceClipsParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+};
 
 export type ListShowdownsParams = {
 voterToken: string;

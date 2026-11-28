@@ -8,6 +8,7 @@ import { moveSubmissionsTable } from "../../../../lib/db/src/schema/move-submiss
 import { showdownVotesTable, showdownsTable } from "../../../../lib/db/src/schema/showdowns";
 import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
 import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
+import { studioReferenceClipsTable } from "../../../../lib/db/src/schema/studio-reference-clips";
 
 export {
   contestantsTable,
@@ -16,6 +17,7 @@ export {
   moveSubmissionsTable,
   showdownVotesTable,
   showdownsTable,
+  studioReferenceClipsTable,
 };
 
 type ContestResultRow = typeof contestResultsTable.$inferSelect;

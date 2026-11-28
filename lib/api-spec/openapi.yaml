@@ -186,6 +186,192 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /studio/reference-clips:
+    get:
+      operationId: listStudioReferenceClips
+      tags: [studio]
+      summary: Search private owner reference clips
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Owner's searchable private reference clips
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudioReferenceClip"
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: uploadStudioReferenceClip
+      tags: [studio]
+      summary: Save a rights-cleared clip in the private source library
+      parameters:
+        - name: X-Reference-Clip-Metadata
+          in: header
+          required: true
+          description: Base64url JSON with title, athlete, sport, era, team, source, and permission confirmation
+          schema:
+            type: string
+            maxLength: 4096
+      requestBody:
+        required: true
+        content:
+          video/mp4:
+            schema:
+              type: string
+              format: binary
+          video/quicktime:
+            schema:
+              type: string
+              format: binary
+          video/webm:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Clip saved to the private owner library
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudioReferenceClip"
+        "400":
+          description: Video or clip details are invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Clip exceeds the 5 MB upload limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/reference-clips/{id}/video:
+    get:
+      operationId: getStudioReferenceClipVideo
+      tags: [studio]
+      summary: Stream a private reference clip to the signed-in owner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Private reference video bytes
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+            video/quicktime:
+              schema:
+                type: string
+                format: binary
+            video/webm:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Owner login required
+        "404":
+          description: Reference clip not found
+  /studio/reference-clips/{id}:
+    delete:
+      operationId: deleteStudioReferenceClip
+      tags: [studio]
+      summary: Remove a private reference clip
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Reference clip and stored video removed
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Reference clip not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/move-cards/ai-draft-from-clip:
+    post:
+      operationId: generateStudioMoveCardDraftFromClip
+      tags: [studio]
+      summary: Analyze a saved private reference clip and create a draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudioReferenceClipAnalysisInput"
+      responses:
+        "201":
+          description: AI-assisted private draft for owner verification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveCard"
+        "400":
+          description: Saved clip is invalid or lacks confirmed permission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Reference clip not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Hourly analysis limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: AI analysis is not configured or temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /studio/move-cards/drafts:
     post:
       operationId: createStudioMoveCardDraft
@@ -1791,6 +1977,84 @@ components:
               type: string
               enum: [save, publish, unpublish]
           required: [identityVerified, mediaPermissionConfirmed, action]
+    StudioReferenceClip:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        athleteName:
+          type: string
+        sport:
+          type: string
+        era:
+          type: string
+          enum: [Classic, Current]
+        team:
+          type: string
+        sourceType:
+          type: string
+          enum: [user_clip, official]
+        sourceLabel:
+          type: string
+        sourceUrl:
+          type: ["string", "null"]
+          format: uri
+        permissionConfirmed:
+          type: boolean
+        contentType:
+          type: string
+          enum: [video/mp4, video/quicktime, video/webm]
+        sizeBytes:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, title, athleteName, sport, era, team, sourceType, sourceLabel, sourceUrl, permissionConfirmed, contentType, sizeBytes, createdAt]
+    StudioReferenceClipUploadInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        athleteName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        sport:
+          type: string
+          minLength: 1
+          maxLength: 50
+        era:
+          type: string
+          enum: [Classic, Current]
+        team:
+          type: string
+          maxLength: 100
+        sourceType:
+          type: string
+          enum: [user_clip, official]
+        sourceLabel:
+          type: string
+          minLength: 1
+          maxLength: 180
+        sourceUrl:
+          type: ["string", "null"]
+          format: uri
+        permissionConfirmed:
+          type: boolean
+          enum: [true]
+      required: [title, athleteName, sport, era, team, sourceType, sourceLabel, sourceUrl, permissionConfirmed]
+    StudioReferenceClipAnalysisInput:
+      type: object
+      properties:
+        clipId:
+          type: integer
+          minimum: 1
+      required: [clipId]
     MerchCatalogItem:
       type: object
       properties:
