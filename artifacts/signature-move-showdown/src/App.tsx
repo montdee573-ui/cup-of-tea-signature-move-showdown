@@ -34,6 +34,7 @@ import Showdown from './pages/Showdown';
 import ContestResults from './pages/ContestResults';
 
 import CreatorCardPage from './pages/CreatorCardPage';
+import MoveMerchCollection from './components/MoveMerchCollection';
 
 const kobeImage = '/images/kobe-drive-frame.jpg';
 
@@ -229,6 +230,7 @@ function Collection() {
           <div className="state-panel empty-panel" data-testid="status-no-results"><Search size={25} /><h2>No plays found.</h2><p>Try a different player, sport, move, era, or source.</p><button className="text-button" onClick={() => { setSearch(''); setEra('All eras'); setSource('All clips'); setSport('All sports'); setMove('All moves'); }} data-testid="button-clear-filters">Clear filters</button></div>}
         <div className="collection-note"><span>01 — {String(archiveCards.length).padStart(2, '0')}</span><p>Not every clip tells the whole story. Follow the source, then watch the feet.</p><span className="note-line" /></div>
       </section>
+      <MoveMerchCollection />
     </main>
   </Shell>;
 }
