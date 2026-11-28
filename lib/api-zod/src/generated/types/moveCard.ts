@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MoveCardEra } from './moveCardEra';
+import type { MoveCardModerationStatus } from './moveCardModerationStatus';
 import type { MoveCardSourceType } from './moveCardSourceType';
 
 export interface MoveCard {
@@ -25,5 +26,9 @@ export interface MoveCard {
   sourceUrl: string | null;
   /** @nullable */
   coverImageUrl: string | null;
+  moderationStatus: MoveCardModerationStatus;
+  identityVerified: boolean;
+  mediaPermissionConfirmed: boolean;
+  aiGenerated: boolean;
   createdAt: Date;
 }

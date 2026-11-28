@@ -166,6 +166,152 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /studio/move-cards:
+    get:
+      operationId: listStudioMoveCards
+      tags: [studio]
+      summary: List athlete move cards for owner review
+      responses:
+        "200":
+          description: Published cards and drafts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MoveCard"
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/move-cards/drafts:
+    post:
+      operationId: createStudioMoveCardDraft
+      tags: [studio]
+      summary: Create an owner-reviewed move card draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudioMoveCardDraftInput"
+      responses:
+        "201":
+          description: Draft created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveCard"
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/move-cards/{id}:
+    patch:
+      operationId: updateStudioMoveCard
+      tags: [studio]
+      summary: Edit, verify, or publish a move card
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudioMoveCardUpdateInput"
+      responses:
+        "200":
+          description: Updated card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveCard"
+        "400":
+          description: Card details are incomplete or publication requirements are unmet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Move card not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /studio/move-cards/ai-draft:
+    post:
+      operationId: generateStudioMoveCardDraft
+      tags: [studio]
+      summary: Analyze an owner-authorized reference video and save a private draft
+      parameters:
+        - name: X-Move-Card-Context
+          in: header
+          required: true
+          description: Base64url JSON with athlete, sport, source, and permission context
+          schema:
+            type: string
+            maxLength: 4096
+      requestBody:
+        required: true
+        content:
+          video/mp4:
+            schema:
+              type: string
+              format: binary
+          video/quicktime:
+            schema:
+              type: string
+              format: binary
+          video/webm:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: AI-assisted private draft for owner verification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoveCard"
+        "400":
+          description: Video or reference details are invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Owner login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Reference video exceeds the analysis limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: AI analysis is not configured or temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /community-cards:
     get:
       operationId: listCommunityCards
@@ -1551,6 +1697,15 @@ components:
           format: uri
         coverImageUrl:
           type: ["string", "null"]
+        moderationStatus:
+          type: string
+          enum: [draft, published]
+        identityVerified:
+          type: boolean
+        mediaPermissionConfirmed:
+          type: boolean
+        aiGenerated:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -1569,7 +1724,73 @@ components:
         - sourceLabel
         - sourceUrl
         - coverImageUrl
+        - moderationStatus
+        - identityVerified
+        - mediaPermissionConfirmed
+        - aiGenerated
         - createdAt
+    StudioMoveCardDraftInput:
+      type: object
+      properties:
+        athleteName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        sport:
+          type: string
+          minLength: 1
+          maxLength: 50
+        era:
+          type: string
+          enum: [Classic, Current]
+        team:
+          type: string
+          maxLength: 100
+        moveName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        tagline:
+          type: string
+          minLength: 1
+          maxLength: 180
+        explanation:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        cues:
+          type: array
+          maxItems: 8
+          items:
+            type: string
+            maxLength: 240
+        sourceType:
+          type: string
+          enum: [user_clip, official]
+        sourceLabel:
+          type: string
+          minLength: 1
+          maxLength: 180
+        sourceUrl:
+          type: ["string", "null"]
+          format: uri
+        coverImageUrl:
+          type: ["string", "null"]
+          format: uri
+      required: [athleteName, sport, era, team, moveName, tagline, explanation, cues, sourceType, sourceLabel, sourceUrl, coverImageUrl]
+    StudioMoveCardUpdateInput:
+      allOf:
+        - $ref: "#/components/schemas/StudioMoveCardDraftInput"
+        - type: object
+          properties:
+            identityVerified:
+              type: boolean
+            mediaPermissionConfirmed:
+              type: boolean
+            action:
+              type: string
+              enum: [save, publish, unpublish]
+          required: [identityVerified, mediaPermissionConfirmed, action]
     MerchCatalogItem:
       type: object
       properties:
@@ -1791,6 +2012,8 @@ components:
           type: string
         moveName:
           type: string
+        professionalMoveCardId:
+          type: ["integer", "null"]
         team:
           type: ["string", "null"]
         merchProductId:
@@ -1805,7 +2028,7 @@ components:
           format: date-time
         videoUrl:
           type: string
-      required: [id, displayName, handle, sport, category, moveName, team, merchProductId, merchProductName, design, createdAt, videoUrl]
+      required: [id, displayName, handle, sport, category, moveName, professionalMoveCardId, team, merchProductId, merchProductName, design, createdAt, videoUrl]
     ShowdownCard:
       type: object
       properties:
@@ -2398,6 +2621,9 @@ components:
           type: string
           minLength: 1
           maxLength: 60
+        professionalMoveCardId:
+          type: integer
+          minimum: 1
         displayName:
           type: string
           minLength: 1
@@ -2613,6 +2839,8 @@ components:
           type: string
         moveName:
           type: string
+        professionalMoveCardId:
+          type: ["integer", "null"]
         displayName:
           type: string
         handle:
@@ -2651,6 +2879,7 @@ components:
         - sport
         - category
         - moveName
+        - professionalMoveCardId
         - displayName
         - handle
         - team

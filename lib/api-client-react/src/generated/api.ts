@@ -61,6 +61,8 @@ import type {
   StudioContestEmailDestination,
   StudioContestResults,
   StudioLoginInput,
+  StudioMoveCardDraftInput,
+  StudioMoveCardUpdateInput,
   StudioReel,
   StudioReelsResponse,
   StudioSession,
@@ -721,6 +723,348 @@ export function useGetMoveCard<TData = Awaited<ReturnType<typeof getMoveCard>>, 
 
 
 
+
+export const getListStudioMoveCardsUrl = () => {
+
+
+
+
+  return `/api/studio/move-cards`
+}
+
+/**
+ * @summary List athlete move cards for owner review
+ */
+export const listStudioMoveCards = async ( options?: Parameters<typeof customFetch>[1]): Promise<MoveCard[]> => {
+
+  return customFetch<MoveCard[]>(getListStudioMoveCardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStudioMoveCardsQueryKey = () => {
+    return [
+    `/api/studio/move-cards`
+    ] as const;
+    }
+
+
+export const getListStudioMoveCardsQueryOptions = <TData = Awaited<ReturnType<typeof listStudioMoveCards>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStudioMoveCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStudioMoveCardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStudioMoveCards>>> = ({ signal }) => listStudioMoveCards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStudioMoveCards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListStudioMoveCardsQueryResult = NonNullable<Awaited<ReturnType<typeof listStudioMoveCards>>>
+export type ListStudioMoveCardsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List athlete move cards for owner review
+ */
+
+export function useListStudioMoveCards<TData = Awaited<ReturnType<typeof listStudioMoveCards>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStudioMoveCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListStudioMoveCardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateStudioMoveCardDraftUrl = () => {
+
+
+
+
+  return `/api/studio/move-cards/drafts`
+}
+
+/**
+ * @summary Create an owner-reviewed move card draft
+ */
+export const createStudioMoveCardDraft = async (studioMoveCardDraftInput: StudioMoveCardDraftInput, options?: Parameters<typeof customFetch>[1]): Promise<MoveCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MoveCard>(getCreateStudioMoveCardDraftUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(studioMoveCardDraftInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStudioMoveCardDraftMutationKey = () => ['createStudioMoveCardDraft'] as const;
+
+export const getCreateStudioMoveCardDraftMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStudioMoveCardDraft>>, TError,CreateStudioMoveCardDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStudioMoveCardDraft>>, TError,CreateStudioMoveCardDraftMutationVariables, TContext> => {
+
+const mutationKey = getCreateStudioMoveCardDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStudioMoveCardDraft>>, CreateStudioMoveCardDraftMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStudioMoveCardDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStudioMoveCardDraftMutationResult = NonNullable<Awaited<ReturnType<typeof createStudioMoveCardDraft>>>
+    export type CreateStudioMoveCardDraftMutationBody = BodyType<StudioMoveCardDraftInput>
+    export type CreateStudioMoveCardDraftMutationError = ErrorType<ErrorResponse>
+    export type CreateStudioMoveCardDraftMutationVariables = {data: BodyType<StudioMoveCardDraftInput>}
+
+    /**
+ * @summary Create an owner-reviewed move card draft
+ */
+export const useCreateStudioMoveCardDraft = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStudioMoveCardDraft>>, TError,CreateStudioMoveCardDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createStudioMoveCardDraft>>,
+        TError,
+        CreateStudioMoveCardDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateStudioMoveCardDraftMutationOptions(options));
+    }
+
+export const getUpdateStudioMoveCardUrl = (id: number,) => {
+
+
+
+
+  return `/api/studio/move-cards/${id}`
+}
+
+/**
+ * @summary Edit, verify, or publish a move card
+ */
+export const updateStudioMoveCard = async (id: number,
+    studioMoveCardUpdateInput: StudioMoveCardUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<MoveCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MoveCard>(getUpdateStudioMoveCardUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(studioMoveCardUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateStudioMoveCardMutationKey = () => ['updateStudioMoveCard'] as const;
+
+export const getUpdateStudioMoveCardMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStudioMoveCard>>, TError,UpdateStudioMoveCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStudioMoveCard>>, TError,UpdateStudioMoveCardMutationVariables, TContext> => {
+
+const mutationKey = getUpdateStudioMoveCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStudioMoveCard>>, UpdateStudioMoveCardMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateStudioMoveCard(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStudioMoveCardMutationResult = NonNullable<Awaited<ReturnType<typeof updateStudioMoveCard>>>
+    export type UpdateStudioMoveCardMutationBody = BodyType<StudioMoveCardUpdateInput>
+    export type UpdateStudioMoveCardMutationError = ErrorType<ErrorResponse>
+    export type UpdateStudioMoveCardMutationVariables = {id: number;data: BodyType<StudioMoveCardUpdateInput>}
+
+    /**
+ * @summary Edit, verify, or publish a move card
+ */
+export const useUpdateStudioMoveCard = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStudioMoveCard>>, TError,UpdateStudioMoveCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateStudioMoveCard>>,
+        TError,
+        UpdateStudioMoveCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateStudioMoveCardMutationOptions(options));
+    }
+
+export const getGenerateStudioMoveCardDraftUrl = () => {
+
+
+
+
+  return `/api/studio/move-cards/ai-draft`
+}
+
+/**
+ * @summary Analyze an owner-authorized reference video and save a private draft
+ */
+export const generateStudioMoveCardDraft = async (generateStudioMoveCardDraftBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<MoveCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MoveCard>(getGenerateStudioMoveCardDraftUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'video/mp4', ...getHeaders(options?.headers) },
+    body: generateStudioMoveCardDraftBody
+  }
+);}
+
+
+
+
+
+export const getGenerateStudioMoveCardDraftMutationKey = () => ['generateStudioMoveCardDraft'] as const;
+
+export const getGenerateStudioMoveCardDraftMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateStudioMoveCardDraft>>, TError,GenerateStudioMoveCardDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateStudioMoveCardDraft>>, TError,GenerateStudioMoveCardDraftMutationVariables, TContext> => {
+
+const mutationKey = getGenerateStudioMoveCardDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateStudioMoveCardDraft>>, GenerateStudioMoveCardDraftMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateStudioMoveCardDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateStudioMoveCardDraftMutationResult = NonNullable<Awaited<ReturnType<typeof generateStudioMoveCardDraft>>>
+    export type GenerateStudioMoveCardDraftMutationBody = BodyType<Blob>
+    export type GenerateStudioMoveCardDraftMutationError = ErrorType<ErrorResponse>
+    export type GenerateStudioMoveCardDraftMutationVariables = {data: BodyType<Blob>}
+
+    /**
+ * @summary Analyze an owner-authorized reference video and save a private draft
+ */
+export const useGenerateStudioMoveCardDraft = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateStudioMoveCardDraft>>, TError,GenerateStudioMoveCardDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateStudioMoveCardDraft>>,
+        TError,
+        GenerateStudioMoveCardDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGenerateStudioMoveCardDraftMutationOptions(options));
+    }
 
 export const getListCommunityCardsUrl = () => {
 

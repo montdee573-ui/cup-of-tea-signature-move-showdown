@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import express, { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { and, desc, eq } from "drizzle-orm";
-import { db, moveSubmissionsTable } from "@workspace/db";
+import { db, moveCardsTable, moveSubmissionsTable } from "@workspace/db";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import {
   CreateMoveSubmissionResponse,
@@ -149,6 +149,18 @@ router.post("/move-submissions", submissionRateLimit, validateSubmissionMetadata
     if (merchStatus === "unavailable") {
       req.log.warn({ merchProductId: metadata.merchProductId }, "Unable to verify planned merchandise item");
       res.status(503).json({ error: "The merchandise catalog is temporarily unavailable. Please try again." });
+      return;
+    }
+  }
+  if (metadata.professionalMoveCardId != null) {
+    const [card] = await db.select({ id: moveCardsTable.id })
+      .from(moveCardsTable)
+      .where(and(
+        eq(moveCardsTable.id, metadata.professionalMoveCardId),
+        eq(moveCardsTable.moderationStatus, "published"),
+      ));
+    if (!card) {
+      res.status(400).json({ error: "That professional move card is no longer available for a challenge." });
       return;
     }
   }

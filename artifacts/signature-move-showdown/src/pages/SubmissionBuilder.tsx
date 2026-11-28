@@ -4,8 +4,8 @@ import {
   ShieldCheck, Upload, WandSparkles, X,
 } from "lucide-react";
 import { Link } from "wouter";
-import { useListMerchCatalog } from "@workspace/api-client-react";
-import type { MoveSubmissionReceipt } from "@workspace/api-client-react";
+import { useListMerchCatalog, useListMoveCards } from "@workspace/api-client-react";
+import type { MoveCard, MoveSubmissionReceipt } from "@workspace/api-client-react";
 import { participationCategories, sportsCatalog } from "../data/sports-catalog";
 
 type Draft = {
@@ -83,6 +83,9 @@ export default function SubmissionBuilder() {
   const [creatorLinkCopied, setCreatorLinkCopied] = useState(false);
   const [selectError, setSelectError] = useState("");
   const merchCatalog = useListMerchCatalog();
+  const moveCardsQuery = useListMoveCards();
+  const [selectedMoveSlug] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("moveCard") ?? "");
+  const selectedMoveCard = (moveCardsQuery.data ?? []).find((card: MoveCard) => card.slug === selectedMoveSlug);
   const sport = sportsCatalog.find((item) => item.name === draft.sport) ?? sportsCatalog[0];
   const visibleSports = useMemo(() => {
     const matches = sportsCatalog.filter((item) =>
@@ -95,10 +98,12 @@ export default function SubmissionBuilder() {
   const selectedMerch = (merchCatalog.data ?? []).find(
     (item) => String(item.id) === draft.merchProductId,
   );
-  const moveName = draft.move === "Custom move" ? draft.customMove.trim() : draft.move;
-  const submissionSport = draft.sport === "Other Sport"
+  const moveName = selectedMoveCard
+    ? selectedMoveCard.moveName
+    : draft.move === "Custom move" ? draft.customMove.trim() : draft.move;
+  const submissionSport = selectedMoveCard?.sport ?? (draft.sport === "Other Sport"
     ? draft.customSport.trim() || "Other Sport"
-    : draft.sport;
+    : draft.sport);
   const videoUrl = useMemo(() => videoFile ? URL.createObjectURL(videoFile) : null, [videoFile]);
   const creatorPath = receipt ? `/creator-cards/${encodeURIComponent(receipt.id)}#token=${encodeURIComponent(receipt.creatorAccessToken)}` : "";
   const creatorLink = typeof window === "undefined" ? creatorPath : `${window.location.origin}${creatorPath}`;
@@ -156,6 +161,7 @@ export default function SubmissionBuilder() {
         : null,
       consent: true as const,
       videoFileName: videoFile.name,
+      ...(selectedMoveCard ? { professionalMoveCardId: selectedMoveCard.id } : {}),
     };
     const request = new XMLHttpRequest();
     request.open("POST", "/api/move-submissions");
@@ -194,7 +200,7 @@ export default function SubmissionBuilder() {
     setSelectError("");
     setSaved(false);
   };
-  const valid = Boolean(videoFile && consent && draft.displayName.trim() && draft.handle.trim() && moveName.trim());
+  const valid = Boolean(videoFile && consent && draft.displayName.trim() && draft.handle.trim() && moveName.trim() && (!selectedMoveSlug || !moveCardsQuery.isLoading));
 
   if (receipt) {
     return <main className="submission-page">
@@ -231,17 +237,22 @@ export default function SubmissionBuilder() {
 
     <div className="submission-layout">
       <form className="submission-form" onSubmit={(event) => { event.preventDefault(); upload(); }}>
+        {selectedMoveSlug && <div className="selected-professional-move" data-testid="selected-professional-move">
+          <span className="launch-label">COVER THIS PROFESSIONAL MOVE</span>
+          {selectedMoveCard ? <><strong>{selectedMoveCard.athleteName} · {selectedMoveCard.moveName}</strong><p>{selectedMoveCard.sport} / {selectedMoveCard.era}. Your recreation will be reviewed as a participant submission and will not change the professional card.</p></> :
+            <p>{moveCardsQuery.isLoading ? "Loading the selected archive move…" : "This archive move could not be found. You can still submit an original move."}</p>}
+        </div>}
         <section className="builder-step"><span className="builder-step-num">01</span><div className="builder-step-content"><h2>Place the move</h2>
           <label>Search sports<input value={sportSearch} onChange={(event) => setSportSearch(event.target.value)} placeholder={`Search ${sportsCatalog.length} sports and disciplines`} /></label>
-          <label>Sport or discipline<select required value={draft.sport} onChange={(event) => {
+          <label>Sport or discipline{selectedMoveCard ? <input value={selectedMoveCard.sport} readOnly aria-readonly="true" /> : <select required value={draft.sport} onChange={(event) => {
             const next = sportsCatalog.find((item) => item.name === event.target.value) ?? sportsCatalog[0];
             setDraft((current) => ({ ...current, sport: next.name, customSport: "", move: next.moves[0], customMove: "" }));
             setSaved(false);
-          }}>{visibleSports.map((item) => <option key={item.name} value={item.name}>{item.name === "Other Sport" ? "Other Sport · add a discipline" : item.name}</option>)}</select></label>
+          }}>{visibleSports.map((item) => <option key={item.name} value={item.name}>{item.name === "Other Sport" ? "Other Sport · add a discipline" : item.name}</option>)}</select>}</label>
           {draft.sport === "Other Sport" && <label>Your sport or discipline<input maxLength={50} value={draft.customSport} onChange={(event) => update("customSport", event.target.value)} placeholder="Enter a sport not listed" /></label>}
           <label>Competition category<select value={draft.category} onChange={(event) => update("category", event.target.value)}>{participationCategories.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label>Move name<select value={draft.move} onChange={(event) => update("move", event.target.value)}>{sport.moves.map((item) => <option key={item}>{item}</option>)}<option>Custom move</option></select></label>
-          {draft.move === "Custom move" && <label>Your move name<input maxLength={60} required value={draft.customMove} onChange={(event) => update("customMove", event.target.value)} placeholder="Name your original move" /></label>}
+          <label>Move name{selectedMoveCard ? <input value={selectedMoveCard.moveName} readOnly aria-readonly="true" /> : <select value={draft.move} onChange={(event) => update("move", event.target.value)}>{sport.moves.map((item) => <option key={item}>{item}</option>)}<option>Custom move</option></select>}</label>
+          {!selectedMoveCard && draft.move === "Custom move" && <label>Your move name<input maxLength={60} required value={draft.customMove} onChange={(event) => update("customMove", event.target.value)} placeholder="Name your original move" /></label>}
         </div></section>
 
         <section className="builder-step"><span className="builder-step-num">02</span><div className="builder-step-content"><h2>Credit the person</h2>

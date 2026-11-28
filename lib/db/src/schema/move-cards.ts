@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
-import { integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 
 export const moveCardsTable = pgTable("move_cards", {
@@ -18,6 +18,11 @@ export const moveCardsTable = pgTable("move_cards", {
   sourceLabel: text("source_label").notNull(),
   sourceUrl: text("source_url"),
   coverImageUrl: text("cover_image_url"),
+  moderationStatus: text("moderation_status").notNull().default("published"),
+  identityVerified: boolean("identity_verified").notNull().default(false),
+  mediaPermissionConfirmed: boolean("media_permission_confirmed").notNull().default(false),
+  aiGenerated: boolean("ai_generated").notNull().default(false),
+  aiReviewed: boolean("ai_reviewed").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

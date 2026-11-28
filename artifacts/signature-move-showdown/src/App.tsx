@@ -112,17 +112,20 @@ type ArchiveTile = CardArtData & {
 };
 
 function MoveTile({ card, index }: { card: ArchiveTile; index: number }) {
-  return <Link href={card.href} className="move-tile" data-testid={`card-move-${card.slug}`}>
-    <CardArt card={card} />
-    <div className="tile-meta">
-      <span className="tile-index">{String(index + 1).padStart(2, '0')} / {card.era}</span>
-      <span className={`source-pill ${card.sourceType === 'user_clip' ? 'source-user' : ''}`}>{card.isCommunity ? 'COMMUNITY ENTRY' : card.sourceType === 'user_clip' ? 'USER CLIP' : 'OFFICIAL SOURCE'}</span>
-    </div>
-    <h3>{card.athleteName}</h3>
-    <p className="tile-move">{card.moveName}</p>
-    <p className="tile-tagline">{card.tagline}</p>
+  return <article className="move-tile" data-testid={`card-move-${card.slug}`}>
+    <Link href={card.href} className="move-tile-main">
+      <CardArt card={card} />
+      <div className="tile-meta">
+        <span className="tile-index">{String(index + 1).padStart(2, '0')} / {card.era}</span>
+        <span className={`source-pill ${card.sourceType === 'user_clip' ? 'source-user' : ''}`}>{card.isCommunity ? 'COMMUNITY ENTRY' : card.sourceType === 'user_clip' ? 'USER CLIP' : 'OFFICIAL SOURCE'}</span>
+      </div>
+      <h3>{card.athleteName}</h3>
+      <p className="tile-move">{card.moveName}</p>
+      <p className="tile-tagline">{card.tagline}</p>
+    </Link>
+    {!card.isCommunity && <Link href={`/submit?moveCard=${encodeURIComponent(card.slug)}`} className="cover-move-link" data-testid={`button-cover-move-${card.slug}`}>Cover this move <ArrowUpRight size={13} /></Link>}
     <span className="tile-arrow" aria-hidden="true"><ArrowUpRight size={17} /></span>
-  </Link>;
+  </article>;
 }
 
 function Collection() {
@@ -205,7 +208,7 @@ function Collection() {
       <section className="archive" id="collection">
         <div className="archive-head">
           <div><div className="eyebrow"><Film size={12} /> THE COLLECTION</div><h2>Moves worth rewinding.</h2></div>
-          <span className="archive-count" data-testid="text-card-count">{archiveCards.length} <small>CARDS</small></span>
+          <span className="archive-count" data-testid="text-card-count">{cards === undefined ? "…" : (cards.length)}<small> / 500 CARDS</small><span className="archive-target-note">PROFESSIONAL CARD TARGET</span></span>
         </div>
         <div className="filters">
           <label className="search-field"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a player or move..." aria-label="Search players and moves" data-testid="input-search" /></label>

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import { request as httpRequest } from "node:http";
 import { after, before, beforeEach, test } from "node:test";
 import express, { type Request } from "express";
+import cookieParser from "cookie-parser";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import {
   GetCommunityCardResponse,
@@ -9,7 +11,12 @@ import {
   ListMoveSubmissionsForReviewResponse,
 } from "@workspace/api-zod";
 import moveSubmissionsRouter from "./move-submissions";
-import { moveSubmissionPersistenceState, resetMoveSubmissionPersistenceState } from "./move-submissions-test-db";
+import studioMoveCardsRouter from "./studio-move-cards";
+import {
+  moveSubmissionPersistenceState,
+  resetMoveSubmissionPersistenceState,
+  setAvailableProfessionalCardId,
+} from "./move-submissions-test-db";
 import { moveSubmissionStorageState, resetMoveSubmissionStorageState } from "./move-submissions-test-storage";
 import {
   encodeCommunityCard,
@@ -35,8 +42,12 @@ let requestNumber = 0;
 let catalogMode: "available" | "missing" | "unavailable" = "available";
 let catalogCalls = 0;
 const originalProxy = ReplitConnectors.prototype.proxy;
+const originalSessionSecret = process.env.SESSION_SECRET;
+const originalOwnerPassword = process.env.REEL_STUDIO_ADMIN_PASSWORD;
 
 before(async () => {
+  process.env.SESSION_SECRET = "move-card-test-secret";
+  process.env.REEL_STUDIO_ADMIN_PASSWORD = "move-card-test-owner";
   app.set("trust proxy", true);
   app.use((req: Request, _res, next) => {
     Object.defineProperty(req, "log", {
@@ -44,7 +55,10 @@ before(async () => {
     });
     next();
   });
+  app.use(cookieParser());
+  app.use(express.json());
   app.use(moveSubmissionsRouter);
+  app.use(studioMoveCardsRouter);
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -61,6 +75,10 @@ beforeEach(() => {
 
 after(async () => {
   ReplitConnectors.prototype.proxy = originalProxy;
+  if (originalSessionSecret === undefined) delete process.env.SESSION_SECRET;
+  else process.env.SESSION_SECRET = originalSessionSecret;
+  if (originalOwnerPassword === undefined) delete process.env.REEL_STUDIO_ADMIN_PASSWORD;
+  else process.env.REEL_STUDIO_ADMIN_PASSWORD = originalOwnerPassword;
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
@@ -78,6 +96,14 @@ function metadataHeader(metadata: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(metadata)).toString("base64url");
 }
 
+function ownerCookie(): string {
+  const payload = Buffer.from(JSON.stringify({ role: "owner", exp: Date.now() + 60_000 })).toString("base64url");
+  const signature = createHmac("sha256", `${process.env.SESSION_SECRET}:${process.env.REEL_STUDIO_ADMIN_PASSWORD}`)
+    .update(payload)
+    .digest("base64url");
+  return `reel_studio_owner=${payload}.${signature}`;
+}
+
 test("anonymous callers cannot view the private queue or approve or reject a card", async () => {
   const queue = await fetch(`${baseUrl}/studio/move-submissions/review`);
   assert.equal(queue.status, 401);
@@ -90,6 +116,119 @@ test("anonymous callers cannot view the private queue or approve or reject a car
     assert.equal(response.status, 401);
   }
   assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
+});
+
+test("professional-card attempts keep their card link through anonymous submission", async () => {
+  const response = await fetch(`${baseUrl}/move-submissions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "video/mp4",
+      "X-Submission-Metadata": metadataHeader({ ...metadataBase, professionalMoveCardId: 1 }),
+      "X-Forwarded-For": "198.51.100.51",
+    },
+    body: Buffer.from("video bytes for a linked professional move challenge"),
+  });
+  assert.equal(response.status, 201);
+  assert.equal(moveSubmissionPersistenceState().lastInsertedSubmission?.professionalMoveCardId, 1);
+});
+
+test("a removed professional card cannot be used for a new participant attempt", async () => {
+  setAvailableProfessionalCardId(null);
+  const response = await fetch(`${baseUrl}/move-submissions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "video/mp4",
+      "X-Submission-Metadata": metadataHeader({ ...metadataBase, professionalMoveCardId: 2 }),
+      "X-Forwarded-For": "198.51.100.52",
+    },
+    body: Buffer.from("video bytes for a removed professional move challenge"),
+  });
+  assert.equal(response.status, 400);
+  assert.equal(moveSubmissionPersistenceState().insertCalls, 0);
+});
+
+test("private card administration and AI analysis reject anonymous callers", async () => {
+  assert.equal((await fetch(`${baseUrl}/studio/move-cards`)).status, 401);
+  assert.equal((await fetch(`${baseUrl}/studio/move-cards/drafts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  })).status, 401);
+  assert.equal((await fetch(`${baseUrl}/studio/move-cards/ai-draft`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "video/mp4",
+      "X-Move-Card-Context": metadataHeader({}),
+    },
+    body: Buffer.from("unauthorized video data"),
+  })).status, 401);
+});
+
+test("professional card publication requires owner verification and permission checks", async () => {
+  const cookie = ownerCookie();
+  const created = await fetch(`${baseUrl}/studio/move-cards/drafts`, {
+    method: "POST",
+    headers: {
+      Cookie: cookie,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      athleteName: "Test Athlete",
+      sport: "Basketball",
+      era: "Current",
+      team: "Test Team",
+      moveName: "Observed change of direction",
+      tagline: "A short description.",
+      explanation: "This draft is used only to test the publication gates.",
+      cues: ["Watch the change of direction."],
+      sourceType: "official",
+      sourceLabel: "Owner-verified test reference",
+      sourceUrl: null,
+      coverImageUrl: null,
+    }),
+  });
+  const createdBody = await created.json() as { id?: number; moderationStatus?: string; error?: string };
+  assert.equal(created.status, 201, createdBody.error);
+  const card = createdBody as { id: number; moderationStatus: string };
+  assert.equal(card.moderationStatus, "draft");
+
+  const baseUpdate = {
+    athleteName: "Test Athlete",
+    sport: "Basketball",
+    era: "Current",
+    team: "Test Team",
+    moveName: "Observed change of direction",
+    tagline: "A short description.",
+    explanation: "This draft is used only to test the publication gates.",
+    cues: ["Watch the change of direction."],
+    sourceType: "official",
+    sourceLabel: "Owner-verified test reference",
+    sourceUrl: null,
+    coverImageUrl: null,
+    action: "publish",
+  };
+  const tryPublish = (values: Record<string, unknown>) => fetch(`${baseUrl}/studio/move-cards/${card.id}`, {
+    method: "PATCH",
+    headers: { Cookie: cookie, "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+  assert.equal((await tryPublish({
+    ...baseUpdate, identityVerified: false, mediaPermissionConfirmed: false,
+  })).status, 400);
+  assert.equal((await tryPublish({
+    ...baseUpdate, identityVerified: true, mediaPermissionConfirmed: false,
+  })).status, 400);
+  assert.equal((await tryPublish({
+    ...baseUpdate, identityVerified: true, mediaPermissionConfirmed: true,
+  })).status, 400);
+  const published = await tryPublish({
+    ...baseUpdate,
+    sourceUrl: "https://example.org/verified-reference",
+    identityVerified: true,
+    mediaPermissionConfirmed: true,
+  });
+  assert.equal(published.status, 200);
+  assert.equal((await published.json() as { moderationStatus: string }).moderationStatus, "published");
 });
 
 test("selected catalog item travels from submission metadata through review and approved card", () => {
@@ -107,6 +246,7 @@ test("selected catalog item travels from submission metadata through review and 
   const row = {
     ...storedFields,
     id: submissionId,
+    professionalMoveCardId: null,
     videoObjectPath: "private/submission/video",
     videoFileName: "move.mp4",
     videoContentType: "video/mp4",

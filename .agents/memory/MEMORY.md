@@ -14,3 +14,4 @@
 - [API app integration test bundles](api-app-integration-test-bundles.md) — Full-app tests bundle every mounted router, so the database test double must export each router’s schema bindings.
 - [Promotional reel approvals](promotional-reel-approvals.md) — Preserve Reel #1; demo-label unverified content, verify music rights, and obtain paid-generation/export approval.
 - [Athlete move-card library](athlete-move-card-library.md) — Stage 1 adds searchable, owner-published athlete move challenges linked to multiple participant attempts.
+- [pnpm workspace rewrites](pnpm-workspace-rewrites.md) — Inspect workspace config and lockfile after adding packages; pnpm may reorder settings and drop security comments.

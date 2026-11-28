@@ -5,6 +5,7 @@ export type SubmissionMetadata = {
   sport: string;
   category: string;
   moveName: string;
+  professionalMoveCardId?: number;
   displayName: string;
   handle: string;
   team?: string;
@@ -26,6 +27,8 @@ function isSubmissionMetadata(value: unknown): value is SubmissionMetadata {
   return textInRange(input.sport, 1, 50)
     && ["Open", "Men's", "Women's", "Mixed"].includes(String(input.category))
     && textInRange(input.moveName, 1, 60)
+    && (input.professionalMoveCardId === undefined
+      || (Number.isSafeInteger(input.professionalMoveCardId) && Number(input.professionalMoveCardId) >= 1))
     && textInRange(input.displayName, 1, 50)
     && textInRange(input.handle, 1, 30)
     && (input.team === undefined || textInRange(input.team, 0, 60))
@@ -59,6 +62,7 @@ export function submissionFieldsFromMetadata(metadata: SubmissionMetadata) {
     sport: metadata.sport.trim(),
     category: metadata.category,
     moveName: metadata.moveName.trim(),
+    professionalMoveCardId: metadata.professionalMoveCardId ?? null,
     displayName: metadata.displayName.trim(),
     handle: metadata.handle.trim(),
     team: metadata.team?.trim() || null,
@@ -74,6 +78,7 @@ export function encodeMoveSubmissionForReview(row: MoveSubmissionRow) {
     sport: row.sport,
     category: row.category,
     moveName: row.moveName,
+    professionalMoveCardId: row.professionalMoveCardId,
     displayName: row.displayName,
     handle: row.handle,
     team: row.team,
@@ -99,6 +104,7 @@ export function encodeCommunityCard(row: MoveSubmissionRow) {
     sport: row.sport,
     category: row.category,
     moveName: row.moveName,
+    professionalMoveCardId: row.professionalMoveCardId,
     team: row.team,
     merchProductId: row.merchProductId,
     merchProductName: row.merchProductName,

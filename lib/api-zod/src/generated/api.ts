@@ -166,6 +166,10 @@ export const ListMoveCardsResponseItem = zod.object({
   "sourceLabel": zod.string(),
   "sourceUrl": zod.string().url().nullable(),
   "coverImageUrl": zod.string().nullable(),
+  "moderationStatus": zod.enum(['draft', 'published']),
+  "identityVerified": zod.boolean(),
+  "mediaPermissionConfirmed": zod.boolean(),
+  "aiGenerated": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 export const ListMoveCardsResponse = zod.array(ListMoveCardsResponseItem)
@@ -196,6 +200,204 @@ export const GetMoveCardResponse = zod.object({
   "sourceLabel": zod.string(),
   "sourceUrl": zod.string().url().nullable(),
   "coverImageUrl": zod.string().nullable(),
+  "moderationStatus": zod.enum(['draft', 'published']),
+  "identityVerified": zod.boolean(),
+  "mediaPermissionConfirmed": zod.boolean(),
+  "aiGenerated": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List athlete move cards for owner review
+ */
+export const ListStudioMoveCardsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "slug": zod.string(),
+  "athleteName": zod.string(),
+  "sport": zod.string(),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string(),
+  "moveName": zod.string(),
+  "tagline": zod.string(),
+  "explanation": zod.string(),
+  "cues": zod.array(zod.string()),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string(),
+  "sourceUrl": zod.string().url().nullable(),
+  "coverImageUrl": zod.string().nullable(),
+  "moderationStatus": zod.enum(['draft', 'published']),
+  "identityVerified": zod.boolean(),
+  "mediaPermissionConfirmed": zod.boolean(),
+  "aiGenerated": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+export const ListStudioMoveCardsResponse = zod.array(ListStudioMoveCardsResponseItem)
+
+
+/**
+ * @summary Create an owner-reviewed move card draft
+ */
+export const createStudioMoveCardDraftBodyAthleteNameMax = 100;
+
+export const createStudioMoveCardDraftBodySportMax = 50;
+
+export const createStudioMoveCardDraftBodyTeamMax = 100;
+
+export const createStudioMoveCardDraftBodyMoveNameMax = 100;
+
+export const createStudioMoveCardDraftBodyTaglineMax = 180;
+
+export const createStudioMoveCardDraftBodyExplanationMax = 2000;
+
+export const createStudioMoveCardDraftBodyCuesItemMax = 240;
+
+export const createStudioMoveCardDraftBodyCuesMax = 8;
+
+export const createStudioMoveCardDraftBodySourceLabelMax = 180;
+
+
+
+export const CreateStudioMoveCardDraftBody = zod.object({
+  "athleteName": zod.string().min(1).max(createStudioMoveCardDraftBodyAthleteNameMax),
+  "sport": zod.string().min(1).max(createStudioMoveCardDraftBodySportMax),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string().max(createStudioMoveCardDraftBodyTeamMax),
+  "moveName": zod.string().min(1).max(createStudioMoveCardDraftBodyMoveNameMax),
+  "tagline": zod.string().min(1).max(createStudioMoveCardDraftBodyTaglineMax),
+  "explanation": zod.string().min(1).max(createStudioMoveCardDraftBodyExplanationMax),
+  "cues": zod.array(zod.string().max(createStudioMoveCardDraftBodyCuesItemMax)).max(createStudioMoveCardDraftBodyCuesMax),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string().min(1).max(createStudioMoveCardDraftBodySourceLabelMax),
+  "sourceUrl": zod.string().url().nullable(),
+  "coverImageUrl": zod.string().url().nullable()
+})
+
+export const CreateStudioMoveCardDraftResponse = zod.object({
+  "id": zod.number().int(),
+  "slug": zod.string(),
+  "athleteName": zod.string(),
+  "sport": zod.string(),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string(),
+  "moveName": zod.string(),
+  "tagline": zod.string(),
+  "explanation": zod.string(),
+  "cues": zod.array(zod.string()),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string(),
+  "sourceUrl": zod.string().url().nullable(),
+  "coverImageUrl": zod.string().nullable(),
+  "moderationStatus": zod.enum(['draft', 'published']),
+  "identityVerified": zod.boolean(),
+  "mediaPermissionConfirmed": zod.boolean(),
+  "aiGenerated": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Edit, verify, or publish a move card
+ */
+
+
+
+export const UpdateStudioMoveCardParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const updateStudioMoveCardBodyOneAthleteNameMax = 100;
+
+export const updateStudioMoveCardBodyOneSportMax = 50;
+
+export const updateStudioMoveCardBodyOneTeamMax = 100;
+
+export const updateStudioMoveCardBodyOneMoveNameMax = 100;
+
+export const updateStudioMoveCardBodyOneTaglineMax = 180;
+
+export const updateStudioMoveCardBodyOneExplanationMax = 2000;
+
+export const updateStudioMoveCardBodyOneCuesItemMax = 240;
+
+export const updateStudioMoveCardBodyOneCuesMax = 8;
+
+export const updateStudioMoveCardBodyOneSourceLabelMax = 180;
+
+
+
+export const UpdateStudioMoveCardBody = zod.object({
+  "athleteName": zod.string().min(1).max(updateStudioMoveCardBodyOneAthleteNameMax),
+  "sport": zod.string().min(1).max(updateStudioMoveCardBodyOneSportMax),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string().max(updateStudioMoveCardBodyOneTeamMax),
+  "moveName": zod.string().min(1).max(updateStudioMoveCardBodyOneMoveNameMax),
+  "tagline": zod.string().min(1).max(updateStudioMoveCardBodyOneTaglineMax),
+  "explanation": zod.string().min(1).max(updateStudioMoveCardBodyOneExplanationMax),
+  "cues": zod.array(zod.string().max(updateStudioMoveCardBodyOneCuesItemMax)).max(updateStudioMoveCardBodyOneCuesMax),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string().min(1).max(updateStudioMoveCardBodyOneSourceLabelMax),
+  "sourceUrl": zod.string().url().nullable(),
+  "coverImageUrl": zod.string().url().nullable()
+}).and(zod.object({
+  "identityVerified": zod.boolean(),
+  "mediaPermissionConfirmed": zod.boolean(),
+  "action": zod.enum(['save', 'publish', 'unpublish'])
+}))
+
+export const UpdateStudioMoveCardResponse = zod.object({
+  "id": zod.number().int(),
+  "slug": zod.string(),
+  "athleteName": zod.string(),
+  "sport": zod.string(),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string(),
+  "moveName": zod.string(),
+  "tagline": zod.string(),
+  "explanation": zod.string(),
+  "cues": zod.array(zod.string()),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string(),
+  "sourceUrl": zod.string().url().nullable(),
+  "coverImageUrl": zod.string().nullable(),
+  "moderationStatus": zod.enum(['draft', 'published']),
+  "identityVerified": zod.boolean(),
+  "mediaPermissionConfirmed": zod.boolean(),
+  "aiGenerated": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Analyze an owner-authorized reference video and save a private draft
+ */
+export const generateStudioMoveCardDraftHeaderXMoveCardContextMax = 4096;
+
+
+
+export const GenerateStudioMoveCardDraftHeader = zod.object({
+  "X-Move-Card-Context": zod.string().max(generateStudioMoveCardDraftHeaderXMoveCardContextMax).describe('Base64url JSON with athlete, sport, source, and permission context')
+})
+
+export const GenerateStudioMoveCardDraftResponse = zod.object({
+  "id": zod.number().int(),
+  "slug": zod.string(),
+  "athleteName": zod.string(),
+  "sport": zod.string(),
+  "era": zod.enum(['Classic', 'Current']),
+  "team": zod.string(),
+  "moveName": zod.string(),
+  "tagline": zod.string(),
+  "explanation": zod.string(),
+  "cues": zod.array(zod.string()),
+  "sourceType": zod.enum(['user_clip', 'official']),
+  "sourceLabel": zod.string(),
+  "sourceUrl": zod.string().url().nullable(),
+  "coverImageUrl": zod.string().nullable(),
+  "moderationStatus": zod.enum(['draft', 'published']),
+  "identityVerified": zod.boolean(),
+  "mediaPermissionConfirmed": zod.boolean(),
+  "aiGenerated": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -210,6 +412,7 @@ export const ListCommunityCardsResponseItem = zod.object({
   "sport": zod.string(),
   "category": zod.string(),
   "moveName": zod.string(),
+  "professionalMoveCardId": zod.number().int().nullable(),
   "team": zod.string().nullable(),
   "merchProductId": zod.number().int().nullable(),
   "merchProductName": zod.string().nullable(),
@@ -234,6 +437,7 @@ export const GetCommunityCardResponse = zod.object({
   "sport": zod.string(),
   "category": zod.string(),
   "moveName": zod.string(),
+  "professionalMoveCardId": zod.number().int().nullable(),
   "team": zod.string().nullable(),
   "merchProductId": zod.number().int().nullable(),
   "merchProductName": zod.string().nullable(),
@@ -1294,6 +1498,7 @@ export const ListMoveSubmissionsForReviewResponseItem = zod.object({
   "sport": zod.string(),
   "category": zod.string(),
   "moveName": zod.string(),
+  "professionalMoveCardId": zod.number().int().nullable(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "merchProductId": zod.number().int().nullable(),
@@ -1328,6 +1533,7 @@ export const ReviewMoveSubmissionResponse = zod.object({
   "sport": zod.string(),
   "category": zod.string(),
   "moveName": zod.string(),
+  "professionalMoveCardId": zod.number().int().nullable(),
   "displayName": zod.string(),
   "handle": zod.string(),
   "merchProductId": zod.number().int().nullable(),

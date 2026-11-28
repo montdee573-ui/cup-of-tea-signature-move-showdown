@@ -1,10 +1,12 @@
 import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { moveCardsTable } from "./move-cards";
 
 export const moveSubmissionsTable = pgTable("move_submissions", {
   id: text("id").primaryKey(),
   sport: text("sport").notNull(),
   category: text("category").notNull(),
   moveName: text("move_name").notNull(),
+  professionalMoveCardId: integer("professional_move_card_id").references(() => moveCardsTable.id, { onDelete: "set null" }),
   displayName: text("display_name").notNull(),
   handle: text("handle").notNull(),
   team: text("team"),

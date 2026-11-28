@@ -20,6 +20,8 @@ export interface MoveSubmissionInput {
      * @maxLength 60
      */
   moveName: string;
+  /** @minimum 1 */
+  professionalMoveCardId?: number;
   /**
      * @minLength 1
      * @maxLength 50

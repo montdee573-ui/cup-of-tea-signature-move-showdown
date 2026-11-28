@@ -3,9 +3,11 @@ import { useParams, Link } from "wouter";
 import { ArrowLeft, ArrowUpRight, Check, CircleAlert, Copy, Share2 } from "lucide-react";
 import {
   getGetCommunityCardQueryKey,
+  getListMoveCardsQueryKey,
   getListMerchCatalogQueryKey,
   useGetCommunityCard,
   useListMerchCatalog,
+  useListMoveCards,
 } from "@workspace/api-client-react";
 
 export default function CommunityCardPage() {
@@ -16,6 +18,9 @@ export default function CommunityCardPage() {
       queryKey: getListMerchCatalogQueryKey(),
       enabled: Boolean(card.data?.merchProductId),
     },
+  });
+  const proCards = useListMoveCards({
+    query: { queryKey: getListMoveCardsQueryKey(), enabled: Boolean(card.data?.professionalMoveCardId) },
   });
   const [shareState, setShareState] = useState<"idle" | "copied" | "shared" | "error">("idle");
 
@@ -43,6 +48,7 @@ export default function CommunityCardPage() {
   const merchProduct = entry.merchProductId
     ? merchCatalog.data?.find((item) => item.id === entry.merchProductId)
     : undefined;
+  const professionalCard = proCards.data?.find((candidate) => candidate.id === entry.professionalMoveCardId);
   return <main className="community-detail">
     <Link className="back-link" href="/"><ArrowLeft size={15} /> All move cards</Link>
     <div className="community-detail-layout">
@@ -57,6 +63,7 @@ export default function CommunityCardPage() {
         <h1>{entry.displayName}</h1>
         <p className="community-handle">{entry.handle} · {entry.category}{entry.team ? ` · ${entry.team}` : ""}</p>
         <h2>{entry.moveName}</h2>
+        {professionalCard && <p className="community-challenge-link">COVER THIS MOVE · <Link href={`/cards/${professionalCard.slug}`}>{professionalCard.athleteName} — {professionalCard.moveName}</Link></p>}
         <p className="community-policy">This participant entry was approved for the public archive. Entry, voting, eligibility, and results are free and are never affected by merchandise.</p>
         {entry.merchProductId !== null && <p className="community-merch-match">PLANNED MERCH MATCH · {merchProduct?.title ?? entry.merchProductName ?? `Catalog item #${entry.merchProductId}`} <span>Planning only · no product or checkout</span></p>}
         <video className="community-video" controls playsInline preload="metadata" src={entry.videoUrl} aria-label={`Approved move video: ${entry.moveName}`} />

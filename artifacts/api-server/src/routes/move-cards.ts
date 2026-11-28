@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db, moveCardsTable } from "@workspace/db";
 import {
   GetMoveCardParams,
@@ -121,7 +121,7 @@ const seedMoveCards = [
 
 let seedPromise: Promise<void> | undefined;
 
-async function ensureSeeded(): Promise<void> {
+export async function ensureSeeded(): Promise<void> {
   if (!seedPromise) {
     seedPromise = db
       .insert(moveCardsTable)
@@ -142,6 +142,7 @@ router.get("/move-cards", async (req, res): Promise<void> => {
   const cards = await db
     .select()
     .from(moveCardsTable)
+    .where(eq(moveCardsTable.moderationStatus, "published"))
     .orderBy(asc(moveCardsTable.sortOrder), asc(moveCardsTable.id));
 
   req.log.info({ count: cards.length }, "Loaded athlete move cards");
@@ -159,7 +160,10 @@ router.get("/move-cards/:slug", async (req, res): Promise<void> => {
   const [card] = await db
     .select()
     .from(moveCardsTable)
-    .where(eq(moveCardsTable.slug, params.data.slug));
+    .where(and(
+      eq(moveCardsTable.slug, params.data.slug),
+      eq(moveCardsTable.moderationStatus, "published"),
+    ));
 
   if (!card) {
     res.status(404).json({ error: "Move card not found" });

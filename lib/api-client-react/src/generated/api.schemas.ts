@@ -25,6 +25,14 @@ export const MoveCardSourceType = {
   official: 'official',
 } as const;
 
+export type MoveCardModerationStatus = typeof MoveCardModerationStatus[keyof typeof MoveCardModerationStatus];
+
+
+export const MoveCardModerationStatus = {
+  draft: 'draft',
+  published: 'published',
+} as const;
+
 export interface MoveCard {
   id: number;
   slug: string;
@@ -42,8 +50,89 @@ export interface MoveCard {
   sourceUrl: string | null;
   /** @nullable */
   coverImageUrl: string | null;
+  moderationStatus: MoveCardModerationStatus;
+  identityVerified: boolean;
+  mediaPermissionConfirmed: boolean;
+  aiGenerated: boolean;
   createdAt: string;
 }
+
+export type StudioMoveCardDraftInputEra = typeof StudioMoveCardDraftInputEra[keyof typeof StudioMoveCardDraftInputEra];
+
+
+export const StudioMoveCardDraftInputEra = {
+  Classic: 'Classic',
+  Current: 'Current',
+} as const;
+
+export type StudioMoveCardDraftInputSourceType = typeof StudioMoveCardDraftInputSourceType[keyof typeof StudioMoveCardDraftInputSourceType];
+
+
+export const StudioMoveCardDraftInputSourceType = {
+  user_clip: 'user_clip',
+  official: 'official',
+} as const;
+
+export interface StudioMoveCardDraftInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  athleteName: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  sport: string;
+  era: StudioMoveCardDraftInputEra;
+  /** @maxLength 100 */
+  team: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  moveName: string;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  tagline: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  explanation: string;
+  /**
+     * @maxItems 8
+     * @items.maxLength 240
+     */
+  cues: string[];
+  sourceType: StudioMoveCardDraftInputSourceType;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  sourceLabel: string;
+  /** @nullable */
+  sourceUrl: string | null;
+  /** @nullable */
+  coverImageUrl: string | null;
+}
+
+export type StudioMoveCardUpdateInputAction = typeof StudioMoveCardUpdateInputAction[keyof typeof StudioMoveCardUpdateInputAction];
+
+
+export const StudioMoveCardUpdateInputAction = {
+  save: 'save',
+  publish: 'publish',
+  unpublish: 'unpublish',
+} as const;
+
+export type StudioMoveCardUpdateInput = StudioMoveCardDraftInput & {
+  identityVerified: boolean;
+  mediaPermissionConfirmed: boolean;
+  action: StudioMoveCardUpdateInputAction;
+};
 
 export interface MerchCatalogItem {
   id: number;
@@ -216,6 +305,8 @@ export interface CommunityCard {
   sport: string;
   category: string;
   moveName: string;
+  /** @nullable */
+  professionalMoveCardId: number | null;
   /** @nullable */
   team: string | null;
   /** @nullable */
@@ -682,6 +773,8 @@ export interface MoveSubmissionInput {
      * @maxLength 60
      */
   moveName: string;
+  /** @minimum 1 */
+  professionalMoveCardId?: number;
   /**
      * @minLength 1
      * @maxLength 50
@@ -976,6 +1069,8 @@ export interface MoveSubmission {
   sport: string;
   category: string;
   moveName: string;
+  /** @nullable */
+  professionalMoveCardId: number | null;
   displayName: string;
   handle: string;
   /** @nullable */

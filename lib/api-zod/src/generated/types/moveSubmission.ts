@@ -13,6 +13,8 @@ export interface MoveSubmission {
   sport: string;
   category: string;
   moveName: string;
+  /** @nullable */
+  professionalMoveCardId: number | null;
   displayName: string;
   handle: string;
   /** @nullable */

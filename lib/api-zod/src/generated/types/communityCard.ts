@@ -15,6 +15,8 @@ export interface CommunityCard {
   category: string;
   moveName: string;
   /** @nullable */
+  professionalMoveCardId: number | null;
+  /** @nullable */
   team: string | null;
   /** @nullable */
   merchProductId: number | null;
