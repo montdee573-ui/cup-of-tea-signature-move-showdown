@@ -18,6 +18,10 @@ import {
 } from "../lib/studio-object-storage";
 
 const router: IRouter = Router();
+router.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  next();
+});
 const MAX_REFERENCE_CLIP_BYTES = 5 * 1024 * 1024;
 const supportedContentTypes = new Set(["video/mp4", "video/quicktime", "video/webm"]);
 const metadataSchema = z.object({

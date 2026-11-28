@@ -1,5 +1,11 @@
 import { creatorMotionOrdersTable } from "../../../../lib/db/src/schema/creator-motion-orders";
 import { moveSubmissionsTable } from "../../../../lib/db/src/schema/move-submissions";
+import {
+  promoterCommissionsTable,
+  promotersTable,
+  recruitmentOrganizationsTable,
+  recruitmentStaffTable,
+} from "../../../../lib/db/src/schema/promoters";
 import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
 import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
 import { studioReferenceClipsTable } from "../../../../lib/db/src/schema/studio-reference-clips";
@@ -68,6 +74,8 @@ export function seedCreatorMotionOrder(overrides: Partial<MotionOrderRow> = {}):
     generationError: "Generation failed.",
     generationStartedAt: null,
     generationRetryCount: 1,
+    attributedPromoterId: null,
+    attributedReferralCode: null,
     refundRequestStatus: "none",
     refundVerifiedAmountUsd: null,
     refundNotificationStatus: "not_sent",
@@ -210,4 +218,13 @@ export const db: any = {
 
 export { studioReferenceClipsTable };
 
-export { creatorMotionOrdersTable, moveSubmissionsTable, studioLoginAttemptsTable, studioReelsTable };
+export {
+  creatorMotionOrdersTable,
+  moveSubmissionsTable,
+  promoterCommissionsTable,
+  promotersTable,
+  recruitmentOrganizationsTable,
+  recruitmentStaffTable,
+  studioLoginAttemptsTable,
+  studioReelsTable,
+};

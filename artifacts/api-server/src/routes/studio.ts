@@ -19,6 +19,10 @@ import {
 import { reelVideoFile, saveReelVideo, verifyStorageAccess } from "../lib/studio-object-storage";
 
 const router: IRouter = Router();
+router.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  next();
+});
 const execFileAsync = promisify(execFile);
 const MODEL = "google/veo-3.1-fast";
 const COST_PER_OUTPUT_SECOND_USD = 0.15;
@@ -347,6 +351,10 @@ router.delete("/studio/session", (_req, res): void => {
 });
 
 router.get("/studio/settings", async (req, res): Promise<void> => {
+  if (!isOwner(req as SessionRequest)) {
+    res.status(401).json({ error: "Owner login required." });
+    return;
+  }
   const [firstTestPassed, storageReady, providerReady] = await Promise.all([
     hasPassedTest(),
     storageIsReady(req),
@@ -378,7 +386,11 @@ router.get("/studio/settings", async (req, res): Promise<void> => {
   }));
 });
 
-router.get("/studio/reels", async (_req, res): Promise<void> => {
+router.get("/studio/reels", async (req, res): Promise<void> => {
+  if (!isOwner(req as SessionRequest)) {
+    res.status(401).json({ error: "Owner login required." });
+    return;
+  }
   const runs = await db.select().from(studioReelsTable).orderBy(desc(studioReelsTable.createdAt));
   const refreshed = await Promise.all(runs.map(refreshRun));
   res.json(ListStudioReelsResponse.parse({
@@ -487,6 +499,10 @@ router.post("/studio/reels", async (req, res): Promise<void> => {
 });
 
 router.get("/studio/reels/:id/video", async (req, res): Promise<void> => {
+  if (!isOwner(req as SessionRequest)) {
+    res.status(401).json({ error: "Owner login required." });
+    return;
+  }
   const params = GetStudioReelVideoParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid reel ID." });
@@ -504,7 +520,7 @@ router.get("/studio/reels/:id/video", async (req, res): Promise<void> => {
     const range = req.headers.range;
     res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Content-Type", "video/mp4");
-    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     if (range && size > 0) {
       const match = /^bytes=(\d*)-(\d*)$/.exec(range);
       if (!match) {

@@ -1,3 +1,5 @@
+import { recordPromoterCommission } from "../lib/promoter-commission-ledger";
+import { resolvePromoterReferral } from "../lib/promoter-referral";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
@@ -47,6 +49,7 @@ let approvedPlanCache: { key: string; ready: boolean; checkedAt: number } | unde
 type WhopPayment = {
   id?: string;
   status?: string;
+  amount?: number | string | null;
   subtotal?: number | string | null;
   total?: number | string | null;
   tax_amount?: number | string | null;
@@ -544,6 +547,19 @@ async function refreshOrderStatus(
   if (order.status !== "pending") return order;
   const payment = await findVerifiedPayment(order, companyId);
   if (!payment?.id) return order;
+  // Record before marking paid so a failed ledger write can be retried.
+  // Live mode must be independently verified by the operator before enabling.
+  if (order.attributedReferralCode && order.attributedPromoterId
+      && process.env.WHOP_LIVE_PAYMENTS_VERIFIED === "true"
+      && process.env.PROMOTER_COMMISSIONS_ENABLED === "true"
+      && payment.refunded_amount != null && Number(payment.refunded_amount) === 0) {
+    await recordPromoterCommission({
+      attributedCode: order.attributedReferralCode, provider: "whop",
+      paymentId: payment.id, paymentVerified: true, livePayment: true,
+      refunded: false, amountCents: Math.round(Number(payment.amount) * 100),
+      currency: payment.currency ?? "", product: "motion-card"
+    });
+  }
   const [updated] = await db.update(creatorMotionOrdersTable)
     .set({
       status: "paid",
@@ -786,8 +802,13 @@ router.post("/creator-cards/:id/checkout", async (req, res): Promise<void> => {
     }
     if (reopened) order = reopened;
   } else {
+    // Capture attribution only on initial order creation; retries preserve it.
+    const referral = process.env.PROMOTER_ATTRIBUTION_ENABLED === "true"
+      ? await resolvePromoterReferral(req.get("X-Promoter-Referral")) : null;
     const [created] = await db.insert(creatorMotionOrdersTable)
-      .values({ submissionId: row.id, status: "creating", priceUsd: offer.priceUsd })
+      .values({ submissionId: row.id, status: "creating", priceUsd: offer.priceUsd,
+        attributedPromoterId: referral?.promoterId ?? null,
+        attributedReferralCode: referral?.referralCode ?? null })
       .onConflictDoNothing()
       .returning();
     order = created ?? await readOrder(row.id);

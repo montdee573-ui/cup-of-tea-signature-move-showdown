@@ -5,6 +5,12 @@ import { contestantsTable } from "../../../../lib/db/src/schema/contestants";
 import { creatorMotionOrdersTable } from "../../../../lib/db/src/schema/creator-motion-orders";
 import { moveCardsTable } from "../../../../lib/db/src/schema/move-cards";
 import { moveSubmissionsTable } from "../../../../lib/db/src/schema/move-submissions";
+import {
+  promoterCommissionsTable,
+  promotersTable,
+  recruitmentOrganizationsTable,
+  recruitmentStaffTable,
+} from "../../../../lib/db/src/schema/promoters";
 import { showdownVotesTable, showdownsTable } from "../../../../lib/db/src/schema/showdowns";
 import { studioLoginAttemptsTable } from "../../../../lib/db/src/schema/studio-login-attempts";
 import { studioReelsTable } from "../../../../lib/db/src/schema/studio-reels";
@@ -15,6 +21,10 @@ export {
   creatorMotionOrdersTable,
   moveCardsTable,
   moveSubmissionsTable,
+  promoterCommissionsTable,
+  promotersTable,
+  recruitmentOrganizationsTable,
+  recruitmentStaffTable,
   showdownVotesTable,
   showdownsTable,
   studioReferenceClipsTable,

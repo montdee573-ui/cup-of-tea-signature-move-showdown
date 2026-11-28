@@ -8,7 +8,7 @@ import {
   Video, Volume2, CreditCard, X,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import {
   getGetMoveCardQueryKey,
   getListMoveCardsQueryKey,
@@ -56,7 +56,10 @@ function Shell({ children }: { children: ReactNode }) {
         <Link href="/launch" className={location === '/launch' ? 'nav-active' : ''} data-testid="link-launch"><Megaphone size={14} /> Launch</Link>
         <Link href="/submit" className={location === '/submit' ? 'nav-active' : ''} data-testid="link-submit-move"><Zap size={14} /> Submit a move</Link>
         <Link href="/showdown" className={location === '/showdown' ? 'nav-active' : ''} data-testid="link-showdown"><CircleDot size={14} /> Free showdown</Link>
-        <Link href="/review" className={location === '/review' ? 'nav-active' : ''} data-testid="link-review-submissions"><LockKeyhole size={14} /> Review desk</Link>
+        <Link href="/gallery">Stage 2</Link>
+        <Link href="/championship">Stage 3</Link>
+        <Link href="/promoter">Promoter program</Link>
+        <Link href="/merch">Merchandise</Link>
       </nav>
       <span className="public-label"><span /> OPEN ARCHIVE · NO LOGIN</span>
     </header>
@@ -206,6 +209,7 @@ function Collection() {
         <div className="hero-stamp"><span>STUDY</span><i>THE</i><b>GAME</b></div>
       </section>
 
+      <StageDirectory />
       <section className="archive" id="collection">
         <div className="archive-head">
           <div><div className="eyebrow"><Film size={12} /> THE COLLECTION</div><h2>Moves worth rewinding.</h2></div>
@@ -292,11 +296,21 @@ const costLabel = (amount: number) => `$${amount.toFixed(2)}`;
 function Studio() {
   const queryClient = useQueryClient();
   const session = useGetStudioSession({ query: { queryKey: getGetStudioSessionQueryKey(), retry: false } });
-  const settings = useGetStudioSettings({ query: { queryKey: getGetStudioSettingsQueryKey(), retry: false } });
+  const authenticated = Boolean(session.data?.authenticated);
+  const settings = useGetStudioSettings({
+    query: {
+      queryKey: getGetStudioSettingsQueryKey(),
+      enabled: authenticated,
+      retry: false,
+      gcTime: 0,
+    },
+  });
   const reels = useListStudioReels({
     query: {
       queryKey: getListStudioReelsQueryKey(),
+      enabled: authenticated,
       retry: false,
+      gcTime: 0,
       refetchInterval: (query) => query.state.data?.reels.some((reel) => reel.status === 'starting' || reel.status === 'processing') ? 3500 : false,
     },
   });
@@ -308,7 +322,6 @@ function Studio() {
   const [brief, setBrief] = useState<(typeof promoBriefs)[number] | null>(null);
   const [duration, setDuration] = useState(4);
   const [confirmCost, setConfirmCost] = useState(false);
-  const authenticated = Boolean(session.data?.authenticated);
   const tested = Boolean(reels.data?.firstTestPassed || settings.data?.firstTestPassed);
   const rate = settings.data?.costPerSecondUsd ?? 0.15;
   const estimate = rate * duration;
@@ -318,8 +331,6 @@ function Studio() {
   const durationOptions = settings.data?.durationOptions?.length ? settings.data.durationOptions : [4, 6, 8];
   const invalidateSession = () => {
     void queryClient.invalidateQueries({ queryKey: getGetStudioSessionQueryKey() });
-    void queryClient.invalidateQueries({ queryKey: getGetStudioSettingsQueryKey() });
-    void queryClient.invalidateQueries({ queryKey: getListStudioReelsQueryKey() });
   };
   const signIn = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -359,6 +370,32 @@ function Studio() {
     });
   };
 
+  if (!authenticated) {
+    return <section className="studio-section" data-testid="studio-panel" aria-labelledby="team-access-heading">
+      <div className="studio-grid">
+        <div className="studio-access-panel">
+          <div className="studio-access-top"><span className="access-indicator" /><span>TEAM ACCESS REQUIRED</span></div>
+          <h1 id="team-access-heading">Private team sign-in</h1>
+          {session.isLoading ? <p role="status">Checking access…</p> : session.isError ? <>
+            <p role="alert">Team access could not be checked. Please try again.</p>
+            <button type="button" className="studio-quiet-button" onClick={() => void session.refetch()}>Try again</button>
+          </> : session.data?.configured === false ? <p role="status">Team access is unavailable. Contact the project administrator.</p> : <>
+            <p>Sign in with the existing team passphrase to continue.</p>
+            <form className="studio-login" onSubmit={signIn}>
+              <label htmlFor="studio-password">Team passphrase</label>
+              <input type="text" name="username" autoComplete="username" value="studio-owner" readOnly tabIndex={-1} aria-hidden="true" className="sr-only" />
+              <div className="studio-login-row">
+                <input id="studio-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter team passphrase" disabled={createSession.isPending} data-testid="input-studio-password" />
+                <button type="submit" disabled={!session.data?.configured || !password.trim() || createSession.isPending} data-testid="button-studio-login"><LockKeyhole size={14} /> {createSession.isPending ? 'Checking' : 'Sign in'}</button>
+              </div>
+              {loginError && <p className="form-error" role="alert" data-testid="status-login-error">{loginError}</p>}
+            </form>
+          </>}
+        </div>
+      </div>
+    </section>;
+  }
+
   return <section className="studio-section" id="studio" aria-labelledby="studio-heading" data-testid="studio-panel">
     <header className="studio-heading">
       <div><div className="launch-label"><Video size={13} /> PRIVATE PRODUCTION SUITE</div><h2 id="studio-heading">The reel<br /><em>studio.</em></h2><p>Owner-operated generation for the five campaign concepts above. Public archive browsing stays open; production stays private.</p></div>
@@ -370,7 +407,11 @@ function Studio() {
     <div className="studio-grid">
       <div className="studio-access-panel">
         <div className="studio-access-top"><span className={`access-indicator ${authenticated ? 'is-ready' : ''}`} /><span data-testid="status-owner-session">{session.isLoading ? 'CHECKING OWNER SESSION' : authenticated ? 'OWNER SESSION ACTIVE' : 'OWNER SESSION REQUIRED'}</span></div>
-        {authenticated ? <div className="owner-active"><div><strong>Production access</strong><p>Your session is private to the studio owner.</p></div><button className="studio-quiet-button" type="button" onClick={() => deleteSession.mutate(undefined, { onSuccess: invalidateSession })} disabled={deleteSession.isPending} data-testid="button-studio-signout"><LogOut size={14} /> {deleteSession.isPending ? 'Signing out' : 'Sign out'}</button></div> :
+        {authenticated ? <div className="owner-active"><div><strong>Production access</strong><p>Your session is private to the studio owner.</p></div><button className="studio-quiet-button" type="button" onClick={() => deleteSession.mutate(undefined, { onSuccess: () => {
+          queryClient.setQueryData(getGetStudioSessionQueryKey(), { configured: session.data?.configured ?? true, authenticated: false });
+          queryClient.removeQueries({ queryKey: getGetStudioSettingsQueryKey() });
+          queryClient.removeQueries({ queryKey: getListStudioReelsQueryKey() });
+        } })} disabled={deleteSession.isPending} data-testid="button-studio-signout"><LogOut size={14} /> {deleteSession.isPending ? 'Signing out' : 'Sign out'}</button></div> :
            <form className="studio-login" onSubmit={signIn}><label htmlFor="studio-password">Owner passphrase</label><input type="text" name="username" autoComplete="username" value="studio-owner" readOnly tabIndex={-1} aria-hidden="true" className="sr-only" /><div className="studio-login-row"><input id="studio-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter studio passphrase" disabled={createSession.isPending} data-testid="input-studio-password" /><button type="submit" disabled={!session.data?.configured || !password.trim() || createSession.isPending} data-testid="button-studio-login"><LockKeyhole size={14} /> {createSession.isPending ? 'Checking' : 'Unlock studio'}</button></div>
             {session.data?.configured === false && <p className="form-note" data-testid="status-studio-not-configured">Owner access is not configured on this server.</p>}{loginError && <p className="form-error" data-testid="status-login-error">{loginError}</p>}</form>}
         <div className="studio-access-foot"><ShieldCheck size={14} /><span>Paid predictions require owner login and a separate cost confirmation for every run.</span></div>
@@ -442,7 +483,7 @@ function Launch() {
         <div className="launch-hero-content">
           <div className="launch-kicker"><span className="launch-live-dot" /> PHASE 1 / CAMPAIGN PREP</div>
           <h1>Cup of Tea<br /><em>Signature Move</em><br />Showdown<span className="launch-period">.</span></h1>
-          <p className="launch-deck">Five short-form concepts for the Cup of Tea Signature Move Showdown. A free public archive up front; a private production suite behind the curtain.</p>
+          <p className="launch-deck">Five short-form concepts for the Cup of Tea Signature Move Showdown, built around a free public archive.</p>
           <div className="launch-hero-actions">
             <a className="launch-cta" href="#reel-briefs" data-testid="button-view-briefs">Explore the five briefs <ArrowRight size={15} /></a>
             <span className="launch-no-login">FREE TO ENTER <b>·</b> FREE TO VOTE</span>
@@ -479,20 +520,160 @@ function Launch() {
           </article>)}
         </div>
       </section>
-
-      <Studio />
-
-      <section className="production-strip" data-testid="text-production-notes">
-        <div className="production-heading"><span className="launch-label">IN THE EDIT SUITE</span><h2>Clip-based drafts ready.<br /><em>AI generation awaits approval.</em></h2></div>
-        <div className="production-assets"><div><span className="asset-count">02</span><p>Vertical edits<br /><b>34.1 sec · 720 × 1280</b></p></div><div><span className="asset-count">01</span><p>Landscape clip<br /><b>10.1 sec · 1920 × 1080</b></p></div></div>
-        <p className="date-note">Refresh any on-screen dates before publishing. Do not reuse the expired date shown in the older vertical edit.</p>
-      </section>
-
       <footer className="launch-footer">
         <span>THE MOVE IS YOURS.</span><span>THE SHOWDOWN IS OURS.</span><i>01 / 05 — PHASE 1</i>
       </footer>
     </main>
   </Shell>;
+}
+
+
+const stagePages = [
+  { stage: 1, title: 'Motion Card', pages: [['/', 'Main website and card gallery'], ['/submit', 'Signature move submission'], ['/creator-cards/:id', 'Creator card and motion-card access'], ['/community-cards/:id', 'Community trading cards'], ['/showdown', 'Free contest and voting'], ['/launch', 'Promotional campaign'], ['/studio/results', 'Contest results']] },
+  { stage: 2, title: 'Still Trading Card', pages: [['/gallery', 'Public still trading-card collection'], ['/community-cards/:id', 'Individual trading card and like counter'], ['/leaderboard', 'Card standings by verified likes'], ['/my-cards', 'Participant-owned cards'], ['/qualification', 'Progress toward 1,000 unique likes'], ['/rules', 'Pre-bracket voting and qualification rules']] },
+  { stage: 3, title: 'Championship', pages: [['/championship', 'Championship entrance'], ['/qualified-cards', 'Qualified cards'], ['/bracket', 'Card-versus-card competition'], ['/matchup/:id', 'Individual championship matchup']] },
+] as const;
+
+function TradingGallery() {
+  const community = useListCommunityCards({ query: { queryKey: getListCommunityCardsQueryKey(), refetchOnMount: 'always' } });
+  const [search, setSearch] = useState('');
+  const cards = (community.data ?? []).filter(card => [card.displayName, card.handle, card.moveName, card.sport].join(' ').toLowerCase().includes(search.trim().toLowerCase()));
+  return <Shell><main className="page"><section className="archive">
+    <div className="eyebrow">STAGE 2</div><h1>Community trading-card gallery</h1>
+    <p>Browse approved community entries. Still-card conversion and verified likes are not yet connected.</p>
+    <label className="search-field"><Search size={16}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search community cards" aria-label="Search community cards"/></label>
+    {community.isLoading ? <LoadingState /> : community.isError ? <ErrorState onRetry={() => void community.refetch()} /> : cards.length === 0 ? <p role="status">No matching community cards.</p> : <div className="card-grid">{cards.map((card, index) => <MoveTile key={card.id} index={index} card={{ id: card.id, slug: 'community-' + card.id, href: '/community-cards/' + card.id, athleteName: card.displayName, sport: card.sport, era: 'Community', team: card.team ?? '', moveName: card.moveName, tagline: card.handle + ' · ' + card.category, coverImageUrl: null, sourceType: 'user_clip', isCommunity: true }} />)}</div>}
+    <Link href="/qualification">Qualification information</Link>
+  </section></main></Shell>;
+}
+
+function MerchandiseStore() {
+  return <Shell><main className="page"><section className="archive">
+    <h1>Cup of Tea merchandise</h1><p>Three approved T-shirt designs only. Fulfilled through Printful once the store is verified.</p>
+    <div className="card-grid">{[1,2,3].map(number => <article className="state-panel" key={number}>
+      <h2>Design {number}</h2><p>Approved artwork and Printful listing awaiting connection.</p>
+      <label>Size <select disabled defaultValue=""><option value="">Availability pending</option>{['S','M','L','XL','2XL','3XL'].map(size => <option key={size}>{size}</option>)}</select></label>
+      <label>Color <select disabled><option>Availability pending</option></select></label>
+      <p>Price pending verification.</p><button type="button" disabled>Purchase unavailable</button>
+    </article>)}</div>
+    <p role="status">Checkout and promoter merchandise commissions are not enabled. No orders or payments are accepted here yet.</p>
+  </section></main></Shell>;
+}
+
+function PromoterProgram() {
+  return <Shell><main className="page"><section className="state-panel">
+    <h1>Official promoter program</h1><h2>What move would you put on your card?</h2>
+    <p>Earn $0.96 per verified $2 motion-card purchase and 48% of eligible T-shirt profit, up to $96 in combined daily commissions and $960 per ten-day campaign. No mandatory card quota. Earnings are not guaranteed; applicable wages remain separate.</p>
+    <p>Recruitment is not open yet. Eligibility, guardian consent where required, lawful work arrangements, payment verification and payout terms must be confirmed before participation.</p>
+    <p>Task 1: share your personal referral link. Task 2: assist customers with recording and submission. Both tasks may promote all three shirts in any available size. Online payments only.</p><Link href="/promoter/apply">Application information</Link>
+  </section></main></Shell>;
+}
+function PromoterApply() {
+  return <Shell><main className="page"><section className="state-panel"><h1>Promoter applications</h1>
+    <p role="status">Applications are not being collected yet. Do not submit personal information or payment details. Applicants under 18 must involve a parent or guardian.</p>
+    <Link href="/promoter">Return to promoter program</Link></section></main></Shell>;
+}
+function PromoterDashboard() {
+  return <Shell><main className="page"><section className="state-panel"><h1>Promoter dashboard</h1>
+    <p role="status">Private promoter accounts and verified sales tracking are not enabled. No earnings or referral codes are issued here yet.</p>
+    <h2>Combined commission tracker</h2><dl><dt>Motion-card commissions</dt><dd>Unavailable</dd><dt>T-shirt commissions</dt><dd>Unavailable</dd><dt>Daily credited commissions</dt><dd>Unavailable / $96.00</dd><dt>Ten-day credited commissions</dt><dd>Unavailable / $960.00</dd><dt>Pending payout</dt><dd>Unavailable</dd></dl><p>Both assignments count toward the same limits. Verified earnings will appear after secure account access and payment tracking are connected.</p>
+    <Link href="/promoter">Program information</Link></section></main></Shell>;
+}
+type PromoterQueueItem = { id: number; status: string; referralCode: string | null; eligibilityVerified: boolean; guardianConsentVerified: boolean };
+type RecruitmentOrganization = {id: number; name: string; recruitmentCode: string; active: boolean};
+function OrganizationControls() {
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const organizations = useQuery({
+    queryKey: ['private-recruitment-organizations'], retry: false, gcTime: 0,
+    queryFn: async (): Promise<RecruitmentOrganization[]> => {
+      const response = await fetch('/api/owner/promoters/organizations', {credentials: 'same-origin', cache: 'no-store'});
+      if (!response.ok) throw new Error('Unable to load organizations.');
+      return response.json();
+    }
+  });
+  async function change(path: string, action: string, body: object) {
+    setBusy(true); setError('');
+    try {
+      const response = await fetch('/api/owner/promoters/organizations' + path, {
+        method: 'POST', credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'X-Promoter-Action': action},
+        body: JSON.stringify(body)
+      });
+      if (!response.ok) throw new Error('Organization update failed.');
+      if (!path) setName('');
+      await organizations.refetch();
+    } catch { setError('Unable to update organization. Check owner session and server readiness.'); }
+    finally { setBusy(false); }
+  }
+  return <section className="state-panel"><h2>Recruitment organizations</h2>
+    <form onSubmit={event => {event.preventDefault(); if (!busy && name.trim()) void change('', 'create-organization', {name: name.trim()});}}>
+      <label>Organization name <input value={name} maxLength={160} required onChange={event => setName(event.target.value)} /></label>
+      <button disabled={busy || !name.trim()}>Register organization</button>
+    </form>
+    {error && <p role="alert">{error}</p>}
+    {organizations.isLoading && <p>Loading organizations…</p>}
+    {organizations.isError && <p role="alert">Unable to load organizations.</p>}
+    {organizations.data?.map(org => <article key={org.id}><h3>{org.name}</h3><p>{org.active ? 'Active' : 'Inactive'}</p><p>Recruitment code: <code>{org.recruitmentCode}</code></p>
+      <button disabled={busy} onClick={() => void change('/' + org.id + '/activation', 'organization-activation', {active: !org.active})}>{org.active ? 'Deactivate' : 'Activate'}</button>
+    </article>)}
+    <p>Application intake and shareable recruitment links remain disabled pending secure registration.</p>
+  </section>;
+}
+
+function OwnerPromoters() {
+  const session = useGetStudioSession({ query: { queryKey: getGetStudioSessionQueryKey(), retry: false } });
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('pending');
+  const queue = useQuery({
+    queryKey: ['private-promoter-queue', page, status],
+    enabled: session.data?.authenticated === true,
+    retry: false,
+    gcTime: 0,
+    queryFn: async (): Promise<{items: PromoterQueueItem[]; hasMore: boolean}> => {
+      const response = await fetch('/api/owner/promoters?' + new URLSearchParams({page: String(page), status}), {credentials: 'same-origin', cache: 'no-store'});
+      if (!response.ok) throw new Error('Unable to load private promoter records.');
+      return response.json();
+    }
+  });
+  return <Shell><main className="page"><section className="state-panel"><h1>Owner promoter management</h1>
+    {session.isLoading ? <p>Checking owner session…</p> : session.data?.authenticated ? <>
+      <label>Review queue <select value={status} onChange={event => {setStatus(event.target.value); setPage(1);}}><option value="pending">Pending</option><option value="approved">Approved</option></select></label>
+      {queue.isLoading ? <p>Loading applications…</p> : queue.isError ? <p role="alert">Unable to load applications. Check database and server readiness.</p> : <>
+        <p>Page {page}</p>
+        {queue.data?.items.length === 0 && <p>No applications in this queue.</p>}
+        {queue.data?.items.map(item => <article key={item.id}><h2>Application #{item.id}</h2><p>Status: {item.status}</p><p>Eligibility: {item.eligibilityVerified ? 'Confirmed' : 'Pending'} · Consent requirements: {item.guardianConsentVerified ? 'Confirmed' : 'Pending'}</p>{item.referralCode && <p>Referral link: <code>{window.location.origin + '/?ref=' + encodeURIComponent(item.referralCode)}</code></p>}</article>)}
+        <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</button>
+        <button disabled={!queue.data?.hasMore} onClick={() => setPage(p => p + 1)}>Next</button>
+      </>}
+      <OrganizationControls />
+      <p>Registration, verification controls and payout actions remain unavailable until tested.</p>
+    </> : <><p>Owner access required.</p><Link href="/owner">Sign in to owner studio</Link></>}
+  </section></main></Shell>;
+}
+
+function OwnerStudio() {
+  return <main className="page"><Studio /></main>;
+}
+
+function StageDirectory() {
+  return <section className="archive" aria-label="Three contest stages">
+    <h2>Cup of Tea — Signature Move Showdown</h2>
+    {stagePages.map(stage => <section key={stage.stage}>
+      <h3>Stage {stage.stage} — {stage.title}</h3>
+      <ul>{stage.pages.map(([path, label]) => <li key={path}>{path.includes(':id') ? <span>{label} — open an individual card or matchup when available</span> : <Link href={path}>{label}</Link>}</li>)}</ul>
+    </section>)}
+  </section>;
+}
+
+function StagePage({ heading, description }: { heading: string; description: string }) {
+  return <Shell><main className="page"><section className="state-panel">
+    <h1>{heading}</h1><p>{description}</p>
+    <p role="status">Integration pending. No live standings, ownership, qualification or championship results are asserted on this page.</p>
+    <Link href="/submit" className="button-primary">Submit a move</Link>
+    <Link href="/showdown">Existing free showdown</Link>
+  </section><StageDirectory /></main></Shell>;
 }
 
 export default function App() {
@@ -506,6 +687,21 @@ export default function App() {
     <Route path="/creator-cards/:id" component={CreatorCardPage} />
     <Route path="/review" component={SubmissionReview} />
     <Route path="/studio/results" component={ContestResults} />
+    <Route path="/owner" component={OwnerStudio} />
+    <Route path="/gallery" component={TradingGallery} />
+    <Route path="/leaderboard">{() => <StagePage heading="Leaderboard" description="Verified unique likes per still card." />}</Route>
+    <Route path="/my-cards">{() => <StagePage heading="My cards" description="Private ownership access requires secure authentication." />}</Route>
+    <Route path="/qualification">{() => <StagePage heading="Qualification" description="Target: 1,000 unique verified likes. Final eligibility policy is pending approval." />}</Route>
+    <Route path="/rules">{() => <StagePage heading="Pre-bracket rules" description="Free voting; one like per verified voter per card. No purchased votes. Final eligibility rules are pending." />}</Route>
+    <Route path="/championship">{() => <StagePage heading="Championship" description="Stage 3 entrance for qualified cards." />}</Route>
+    <Route path="/qualified-cards">{() => <StagePage heading="Qualified cards" description="Only server-verified eligible cards will appear here." />}</Route>
+    <Route path="/bracket">{() => <StagePage heading="Championship bracket" description="Official matchups will appear after verified qualification and bracket setup." />}</Route>
+    <Route path="/matchup/:id">{() => <StagePage heading="Championship matchup" description="Matchup data and voting are not yet connected." />}</Route>
+    <Route path="/promoter" component={PromoterProgram} />
+    <Route path="/promoter/apply" component={PromoterApply} />
+    <Route path="/promoter/dashboard" component={PromoterDashboard} />
+    <Route path="/owner/promoters" component={OwnerPromoters} />
+    <Route path="/merch" component={MerchandiseStore} />
     <Route component={NotFound} />
   </Switch>;
 }

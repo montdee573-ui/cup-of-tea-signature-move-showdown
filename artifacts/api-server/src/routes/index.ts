@@ -14,6 +14,8 @@ import resendWebhookRouter from "./resend-webhook";
 import creatorCardsRouter from "./creator-cards";
 import campaignMediaRouter from "./campaign-media";
 
+import promotersRouter from "./promoters";
+
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -30,5 +32,7 @@ router.use(showdownsRouter);
 router.use(contestResultsRouter);
 router.use(resendWebhookRouter);
 router.use(creatorCardsRouter);
+
+router.use(promotersRouter);
 
 export default router;

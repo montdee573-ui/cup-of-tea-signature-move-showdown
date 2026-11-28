@@ -16,6 +16,10 @@ import { ensureSeeded } from "./move-cards";
 import { studioReferenceClipFile } from "../lib/studio-object-storage";
 
 const router: IRouter = Router();
+router.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  next();
+});
 const MAX_REFERENCE_BYTES = 5 * 1024 * 1024;
 const MAX_ANALYSES_PER_HOUR = 5;
 const analysisWindows = new Map<string, { count: number; resetAt: number }>();

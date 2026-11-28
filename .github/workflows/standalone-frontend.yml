@@ -1,0 +1,31 @@
+name: Standalone frontend package
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/signature-move-showdown build
+        env:
+          PORT: '5173'
+          BASE_PATH: /
+      - run: test -s artifacts/signature-move-showdown/dist/public/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signature-move-showdown-frontend
+          path: artifacts/signature-move-showdown/dist/public/
+          if-no-files-found: error

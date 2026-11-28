@@ -169,6 +169,19 @@ test("unauthenticated requests cannot list, create, clear, or email contest resu
   assert.deepEqual((await results.json() as { results: unknown[] }).results, []);
 });
 
+test("anonymous visitors cannot read studio settings, reel history, or reel video", async () => {
+  const paths = [
+    "/api/studio/settings",
+    "/api/studio/reels",
+    "/api/studio/reels/1/video",
+  ];
+  for (const path of paths) {
+    const response = await fetch(`${publicApiBaseUrl}${path}`);
+    assert.equal(response.status, 401, path);
+    assert.match(response.headers.get("cache-control") ?? "", /private, no-store/);
+  }
+});
+
 test("owner login throttling persists failures, expires the window, and clears after success", async () => {
   resetStudioLoginAttempts();
   const simultaneousAttempts = await Promise.all(

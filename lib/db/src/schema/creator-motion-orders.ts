@@ -1,11 +1,15 @@
 import { doublePrecision, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { moveSubmissionsTable } from "./move-submissions";
 
+import { promotersTable } from "./promoters";
+
 export const creatorMotionOrdersTable = pgTable("creator_motion_orders", {
   id: serial("id").primaryKey(),
   submissionId: text("submission_id")
     .notNull()
     .references(() => moveSubmissionsTable.id, { onDelete: "cascade" }),
+  attributedPromoterId: integer("attributed_promoter_id").references(() => promotersTable.id),
+  attributedReferralCode: text("attributed_referral_code"),
   checkoutConfigurationId: text("checkout_configuration_id"),
   checkoutUrl: text("checkout_url"),
   paymentId: text("payment_id"),

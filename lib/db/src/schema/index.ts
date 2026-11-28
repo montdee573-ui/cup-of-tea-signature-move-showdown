@@ -28,3 +28,7 @@ export * from "./contest-result-email-settings";
 export * from "./creator-motion-orders";
 export * from "./studio-login-attempts";
 export * from "./studio-reference-clips";
+
+export { promotersTable, promoterCommissionsTable, recruitmentOrganizationsTable, recruitmentStaffTable } from "./promoters";
+
+export * from "./organization-cash";
